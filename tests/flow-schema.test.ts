@@ -57,4 +57,66 @@ describe('validateFlow', () => {
       ],
     })).toThrow(/zoom requires scale/v);
   });
+
+  test('accepts portfolio polish and timing controls', () => {
+    const flow = validateFlow({
+      startUrl: './fixtures/smoke.html',
+      timing: {
+        speed: 1.4,
+        moveMs: 180,
+      },
+      polish: {
+        cursor: {
+          style: 'modern',
+          accentColor: '#ff5f00',
+        },
+        actionRail: {
+          enabled: true,
+        },
+        captions: {
+          enabled: true,
+          position: 'bottom',
+        },
+        zoom: {
+          defaultScale: 1.08,
+          durationMs: 420,
+        },
+      },
+      steps: [
+        {
+          action: 'caption',
+          text: 'Open on proof, not a title slide.',
+        },
+        {
+          action: 'focus',
+          selector: '#nav-opportunities',
+          scale: 1.06,
+        },
+        {
+          action: 'resetZoom',
+        },
+      ],
+    });
+
+    expect(flow.polish?.cursor?.style).toBe('modern');
+    expect(flow.timing?.speed).toBe(1.4);
+    expect(flow.steps).toHaveLength(3);
+  });
+
+  test('rejects unsupported cursor styles', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      polish: {
+        cursor: {
+          style: 'sparkle',
+        },
+      },
+      steps: [
+        {
+          action: 'pause',
+          ms: 1,
+        },
+      ],
+    })).toThrow(/cursor\.style/v);
+  });
 });

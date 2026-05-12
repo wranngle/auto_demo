@@ -1,9 +1,12 @@
 export type DemoAction
   = | 'goto'
     | 'click'
+    | 'caption'
     | 'fill'
+    | 'focus'
     | 'hover'
     | 'press'
+    | 'resetZoom'
     | 'screenshot'
     | 'scroll'
     | 'pause'
@@ -29,8 +32,41 @@ export type DemoStep = {
   x?: number;
   y?: number;
   scale?: number;
+  durationMs?: number;
+  holdMs?: number;
   timeoutMs?: number;
   fullPage?: boolean;
+};
+
+export type DemoTiming = {
+  speed?: number;
+  moveMs?: number;
+  clickPauseMs?: number;
+  fillPauseMs?: number;
+  pressPauseMs?: number;
+  scrollPauseMs?: number;
+  zoomMs?: number;
+};
+
+export type DemoPolish = {
+  cursor?: {
+    style?: 'modern' | 'classic' | 'none';
+    accentColor?: string;
+    moveMs?: number;
+    pulseMs?: number;
+  };
+  actionRail?: {
+    enabled?: boolean;
+  };
+  captions?: {
+    enabled?: boolean;
+    position?: 'top' | 'bottom';
+  };
+  zoom?: {
+    defaultScale?: number;
+    durationMs?: number;
+    resetMs?: number;
+  };
 };
 
 export type DemoFlow = {
@@ -41,6 +77,8 @@ export type DemoFlow = {
     enabled?: boolean;
     size?: ViewportSize;
   };
+  timing?: DemoTiming;
+  polish?: DemoPolish;
   metadata?: Record<string, unknown>;
   steps: DemoStep[];
 };
@@ -58,6 +96,7 @@ export type RunOptions = {
   headed: boolean;
   recordVideo: boolean;
   slowMoMs: number;
+  speed: number;
 };
 
 export type StepEvent = {

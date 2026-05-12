@@ -2,7 +2,7 @@ import {readFile} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {type} from 'arktype';
 import type {
-  DemoAction, DemoFlow, DemoStep, LoadedFlow, ViewportSize,
+  DemoAction, DemoFlow, DemoPolish, DemoStep, DemoTiming, LoadedFlow, ViewportSize,
 } from './types.js';
 
 type UnknownRecord = Record<string, unknown>;
@@ -23,6 +23,8 @@ const flowShape = type({
       height: 'number',
     },
   },
+  [optionalKey('timing')]: 'object',
+  [optionalKey('polish')]: 'object',
   [optionalKey('metadata')]: 'object',
   steps: 'object[]',
 });
@@ -30,9 +32,12 @@ const flowShape = type({
 const actions = [
   'goto',
   'click',
+  'caption',
   'fill',
+  'focus',
   'hover',
   'press',
+  'resetZoom',
   'screenshot',
   'scroll',
   'pause',
@@ -74,6 +79,8 @@ export function validateFlow(input: unknown, label = 'flow'): DemoFlow {
   const startUrl = requireString(checkedRecord.startUrl, `${label}.startUrl`);
   const viewport = optionalViewport(checkedRecord.viewport, `${label}.viewport`);
   const record = optionalRecordSettings(checkedRecord.record, `${label}.record`);
+  const timing = optionalTiming(checkedRecord.timing, `${label}.timing`);
+  const polish = optionalPolish(checkedRecord.polish, `${label}.polish`);
   const metadata = optionalMetadata(checkedRecord.metadata, `${label}.metadata`);
   const rawSteps = requireRecordArray(checkedRecord.steps, `${label}.steps`);
 
@@ -109,6 +116,14 @@ export function validateFlow(input: unknown, label = 'flow'): DemoFlow {
     flow.record = record;
   }
 
+  if (timing !== undefined) {
+    flow.timing = timing;
+  }
+
+  if (polish !== undefined) {
+    flow.polish = polish;
+  }
+
   if (metadata !== undefined) {
     flow.metadata = metadata;
   }
@@ -135,9 +150,11 @@ function validateStep(input: Record<string, unknown>, label: string): asserts in
   assertOptionalNumber(input.x, `${label}.x`);
   assertOptionalNumber(input.y, `${label}.y`);
   assertOptionalNumber(input.scale, `${label}.scale`);
+  assertOptionalNumber(input.durationMs, `${label}.durationMs`);
+  assertOptionalNumber(input.holdMs, `${label}.holdMs`);
   assertOptionalNumber(input.timeoutMs, `${label}.timeoutMs`);
 
-  if ((action === 'click' || action === 'fill' || action === 'hover' || action === 'waitForSelector') && typeof input.selector !== 'string') {
+  if ((action === 'click' || action === 'fill' || action === 'focus' || action === 'hover' || action === 'waitForSelector') && typeof input.selector !== 'string') {
     throw new Error(`Invalid ${label}: ${action} requires selector`);
   }
 
@@ -155,6 +172,10 @@ function validateStep(input: Record<string, unknown>, label: string): asserts in
 
   if (action === 'waitForText' && typeof input.text !== 'string') {
     throw new Error(`Invalid ${label}: waitForText requires text`);
+  }
+
+  if (action === 'caption' && typeof input.text !== 'string') {
+    throw new Error(`Invalid ${label}: caption requires text`);
   }
 
   if (action === 'pause' && typeof input.ms !== 'number') {
@@ -227,6 +248,157 @@ function optionalRecordSettings(value: unknown, label: string): DemoFlow['record
   return settings;
 }
 
+function optionalTiming(value: unknown, label: string): DemoTiming | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, label);
+  const timing: DemoTiming = {};
+  const speed = optionalNumber(record.speed, `${label}.speed`);
+  const moveMs = optionalNonNegativeNumber(record.moveMs, `${label}.moveMs`);
+  const clickPauseMs = optionalNonNegativeNumber(record.clickPauseMs, `${label}.clickPauseMs`);
+  const fillPauseMs = optionalNonNegativeNumber(record.fillPauseMs, `${label}.fillPauseMs`);
+  const pressPauseMs = optionalNonNegativeNumber(record.pressPauseMs, `${label}.pressPauseMs`);
+  const scrollPauseMs = optionalNonNegativeNumber(record.scrollPauseMs, `${label}.scrollPauseMs`);
+  const zoomMs = optionalNonNegativeNumber(record.zoomMs, `${label}.zoomMs`);
+
+  if (speed !== undefined) {
+    if (speed <= 0 || speed > 8) {
+      throw new Error(`Invalid ${label}.speed: expected number > 0 and <= 8`);
+    }
+
+    timing.speed = speed;
+  }
+
+  if (moveMs !== undefined) {
+    timing.moveMs = moveMs;
+  }
+
+  if (clickPauseMs !== undefined) {
+    timing.clickPauseMs = clickPauseMs;
+  }
+
+  if (fillPauseMs !== undefined) {
+    timing.fillPauseMs = fillPauseMs;
+  }
+
+  if (pressPauseMs !== undefined) {
+    timing.pressPauseMs = pressPauseMs;
+  }
+
+  if (scrollPauseMs !== undefined) {
+    timing.scrollPauseMs = scrollPauseMs;
+  }
+
+  if (zoomMs !== undefined) {
+    timing.zoomMs = zoomMs;
+  }
+
+  return timing;
+}
+
+function optionalPolish(value: unknown, label: string): DemoPolish | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, label);
+  const polish: DemoPolish = {};
+
+  const cursor = optionalRecord(record.cursor, `${label}.cursor`);
+  if (cursor !== undefined) {
+    polish.cursor = optionalCursor(cursor, `${label}.cursor`);
+  }
+
+  const actionRail = optionalRecord(record.actionRail, `${label}.actionRail`);
+  if (actionRail !== undefined) {
+    const enabled = optionalBoolean(actionRail.enabled, `${label}.actionRail.enabled`);
+    polish.actionRail = enabled === undefined ? {} : {enabled};
+  }
+
+  const captions = optionalRecord(record.captions, `${label}.captions`);
+  if (captions !== undefined) {
+    polish.captions = optionalCaptions(captions, `${label}.captions`);
+  }
+
+  const zoom = optionalRecord(record.zoom, `${label}.zoom`);
+  if (zoom !== undefined) {
+    polish.zoom = optionalZoom(zoom, `${label}.zoom`);
+  }
+
+  return polish;
+}
+
+function optionalCursor(record: UnknownRecord, label: string): NonNullable<DemoPolish['cursor']> {
+  const cursor: NonNullable<DemoPolish['cursor']> = {};
+  const style = optionalString(record.style, `${label}.style`);
+  const accentColor = optionalString(record.accentColor, `${label}.accentColor`);
+  const moveMs = optionalNonNegativeNumber(record.moveMs, `${label}.moveMs`);
+  const pulseMs = optionalNonNegativeNumber(record.pulseMs, `${label}.pulseMs`);
+
+  if (style !== undefined) {
+    assertChoice(style, ['modern', 'classic', 'none'], `${label}.style`);
+    cursor.style = style;
+  }
+
+  if (accentColor !== undefined) {
+    cursor.accentColor = accentColor;
+  }
+
+  if (moveMs !== undefined) {
+    cursor.moveMs = moveMs;
+  }
+
+  if (pulseMs !== undefined) {
+    cursor.pulseMs = pulseMs;
+  }
+
+  return cursor;
+}
+
+function optionalCaptions(record: UnknownRecord, label: string): NonNullable<DemoPolish['captions']> {
+  const captions: NonNullable<DemoPolish['captions']> = {};
+  const enabled = optionalBoolean(record.enabled, `${label}.enabled`);
+  const position = optionalString(record.position, `${label}.position`);
+
+  if (enabled !== undefined) {
+    captions.enabled = enabled;
+  }
+
+  if (position !== undefined) {
+    assertChoice(position, ['top', 'bottom'], `${label}.position`);
+    captions.position = position;
+  }
+
+  return captions;
+}
+
+function optionalZoom(record: UnknownRecord, label: string): NonNullable<DemoPolish['zoom']> {
+  const zoom: NonNullable<DemoPolish['zoom']> = {};
+  const defaultScale = optionalNumber(record.defaultScale, `${label}.defaultScale`);
+  const durationMs = optionalNonNegativeNumber(record.durationMs, `${label}.durationMs`);
+  const resetMs = optionalNonNegativeNumber(record.resetMs, `${label}.resetMs`);
+
+  if (defaultScale !== undefined) {
+    if (defaultScale <= 0 || defaultScale > 2) {
+      throw new Error(`Invalid ${label}.defaultScale: expected number > 0 and <= 2`);
+    }
+
+    zoom.defaultScale = defaultScale;
+  }
+
+  if (durationMs !== undefined) {
+    zoom.durationMs = durationMs;
+  }
+
+  if (resetMs !== undefined) {
+    zoom.resetMs = resetMs;
+  }
+
+  return zoom;
+}
+
 function assertViewport(viewport: ViewportSize | undefined, label: string): void {
   if (viewport === undefined) {
     return;
@@ -265,6 +437,23 @@ function requireNumber(value: unknown, label: string): number {
   return value;
 }
 
+function optionalNumber(value: unknown, label: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return requireNumber(value, label);
+}
+
+function optionalNonNegativeNumber(value: unknown, label: string): number | undefined {
+  const number = optionalNumber(value, label);
+  if (number !== undefined && number < 0) {
+    throw new Error(`Invalid ${label}: expected number >= 0`);
+  }
+
+  return number;
+}
+
 function optionalBoolean(value: unknown, label: string): boolean | undefined {
   if (value === undefined) {
     return undefined;
@@ -275,6 +464,14 @@ function optionalBoolean(value: unknown, label: string): boolean | undefined {
   }
 
   return value;
+}
+
+function optionalRecord(value: unknown, label: string): UnknownRecord | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return requireRecord(value, label);
 }
 
 function assertOptionalString(value: unknown, label: string): void {
@@ -297,6 +494,12 @@ function assertOptionalNumber(value: unknown, label: string): void {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function assertChoice<T extends string>(value: string, choices: readonly T[], label: string): asserts value is T {
+  if (!(choices as readonly string[]).includes(value)) {
+    throw new Error(`Invalid ${label}: expected one of ${choices.join(', ')}`);
+  }
 }
 
 function isRecord(value: unknown): value is UnknownRecord {

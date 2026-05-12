@@ -1,0 +1,175 @@
+{
+  "name": "gtm-ops-console-portfolio",
+  "startUrl": "console/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1600,
+      "height": 900
+    }
+  },
+  "timing": {
+    "speed": 1.15,
+    "moveMs": 210,
+    "clickPauseMs": 300,
+    "scrollPauseMs": 260,
+    "zoomMs": 420
+  },
+  "polish": {
+    "cursor": {
+      "style": "modern",
+      "accentColor": "#ff5f00"
+    },
+    "actionRail": {
+      "enabled": true
+    },
+    "captions": {
+      "enabled": true,
+      "position": "bottom"
+    },
+    "zoom": {
+      "defaultScale": 1.055,
+      "durationMs": 420,
+      "resetMs": 300
+    }
+  },
+  "metadata": {
+    "scriptSource": "ElevenLabs video playbook",
+    "targetDurationSeconds": 90,
+    "shotOrder": "Callbacks, Calls, Pipeline, Generate, Proposals, Evals, Agents, Settings"
+  },
+  "steps": [
+    {
+      "action": "waitForText",
+      "text": "Callbacks",
+      "label": "Open callback command center"
+    },
+    {
+      "action": "caption",
+      "text": "Start with the operator surface: owed callbacks, blockers, and review queues.",
+      "ms": 1500,
+      "label": "Callbacks script beat"
+    },
+    {
+      "action": "focus",
+      "selector": "[aria-label^=\"Calls\"]",
+      "label": "Move to call evidence"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label^=\"Calls\"]",
+      "label": "Open Calls"
+    },
+    {
+      "action": "resetZoom",
+      "label": "Reset after Calls"
+    },
+    {
+      "action": "waitForText",
+      "text": "Transcript",
+      "label": "Show scored transcript"
+    },
+    {
+      "action": "caption",
+      "text": "Calls show transcript evidence, scoring, objections, and next-step context.",
+      "ms": 1300,
+      "label": "Calls script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label^=\"Pipeline\"]",
+      "label": "Open Pipeline"
+    },
+    {
+      "action": "caption",
+      "text": "Leads are ranked by intent, stage, and value before the pipeline creates work.",
+      "ms": 1400,
+      "label": "Pipeline script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label=\"Generate\"]",
+      "label": "Open Generate"
+    },
+    {
+      "action": "click",
+      "selector": "text=Load demo proof",
+      "label": "Load demo proof"
+    },
+    {
+      "action": "click",
+      "selector": "text=Use demo proof",
+      "label": "Bind proof"
+    },
+    {
+      "action": "click",
+      "selector": "text=Generate review draft",
+      "label": "Generate review draft"
+    },
+    {
+      "action": "waitForText",
+      "text": "proposal ready for review",
+      "timeoutMs": 12000,
+      "label": "Draft completes"
+    },
+    {
+      "action": "caption",
+      "text": "Generate binds buyer proof before a proposal can move to human review.",
+      "ms": 1500,
+      "label": "Generate script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label^=\"Proposals\"]",
+      "label": "Open Proposals"
+    },
+    {
+      "action": "caption",
+      "text": "The proposal engine keeps proof binding, blockers, and buyer-send control in one loop.",
+      "ms": 1500,
+      "label": "Proposal script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label^=\"Evals\"]",
+      "label": "Open Evals"
+    },
+    {
+      "action": "caption",
+      "text": "Eval evidence stays visible next to GTM work so prompt changes are measurable.",
+      "ms": 1400,
+      "label": "Evals script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label=\"Agents\"]",
+      "label": "Open Agents"
+    },
+    {
+      "action": "caption",
+      "text": "Agents keeps Sarah Intake, Sales Coach, and voice setup close to the workflow.",
+      "ms": 1200,
+      "label": "Agents script beat"
+    },
+    {
+      "action": "click",
+      "selector": "[aria-label=\"Settings\"]",
+      "label": "Open Settings"
+    },
+    {
+      "action": "caption",
+      "text": "Settings closes on governance, alerts, and integration controls.",
+      "ms": 1200,
+      "label": "Settings script beat"
+    },
+    {
+      "action": "screenshot",
+      "name": "gtm-ops-console-final",
+      "label": "Capture final frame"
+    }
+  ]
+}

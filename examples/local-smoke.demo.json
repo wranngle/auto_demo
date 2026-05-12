@@ -12,6 +12,30 @@
       "height": 720
     }
   },
+  "timing": {
+    "speed": 1.25,
+    "moveMs": 180,
+    "clickPauseMs": 160,
+    "zoomMs": 360
+  },
+  "polish": {
+    "cursor": {
+      "style": "modern",
+      "accentColor": "#ff5f00"
+    },
+    "actionRail": {
+      "enabled": true
+    },
+    "captions": {
+      "enabled": true,
+      "position": "bottom"
+    },
+    "zoom": {
+      "defaultScale": 1.06,
+      "durationMs": 360,
+      "resetMs": 260
+    }
+  },
   "steps": [
     {
       "action": "zoom",
@@ -24,9 +48,24 @@
       "label": "Confirm landing view"
     },
     {
+      "action": "caption",
+      "text": "Start on the working surface, then move through the UI in reading order.",
+      "ms": 900,
+      "label": "Show opening caption"
+    },
+    {
+      "action": "focus",
+      "selector": "#nav-opportunities",
+      "label": "Zoom toward the next action"
+    },
+    {
       "action": "click",
       "selector": "#nav-opportunities",
       "label": "Open opportunity review"
+    },
+    {
+      "action": "resetZoom",
+      "label": "Return to full context"
     },
     {
       "action": "waitForText",

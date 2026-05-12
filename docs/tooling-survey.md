@@ -47,13 +47,19 @@ recording.
 
 ## Tool direction
 
-`ui-demo-runner` starts with deterministic Playwright flows:
+`ui-demo-runner` is now the working path for repo-local demo capture:
 
 - JSON flow files live with the repo being demoed.
 - A run emits `recording.webm`, screenshots, and `manifest.json`.
-- Clicks get an in-page cursor/pulse overlay so the video is readable.
+- Clicks get a modern in-page cursor/pulse overlay so the video is readable.
+- Captions, action rails, speed controls, and smooth `focus` / `resetZoom`
+  actions keep recordings closer to polished Loom clips without manual editing.
 - Local files, `file://`, `http(s)://`, and relative URLs with `--base-url` are
   supported.
+
+For CLI-only repos, use VHS `.tape` files beside the browser flows. That keeps
+custom command-line demos deterministic while avoiding a fake browser shell
+around terminal tools.
 
 The next useful adapter is a PinchTab playback adapter for flows captured from
 live browser sessions. A desktop/computer-use adapter can sit behind the same

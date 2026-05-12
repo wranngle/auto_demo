@@ -20,6 +20,7 @@ program
   .option('--headed', 'Show the browser while recording')
   .option('--no-video', 'Disable Playwright video capture')
   .option('--slow-mo <ms>', 'Delay Playwright actions for human-readable demos', parseInteger, 0)
+  .option('--speed <factor>', 'Scale demo waits and cursor motion; 1.5 is faster, 0.75 is slower', parseSpeed, 1)
   .addOption(new Option('--json', 'Print the run result as JSON').default(false))
   .action(async (flowPath: string, options: {
     output: string;
@@ -27,6 +28,7 @@ program
     headed?: boolean;
     video: boolean;
     slowMo: number;
+    speed: number;
     json: boolean;
   }) => {
     try {
@@ -37,6 +39,7 @@ program
         headed: options.headed ?? false,
         recordVideo: options.video,
         slowMoMs: options.slowMo,
+        speed: options.speed,
       };
 
       const result = await runFlow(loaded.flow, options.baseUrl === undefined
@@ -68,6 +71,16 @@ function parseInteger(value: string): number {
 
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`Expected a non-negative integer, received ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseSpeed(value: string): number {
+  const parsed = Number.parseFloat(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 8) {
+    throw new Error(`Expected speed > 0 and <= 8, received ${value}`);
   }
 
   return parsed;
