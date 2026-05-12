@@ -1,0 +1,184 @@
+name: automerge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to arm for auto-merge
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automerge-${{ github.event.pull_request.number || inputs.pr || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    permissions:
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
+    steps:
+      - name: Resolve PR metadata
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          INPUT_PR_NUMBER: ${{ inputs.pr }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+          pr_number="${INPUT_PR_NUMBER:-${EVENT_PR_NUMBER:-}}"
+          if [[ -z "$pr_number" ]]; then
+            echo "No PR number supplied"; exit 0
+          fi
+          pr_json=$(gh pr view "$pr_number" --repo "$REPO" --json author,headRefName,headRefOid,isDraft,labels)
+          head_ref=$(jq -r '.headRefName' <<<"$pr_json")
+          head_oid=$(jq -r '.headRefOid' <<<"$pr_json")
+          author=$(jq -r '.author.login' <<<"$pr_json")
+          is_draft=$(jq -r '.isDraft' <<<"$pr_json")
+          labels=$(jq -r '[.labels[].name] | join(",")' <<<"$pr_json")
+          {
+            echo "number=$pr_number"
+            echo "head_ref=$head_ref"
+            echo "head_oid=$head_oid"
+            echo "author=$author"
+            echo "is_draft=$is_draft"
+            echo "labels=$labels"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fetch Dependabot metadata
+        if: steps.pr.outputs.author == 'dependabot[bot]'
+        id: dependabot
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gate and merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_OID: ${{ steps.pr.outputs.head_oid }}
+          AUTHOR: ${{ steps.pr.outputs.author }}
+          IS_DRAFT: ${{ steps.pr.outputs.is_draft }}
+          LABELS: ${{ steps.pr.outputs.labels }}
+          DEP_UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+          REQUIRED_CHECKS: "shell-lint,yaml-lint,test,gitleaks,actionlint,zizmor,workflow-lint"
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+          [[ -n "$PR_NUMBER" ]] || { echo "no PR number"; exit 0; }
+          [[ "$IS_DRAFT" != "true" ]] || { echo "draft PR; skipping"; exit 0; }
+
+          eligible=0
+          reason=""
+          if [[ "$HEAD_REF" == wip/* ]]; then
+            eligible=1
+            reason="wip autosync branch"
+          elif [[ ",$LABELS," == *",automerge,"* ]]; then
+            eligible=1
+            reason="automerge label"
+          elif [[ "$AUTHOR" == "dependabot[bot]" && "$DEP_UPDATE_TYPE" =~ ^version-update:semver-(patch|minor)$ ]]; then
+            eligible=1
+            reason="dependabot ${DEP_UPDATE_TYPE}"
+          fi
+
+          if [[ "$eligible" != 1 ]]; then
+            echo "not eligible for auto-merge: author=$AUTHOR head=$HEAD_REF labels=$LABELS update=$DEP_UPDATE_TYPE"
+            exit 0
+          fi
+
+          required_json=$(jq -cn --arg csv "$REQUIRED_CHECKS" '$csv | split(",") | map(select(length > 0))')
+          check_runs_file=$(mktemp)
+          statuses_file=$(mktemp)
+          stable_green=0
+          max_attempts=90
+          interval_seconds=10
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "check gate poll $attempt/$max_attempts for PR #$PR_NUMBER"
+            current_head=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid)
+            if [[ "$current_head" != "$HEAD_OID" ]]; then
+              echo "PR head changed from $HEAD_OID to $current_head; newer automerge run will decide"
+              exit 0
+            fi
+
+            gh api "repos/$REPO/commits/$HEAD_OID/check-runs?per_page=100" > "$check_runs_file"
+            gh api "repos/$REPO/commits/$HEAD_OID/status" > "$statuses_file"
+
+            failed=$(
+              {
+                jq -r '
+                  .check_runs[]
+                  | select(.name != "arm")
+                  | select(.status == "completed")
+                  | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out" or .conclusion == "action_required" or .conclusion == "startup_failure")
+                  | "check-run:\(.name)=\(.conclusion)"
+                ' "$check_runs_file"
+                jq -r '
+                  .statuses[]?
+                  | select(.state == "failure" or .state == "error")
+                  | "status:\(.context)=\(.state)"
+                ' "$statuses_file"
+              } | sed '/^$/d'
+            )
+            if [[ -n "$failed" ]]; then
+              printf 'blocking auto-merge; check failure detected:\n%s\n' "$failed"
+              exit 1
+            fi
+
+            missing_required=$(jq -r --argjson required "$required_json" '
+              [.check_runs[] | select(.name != "arm" and .status == "completed" and .conclusion == "success") | .name] as $passed
+              | $required[]
+              | select(($passed | index(.)) | not)
+            ' "$check_runs_file")
+            pending=$(
+              {
+                jq -r '
+                  .check_runs[]
+                  | select(.name != "arm")
+                  | select(.status != "completed")
+                  | "check-run:\(.name)=\(.status)"
+                ' "$check_runs_file"
+                jq -r '
+                  .statuses[]?
+                  | select(.state == "pending")
+                  | "status:\(.context)=\(.state)"
+                ' "$statuses_file"
+              } | sed '/^$/d'
+            )
+
+            if [[ -z "$missing_required" && -z "$pending" ]]; then
+              stable_green=$((stable_green + 1))
+              echo "green poll $stable_green/2 for PR #$PR_NUMBER ($reason)"
+              if (( stable_green >= 2 )); then
+                gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+                echo "merged after all observed checks were green: $reason"
+                exit 0
+              fi
+            else
+              stable_green=0
+              [[ -n "$missing_required" ]] && printf 'waiting for required checks:\n%s\n' "$missing_required"
+              [[ -n "$pending" ]] && printf 'waiting for pending checks:\n%s\n' "$pending"
+            fi
+
+            sleep "$interval_seconds"
+          done
+
+          echo "timed out waiting for green checks on PR #$PR_NUMBER"
+          exit 1

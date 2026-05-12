@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UI Demo Runner Smoke Fixture</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f5f7fb;
+        color: #172033;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: 110vh;
+      }
+
+      nav {
+        background: #101828;
+        color: white;
+        padding: 24px 18px;
+      }
+
+      nav h1 {
+        margin: 0 0 28px;
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 6px;
+        padding: 12px 14px;
+        background: #1f2a44;
+        color: white;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      button + button {
+        margin-top: 10px;
+      }
+
+      button.active {
+        background: #0ea5e9;
+      }
+
+      main {
+        padding: 34px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin: 22px 0;
+      }
+
+      input {
+        width: min(440px, 100%);
+        border: 1px solid #ccd5e1;
+        border-radius: 6px;
+        padding: 12px 14px;
+        font: inherit;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        min-height: 120px;
+        border: 1px solid #d7deea;
+        border-radius: 8px;
+        background: white;
+        padding: 18px;
+        box-shadow: 0 1px 2px rgb(16 24 40 / 0.06);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      [hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <nav aria-label="Demo sections">
+        <h1>Pipeline Console</h1>
+        <button id="nav-overview" class="active" type="button">Overview</button>
+        <button id="nav-opportunities" type="button">Opportunities</button>
+      </nav>
+      <main>
+        <section id="overview">
+          <h2>Pipeline Console</h2>
+          <p>Operational snapshot for a browser demo recording smoke test.</p>
+          <div class="grid">
+            <article class="card">
+              <strong>Qualified accounts</strong>
+              42 ready for review.
+            </article>
+            <article class="card">
+              <strong>Automation coverage</strong>
+              73 percent of repetitive workflow paths are scripted.
+            </article>
+            <article class="card">
+              <strong>Risk queue</strong>
+              5 items need operator review.
+            </article>
+          </div>
+        </section>
+
+        <section id="opportunities" hidden>
+          <h2>Opportunity Review</h2>
+          <p>Prioritized accounts, workflow notes, and next actions.</p>
+          <div class="toolbar">
+            <label for="search">Search</label>
+            <input id="search" type="search" placeholder="Filter accounts">
+          </div>
+          <div class="grid">
+            <article class="card">
+              <strong>Voice automation rollout</strong>
+              Discovery complete. Record demo path and proposal review.
+            </article>
+            <article class="card">
+              <strong>Support workflow cleanup</strong>
+              Replace manual triage with structured intake and routing.
+            </article>
+            <article class="card">
+              <strong>Compliance reporting</strong>
+              Add dashboard evidence and exportable audit packet.
+            </article>
+            <article class="card">
+              <strong>Data warehouse sync</strong>
+              Validate nightly load observability and error budget.
+            </article>
+            <article class="card">
+              <strong>Browser automation</strong>
+              Promote stable selectors and replayable smoke checks.
+            </article>
+            <article class="card">
+              <strong>Post-demo follow-up</strong>
+              Generate concise artifacts from the recorded flow manifest.
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      const overview = document.querySelector('#overview');
+      const opportunities = document.querySelector('#opportunities');
+      const overviewButton = document.querySelector('#nav-overview');
+      const opportunitiesButton = document.querySelector('#nav-opportunities');
+
+      function show(section) {
+        const isOpportunities = section === 'opportunities';
+        overview.hidden = isOpportunities;
+        opportunities.hidden = !isOpportunities;
+        overviewButton.classList.toggle('active', !isOpportunities);
+        opportunitiesButton.classList.toggle('active', isOpportunities);
+      }
+
+      overviewButton.addEventListener('click', () => show('overview'));
+      opportunitiesButton.addEventListener('click', () => show('opportunities'));
+    </script>
+  </body>
+</html>

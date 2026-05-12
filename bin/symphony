@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# symphony shim — delegates to the global dotfiles install.
+# Override SYMPHONY_HOME to point at a different symphony tree.
+set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+SYMPHONY_HOME="${SYMPHONY_HOME:-$HOME/.dotfiles/lib/symphony-elixir}"
+ESCRIPT="$SYMPHONY_HOME/bin/symphony"
+[[ -x $ESCRIPT ]]||{ printf 'symphony shim: escript missing at %s — run `dotfiles bootstrap` to build it\n' "$ESCRIPT" >&2; exit 1; }
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null||pwd)
+# `escript` (the runtime that interprets the built artifact) lives in the
+# mise-managed Erlang install. Add the active Erlang/Elixir bins to PATH
+# so the shim works in any shell, including ones that haven't sourced
+# `mise activate`. Falls back gracefully when mise is missing.
+if command -v mise >/dev/null 2>&1;then
+  for tool in erlang elixir;do
+    binDir=$(mise where "$tool" 2>/dev/null|sed 's:$:/bin:')
+    [[ -d $binDir ]]&&PATH="$binDir:$PATH"
+  done
+  export PATH
+fi
+exec "$ESCRIPT" --workflow "$PROJECT_ROOT/WORKFLOW.md" "$@"

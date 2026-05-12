@@ -1,0 +1,54 @@
+{
+  "name": "ui-demo-runner",
+  "version": "0.1.0",
+  "description": "Deterministic CLI runner for recording browser UI demos from flow files.",
+  "type": "module",
+  "bin": {
+    "ui-demo-runner": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "xo src tests",
+    "demo:smoke": "npm run build && node dist/cli.js run examples/local-smoke.demo.json --output .work/smoke-demo"
+  },
+  "keywords": [
+    "browser-automation",
+    "demo-recording",
+    "playwright",
+    "screen-recording",
+    "ui-automation"
+  ],
+  "author": "Cody Arnold",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "arktype": "^2.1.27",
+    "commander": "^14.0.2",
+    "playwright": "^1.57.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "eslint-config-xo-typescript": "^7.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15",
+    "xo": "^2.0.2"
+  },
+  "xo": {
+    "prettier": false,
+    "space": 2,
+    "semicolon": true,
+    "rules": {
+      "@typescript-eslint/consistent-type-definitions": "off"
+    }
+  }
+}

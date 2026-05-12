@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://wranngle.local/schemas/automation-policy.v1.json",
+  "title": "Automation Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "mode", "repo_class", "integration", "checks"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "managed"
+          }
+        }
+      },
+      "then": {
+        "required": ["forge", "style", "wip_refs", "finalizer"],
+        "properties": {
+          "wip_refs": {
+            "required": ["grammar", "ttl_days", "force_push_allowed", "gc_command"]
+          },
+          "finalizer": {
+            "required": ["required", "command", "baseline_required", "hook_mode", "output_format"],
+            "properties": {
+              "required": {
+                "const": true
+              },
+              "baseline_required": {
+                "const": true
+              },
+              "hook_mode": {
+                "const": "forbidden"
+              },
+              "output_format": {
+                "const": "ndjson"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "mode": {
+      "enum": ["managed", "unmanaged", "advisory"]
+    },
+    "repo_class": {
+      "enum": ["owned-greenfield", "owned-legacy", "client", "external", "unknown"]
+    },
+    "forge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "enum": ["github", "gitlab", "bitbucket", "gitea", "gerrit", "local", "unknown"]
+        },
+        "enforcement": {
+          "enum": ["policy-enforced", "advisory"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "overlay": {
+          "enum": ["none", "wranngle-house"]
+        },
+        "profile": {
+          "enum": ["repo-default", "trunk-based-squash", "release-train", "client-defined"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "quiet_seconds", "require_green"],
+      "properties": {
+        "default": {
+          "enum": ["snapshot-only", "integrate_when_green", "integrate", "paused"]
+        },
+        "quiet_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "require_pr": {
+          "type": "boolean"
+        },
+        "require_green": {
+          "type": "boolean"
+        },
+        "require_human_review": {
+          "type": "boolean"
+        },
+        "allow_immediate_merge_fallback": {
+          "type": "boolean"
+        },
+        "merge_method": {
+          "enum": ["squash", "merge", "rebase", "repo-default"]
+        },
+        "delete_branch_on_merge": {
+          "type": "boolean"
+        },
+        "integrate_branches": {
+          "$ref": "#/definitions/globList"
+        },
+        "skip_branches": {
+          "$ref": "#/definitions/globList"
+        }
+      }
+    },
+    "wip_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "grammar": {
+          "const": "wip/<agent-kind>/<session-id>/<base>"
+        },
+        "ttl_days": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "force_push_allowed": {
+          "type": "boolean"
+        },
+        "gc_command": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(\\./)?([A-Za-z0-9._-]+/)*git-wip-gc( +[^;&|`$()<>\\s]*)*$"
+        }
+      }
+    },
+    "finalizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(\\./)?([A-Za-z0-9._-]+/)*agent-git-guard(\\.sh)?( +[^;&|`$()<>\\s]*)*$"
+        },
+        "baseline_required": {
+          "type": "boolean"
+        },
+        "hook_mode": {
+          "enum": ["forbidden", "manual"]
+        },
+        "output_format": {
+          "enum": ["ndjson", "text"]
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "lint": {
+          "enum": ["auto_fix_then_block_if_failed", "block", "advisory"]
+        },
+        "tests": {
+          "enum": ["run_detected_stack", "block", "advisory"]
+        },
+        "secret_scan": {
+          "enum": ["block", "advisory", "disabled"]
+        }
+      }
+    },
+    "dirty_work": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "type": "boolean"
+        },
+        "cluster_with_llm": {
+          "type": "boolean"
+        },
+        "open_pr_after_quiet": {
+          "type": "boolean"
+        },
+        "open_pr_after_quiet_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_repair_attempts": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "safe_automerge": {
+          "$ref": "#/definitions/globList"
+        },
+        "review_required": {
+          "$ref": "#/definitions/globList"
+        },
+        "never_commit": {
+          "$ref": "#/definitions/globList"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "globList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

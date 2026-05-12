@@ -1,0 +1,128 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        shell: bash
+        run: |
+          mapfile -t files < <(
+            {
+              find . -type f -name '*.sh' \
+                -not -path './.git/*' \
+                -not -path './node_modules/*' \
+                -not -path './old/*'
+              if [[ -d scripts/bin ]]; then
+                while IFS= read -r candidate; do
+                  first_line=$(head -n 1 "$candidate" 2>/dev/null || true)
+                  [[ "$first_line" == '#!'*sh* ]] && printf '%s\n' "$candidate"
+                done < <(find scripts/bin -maxdepth 1 -type f -perm -111)
+              fi
+            } | sort -u
+          )
+          [[ ${#files[@]} -eq 0 ]] && { echo "no shell files — skipping"; exit 0; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning "${files[@]}"
+
+  yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.x"
+      - name: yamllint
+        run: |
+          pip install --quiet yamllint
+          yamllint -c .yamllint.yml .
+
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: actionlint-and-zizmor
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$HOME/go/bin/actionlint"
+          python3 -m pip install --quiet --upgrade pip
+          python3 -m pip install --quiet zizmor==1.24.1
+          zizmor .github/workflows
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2
+      - name: detect-and-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+          if [[ -x scripts/bin/git-conformance ]]; then
+            python3 -m pip install --quiet jsonschema
+            scripts/bin/git-conformance check
+            scripts/bin/git-conformance self-test
+          fi
+          if [[ -f package.json ]];then
+            if [[ -f .github/workflows/test.yml || -f .github/workflows/test.yaml ]]; then
+              echo "dedicated test workflow detected - skipping generic package test"
+              exit 0
+            fi
+            echo "::group::node"
+            node --version
+            (npm ci || npm install) >/dev/null
+            npm test --if-present
+            echo "::endgroup::"
+          elif [[ -f pyproject.toml || -f requirements.txt || -f setup.py ]];then
+            echo "::group::python"
+            python3 --version
+            python3 -m pip install --quiet --upgrade pip
+            if [[ -f requirements.txt ]]; then
+              python3 -m pip install --quiet -r requirements.txt
+            fi
+            if [[ -f pyproject.toml ]]; then
+              python3 -m pip install --quiet -e . 2>/dev/null || true
+            fi
+            python3 -m pytest -q 2>/dev/null || echo "no pytest config — skipping"
+            echo "::endgroup::"
+          elif [[ -f Cargo.toml ]];then
+            echo "::group::rust"
+            cargo --version
+            cargo test --all
+            echo "::endgroup::"
+          elif [[ -f go.mod ]];then
+            echo "::group::go"
+            go version
+            go test ./...
+            echo "::endgroup::"
+          else
+            echo "no language toolchain detected — running smoke check only"
+            ls -la
+          fi

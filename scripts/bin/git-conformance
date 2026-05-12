@@ -1,0 +1,524 @@
+#!/usr/bin/env bash
+# git-conformance -- structural conformance checks for the git-reconcile doctrine.
+set -euo pipefail
+
+usage(){
+  cat <<'USAGE'
+Usage:
+  git-conformance check [--repo PATH] [--allow-dirty]
+  git-conformance policy validate [POLICY_PATH]
+  git-conformance self-test
+
+Output is NDJSON: one JSON object per check.
+Exit 0 means no failing checks. Warnings do not fail.
+USAGE
+}
+
+repo=.
+allow_dirty=0
+failures=0
+
+emit(){
+  local check=$1 outcome=$2 severity=$3 message=$4 subject=${5:-}
+  jq -nc \
+    --arg check "$check" \
+    --arg outcome "$outcome" \
+    --arg severity "$severity" \
+    --arg message "$message" \
+    --arg subject "$subject" \
+    '{check:$check,outcome:$outcome,severity:$severity,message:$message} + (if $subject == "" then {} else {subject:$subject} end)'
+}
+
+pass(){ emit "$1" pass info "$2" "${3:-}"; }
+warn(){ emit "$1" warn warn "$2" "${3:-}"; }
+fail(){ emit "$1" fail error "$2" "${3:-}"; failures=$((failures+1)); }
+
+need_jq(){
+  command -v jq >/dev/null 2>&1 || {
+    printf '{"check":"prereq","outcome":"fail","severity":"error","message":"jq is required"}\n'
+    exit 2
+  }
+}
+
+script_root(){
+  local script_dir root
+  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+  root=$(git -C "$script_dir/../.." rev-parse --show-toplevel 2>/dev/null || true)
+  [[ -n "$root" ]] && printf '%s\n' "$root"
+}
+
+policy_path_for_repo(){
+  local root=$1
+  printf '%s/.automation/policy.json' "$root"
+}
+
+repo_schema_path(){
+  local root=$1
+  printf '%s/schemas/automation-policy.v1.json' "$root"
+}
+
+canonical_schema_path(){
+  local candidate root
+  candidate="${DOTFILES_HOME:-$HOME/.dotfiles}/schemas/automation-policy.v1.json"
+  [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+  root=$(script_root || true)
+  candidate="$root/schemas/automation-policy.v1.json"
+  [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+  return 1
+}
+
+schema_path_for_policy(){
+  local policy=$1 policy_root candidate root
+  policy_root=$(cd "$(dirname "$policy")/.." 2>/dev/null && pwd -P || true)
+  for candidate in \
+    "${GIT_CONFORMANCE_SCHEMA:-}" \
+    "${policy_root:+$policy_root/schemas/automation-policy.v1.json}" \
+    "${DOTFILES_HOME:-$HOME/.dotfiles}/schemas/automation-policy.v1.json";do
+    [[ -n "$candidate" && -f "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+  done
+  root=$(script_root || true)
+  candidate="$root/schemas/automation-policy.v1.json"
+  [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+  return 1
+}
+
+validate_policy_with_schema(){
+  local policy=$1 schema=$2
+  python3 - "$schema" "$policy" <<'PY'
+import json
+import sys
+
+schema_path, policy_path = sys.argv[1], sys.argv[2]
+try:
+    import jsonschema
+except Exception as exc:
+    print(f"python jsonschema module is required: {exc}", file=sys.stderr)
+    sys.exit(2)
+
+with open(schema_path, "r", encoding="utf-8") as fh:
+    schema = json.load(fh)
+with open(policy_path, "r", encoding="utf-8") as fh:
+    policy = json.load(fh)
+
+validator = jsonschema.Draft7Validator(schema)
+errors = sorted(validator.iter_errors(policy), key=lambda item: list(item.path))
+if errors:
+    for error in errors[:20]:
+        path = ".".join(str(part) for part in error.path) or "$"
+        print(f"{path}: {error.message}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
+validate_policy_file(){
+  local policy=${1:-.automation/policy.json} schema mode default required_count schema_err
+  need_jq
+  [[ -f "$policy" ]] || { fail policy.exists "missing policy file" "$policy"; return 0; }
+  jq empty "$policy" >/dev/null || { fail policy.json "policy is not valid JSON" "$policy"; return 0; }
+  pass policy.json "policy parses as JSON" "$policy"
+
+  if schema=$(schema_path_for_policy "$policy");then
+    pass policy.schema.available "automation policy schema found" "$schema"
+    schema_err=$(mktemp)
+    if validate_policy_with_schema "$policy" "$schema" 2>"$schema_err";then
+      pass policy.schema "policy validates against JSON Schema" "$schema"
+    else
+      fail policy.schema "policy failed JSON Schema validation" "$(tr '\n' ';' <"$schema_err" | cut -c1-500)"
+    fi
+    rm -f "$schema_err"
+  else
+    fail policy.schema.available "automation policy schema not found"
+  fi
+
+  mode=$(jq -r '.mode // empty' "$policy")
+  default=$(jq -r '.integration.default // empty' "$policy")
+  required_count=$(jq -r '(.checks.required // []) | length' "$policy")
+  [[ -n "$mode" ]] && pass policy.mode "mode declared" "$mode"
+  [[ -n "$default" ]] && pass policy.integration.default "integration default declared" "$default"
+  (( required_count > 0 )) && pass policy.checks.required "required checks declared" "$required_count"
+}
+
+require_for_mode(){
+  local mode=$1 check=$2 message=$3 subject=${4:-}
+  if [[ "$mode" == managed ]];then
+    fail "$check" "$message" "$subject"
+  else
+    warn "$check" "$message" "$subject"
+  fi
+}
+
+command_line_executable(){
+  local root=$1 command_line=$2 command_path
+  read -r command_path _ <<<"$command_line"
+  [[ -n "$command_path" ]] || return 1
+  if [[ "$command_path" == */* ]];then
+    [[ -x "$root/$command_path" || -x "$command_path" ]]
+  else
+    command -v "$command_path" >/dev/null 2>&1
+  fi
+}
+
+check_file_presence(){
+  local mode=$1 path=$2 check=$3 message=$4
+  if [[ -e "$path" ]];then
+    pass "$check" "$message" "$path"
+  else
+    require_for_mode "$mode" "$check" "$message" "$path"
+  fi
+}
+
+check_file_executable(){
+  local mode=$1 path=$2 check=$3 message=$4
+  if [[ -x "$path" ]];then
+    pass "$check" "$message" "$path"
+  else
+    require_for_mode "$mode" "$check" "$message" "$path"
+  fi
+}
+
+check_content_contracts(){
+  local root=$1 mode=$2
+  if [[ -f "$root/.gitattributes" ]] && grep -qxF '* text=auto' "$root/.gitattributes";then
+    pass repo.gitattributes.text_auto ".gitattributes declares text=auto"
+  else
+    require_for_mode "$mode" repo.gitattributes.text_auto ".gitattributes must declare * text=auto"
+  fi
+  if [[ -f "$root/.gitignore" ]] && grep -qxF '.env' "$root/.gitignore" && grep -qxF '.env.*' "$root/.gitignore";then
+    pass repo.gitignore.secrets ".gitignore blocks common env files"
+  else
+    require_for_mode "$mode" repo.gitignore.secrets ".gitignore must block .env and .env.*"
+  fi
+}
+
+check_legacy_agent_hooks(){
+  local mode=$1 found=() file
+  for file in \
+    "$HOME/.claude/settings.json" \
+    "$HOME/.codex/config.toml" \
+    "$HOME/.codex/settings.toml" \
+    "$HOME/.agents/settings/claude.json" \
+    "$HOME/.agents/settings/codex.toml";do
+    [[ -f "$file" ]] || continue
+    if grep -q 'agent-git-guard' "$file";then
+      found+=("$file")
+    fi
+  done
+  if ((${#found[@]} == 0));then
+    pass agent_hooks.legacy "no ambient agent-git-guard settings found"
+  else
+    require_for_mode "$mode" agent_hooks.legacy "ambient agent-git-guard settings must be removed" "$(IFS=,; printf '%s' "${found[*]}")"
+  fi
+}
+
+check_wip_refs(){
+  local root=$1 legacy ref branch
+  legacy=$(
+    while IFS= read -r ref;do
+      branch=${ref#refs/remotes/origin/}
+      branch=${branch#refs/heads/}
+      if [[ ! "$branch" =~ ^wip/[^/]+/[^/]+/[^/]+$ || "$branch" == wip/local/* ]];then
+        printf '%s\n' "$ref"
+      fi
+    done < <(git -C "$root" for-each-ref --format='%(refname)' refs/heads/wip refs/remotes/origin/wip 2>/dev/null)
+  )
+  if [[ -n "$legacy" ]];then
+    warn repo.wip_refs.legacy "legacy or malformed WIP refs remain" "$(printf '%s' "$legacy" | tr '\n' ',' | sed 's/,$//')"
+  else
+    pass repo.wip_refs.legacy "no legacy or malformed WIP refs found"
+  fi
+}
+
+check_repo(){
+  need_jq
+  local root policy mode schema canonical_schema finalizer_command gc_command status
+  root=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null || true)
+  [[ -n "$root" ]] || { fail repo.git "not inside a git repository" "$repo"; return; }
+  pass repo.git "inside git repository" "$root"
+
+  policy=$(policy_path_for_repo "$root")
+  validate_policy_file "$policy"
+  mode=$(jq -r '.mode // "unmanaged"' "$policy" 2>/dev/null || printf unmanaged)
+  [[ -n "$mode" ]] || mode=unmanaged
+  schema=$(repo_schema_path "$root")
+
+  check_file_presence "$mode" "$root/.gitattributes" repo.gitattributes ".gitattributes exists"
+  check_file_presence "$mode" "$root/.gitignore" repo.gitignore ".gitignore exists"
+  check_file_presence "$mode" "$schema" repo.schema "repo-local automation policy schema exists"
+  if [[ -f "$schema" ]] && canonical_schema=$(canonical_schema_path);then
+    if cmp -s "$schema" "$canonical_schema";then
+      pass repo.schema.current "repo-local schema matches canonical schema" "$schema"
+    else
+      require_for_mode "$mode" repo.schema.current "repo-local schema must match canonical schema" "$schema"
+    fi
+  fi
+  check_content_contracts "$root" "$mode"
+  check_file_executable "$mode" "$root/scripts/bin/git-autosync.sh" repo.autosync "git-autosync is executable"
+
+  finalizer_command=$(jq -r '.finalizer.command // empty' "$policy" 2>/dev/null || true)
+  if [[ -n "$finalizer_command" ]] && command_line_executable "$root" "$finalizer_command";then
+    pass repo.finalizer "policy finalizer command is executable" "$finalizer_command"
+  else
+    require_for_mode "$mode" repo.finalizer "policy finalizer command must be executable" "$finalizer_command"
+  fi
+
+  gc_command=$(jq -r '.wip_refs.gc_command // empty' "$policy" 2>/dev/null || true)
+  if [[ -n "$gc_command" ]] && command_line_executable "$root" "$gc_command";then
+    pass repo.wip_gc "policy WIP GC command is executable" "$gc_command"
+  else
+    require_for_mode "$mode" repo.wip_gc "policy WIP GC command must be executable" "$gc_command"
+  fi
+
+  check_legacy_agent_hooks "$mode"
+  check_wip_refs "$root"
+
+  status=$(git -C "$root" status --porcelain=v1 --untracked-files=all)
+  if [[ -n "$status" ]];then
+    if (( allow_dirty ));then
+      warn repo.clean "working tree is dirty but --allow-dirty was set"
+    else
+      fail repo.clean "working tree must be clean for release conformance"
+    fi
+  else
+    pass repo.clean "working tree is clean"
+  fi
+}
+
+write_policy_fixture(){
+  local path=$1 mode=$2
+  if [[ "$mode" == managed ]];then
+    cat > "$path" <<'JSON'
+{
+  "version": 1,
+  "mode": "managed",
+  "repo_class": "owned-greenfield",
+  "forge": {
+    "provider": "github",
+    "enforcement": "advisory"
+  },
+  "style": {
+    "overlay": "wranngle-house",
+    "profile": "trunk-based-squash"
+  },
+  "integration": {
+    "default": "integrate_when_green",
+    "quiet_seconds": 1,
+    "require_green": true
+  },
+  "wip_refs": {
+    "grammar": "wip/<agent-kind>/<session-id>/<base>",
+    "ttl_days": 30,
+    "force_push_allowed": true,
+    "gc_command": "scripts/bin/git-wip-gc --ttl-days 30"
+  },
+  "finalizer": {
+    "required": true,
+    "command": "scripts/bin/agent-git-guard.sh",
+    "baseline_required": true,
+    "hook_mode": "forbidden",
+    "output_format": "ndjson"
+  },
+  "checks": {
+    "required": ["test"]
+  }
+}
+JSON
+  else
+    cat > "$path" <<'JSON'
+{
+  "version": 1,
+  "mode": "advisory",
+  "repo_class": "external",
+  "integration": {
+    "default": "snapshot-only",
+    "quiet_seconds": 1,
+    "require_green": false
+  },
+  "checks": {
+    "required": ["test"]
+  }
+}
+JSON
+  fi
+}
+
+make_tmp_repo(){
+  local target=$1 mode=$2 with_managed_tools=${3:-0}
+  git init -q -b main "$target"
+  mkdir -p "$target/.automation"
+  write_policy_fixture "$target/.automation/policy.json" "$mode"
+  printf '* text=auto\n' > "$target/.gitattributes"
+  printf '.env\n.env.*\n' > "$target/.gitignore"
+  if (( with_managed_tools ));then
+    mkdir -p "$target/schemas" "$target/scripts/bin"
+    cp "$(schema_path_for_policy "$target/.automation/policy.json")" "$target/schemas/automation-policy.v1.json"
+    for name in git-autosync.sh git-wip-gc agent-git-guard.sh;do
+      printf '#!/usr/bin/env bash\nexit 0\n' > "$target/scripts/bin/$name"
+      chmod +x "$target/scripts/bin/$name"
+    done
+  fi
+  git -C "$target" add .
+  git -C "$target" -c user.name=Test -c user.email=test@example.invalid commit -qm init
+}
+
+self_test(){
+  need_jq
+  local tmp policy bad_policy smuggle_policy newline_policy lf_command cr_command managed_repo advisory_repo dirty_repo output guard_repo guard_state guard_script unicode_path renamed_path root wip_gc_script wip_repo
+  tmp=$(mktemp -d)
+  mkdir -p "$tmp/.automation"
+  policy="$tmp/.automation/policy.json"
+  write_policy_fixture "$policy" managed
+  validate_policy_file "$policy"
+
+  bad_policy="$tmp/.automation/bad-policy.json"
+  write_policy_fixture "$bad_policy" managed
+  jq '.wip_refs.grammar = "wip/local/<branch>" | .finalizer.hook_mode = "ambient" | .finalizer.output_format = "text"' \
+    "$bad_policy" > "$bad_policy.tmp"
+  mv "$bad_policy.tmp" "$bad_policy"
+  if "$0" policy validate "$bad_policy" >/dev/null 2>&1;then
+    fail self_test.negative_policy "invalid managed policy unexpectedly passed" "$bad_policy"
+  else
+    pass self_test.negative_policy "invalid managed policy fixture fails as expected" "$bad_policy"
+  fi
+
+  smuggle_policy="$tmp/.automation/smuggle-policy.json"
+  write_policy_fixture "$smuggle_policy" managed
+  jq '.finalizer.command = "evil && scripts/bin/agent-git-guard.sh" | .wip_refs.gc_command = "evil && scripts/bin/git-wip-gc --ttl-days 30"' \
+    "$smuggle_policy" > "$smuggle_policy.tmp"
+  mv "$smuggle_policy.tmp" "$smuggle_policy"
+  if "$0" policy validate "$smuggle_policy" >/dev/null 2>&1;then
+    fail self_test.negative_policy_command "policy command smuggling unexpectedly passed" "$smuggle_policy"
+  else
+    pass self_test.negative_policy_command "policy command smuggling fails as expected" "$smuggle_policy"
+  fi
+
+  newline_policy="$tmp/.automation/newline-policy.json"
+  write_policy_fixture "$newline_policy" managed
+  lf_command=$'scripts/bin/agent-git-guard.sh\nrm -rf /tmp'
+  cr_command=$'scripts/bin/git-wip-gc --ttl-days 30\rrm -rf /tmp'
+  jq --arg finalizer "$lf_command" --arg gc "$cr_command" \
+    '.finalizer.command = $finalizer | .wip_refs.gc_command = $gc' \
+    "$newline_policy" > "$newline_policy.tmp"
+  mv "$newline_policy.tmp" "$newline_policy"
+  if "$0" policy validate "$newline_policy" >/dev/null 2>&1;then
+    fail self_test.negative_policy_command_newline "policy command newline smuggling unexpectedly passed" "$newline_policy"
+  else
+    pass self_test.negative_policy_command_newline "policy command newline smuggling fails as expected" "$newline_policy"
+  fi
+
+  managed_repo="$tmp/managed"
+  make_tmp_repo "$managed_repo" managed 1
+  rm -f "$managed_repo/.gitattributes"
+  if output=$("$0" check --repo "$managed_repo" --allow-dirty 2>&1);then
+    fail self_test.negative_repo "managed repo missing .gitattributes unexpectedly passed" "$managed_repo"
+  elif grep -q '"check":"repo.gitattributes"' <<<"$output";then
+    pass self_test.negative_repo "managed repo missing .gitattributes fails as expected" "$managed_repo"
+  else
+    fail self_test.negative_repo "managed repo failed for the wrong reason" "$(printf '%s' "$output" | cut -c1-400)"
+  fi
+
+  advisory_repo="$tmp/advisory"
+  make_tmp_repo "$advisory_repo" advisory 0
+  rm -f "$advisory_repo/.gitattributes"
+  if "$0" check --repo "$advisory_repo" --allow-dirty >/dev/null 2>&1;then
+    pass self_test.advisory_repo "advisory repo missing managed tools warns but passes" "$advisory_repo"
+  else
+    fail self_test.advisory_repo "advisory repo missing managed tools should not fail" "$advisory_repo"
+  fi
+
+  dirty_repo="$tmp/dirty"
+  make_tmp_repo "$dirty_repo" managed 1
+  printf 'dirty\n' >> "$dirty_repo/.gitignore"
+  if output=$("$0" check --repo "$dirty_repo" 2>&1);then
+    fail self_test.dirty_repo "dirty repo unexpectedly passed without --allow-dirty" "$dirty_repo"
+  elif grep -q '"check":"repo.clean"' <<<"$output";then
+    pass self_test.dirty_repo "dirty repo fails without --allow-dirty" "$dirty_repo"
+  else
+    fail self_test.dirty_repo "dirty repo failed for the wrong reason" "$(printf '%s' "$output" | cut -c1-400)"
+  fi
+
+  root=$(script_root || true)
+  guard_script="$root/scripts/bin/agent-git-guard.sh"
+  if [[ -x "$guard_script" ]];then
+    guard_repo="$tmp/guard"
+    guard_state="$tmp/guard-state"
+    unicode_path=$'caf\303\251.txt'
+    renamed_path=$'caf\303\251 renamed.txt'
+    git init -q -b main "$guard_repo"
+    printf 'one\n' > "$guard_repo/$unicode_path"
+    git -C "$guard_repo" add .
+    git -C "$guard_repo" -c user.name=Test -c user.email=test@example.invalid commit -qm init
+    mv "$guard_repo/$unicode_path" "$guard_repo/$renamed_path"
+    AGENT_GIT_GUARD_STATE_DIR="$guard_state" AGENT_GIT_GUARD_SESSION=unicode-rename "$guard_script" baseline "$guard_repo" >/dev/null
+    if AGENT_GIT_GUARD_STATE_DIR="$guard_state" AGENT_GIT_GUARD_SESSION=unicode-rename "$guard_script" finalize "$guard_repo" >/dev/null;then
+      pass self_test.guard_unicode_rename "unchanged unicode rename survives baseline/finalize" "$guard_repo"
+    else
+      fail self_test.guard_unicode_rename "unchanged unicode rename should pass finalizer" "$guard_repo"
+    fi
+    printf 'two\n' >> "$guard_repo/$renamed_path"
+    if output=$(AGENT_GIT_GUARD_STATE_DIR="$guard_state" AGENT_GIT_GUARD_SESSION=unicode-rename "$guard_script" finalize "$guard_repo" 2>&1);then
+      fail self_test.guard_unicode_rename_changed "changed unicode rename unexpectedly passed" "$guard_repo"
+    elif grep -q '"check":"dirty.changed"' <<<"$output";then
+      pass self_test.guard_unicode_rename_changed "changed unicode rename fails finalizer" "$guard_repo"
+    else
+      fail self_test.guard_unicode_rename_changed "changed unicode rename failed for wrong reason" "$(printf '%s' "$output" | cut -c1-400)"
+    fi
+  else
+    warn self_test.guard_unicode_rename "agent-git-guard script not found; skipping guard fixture" "$guard_script"
+  fi
+
+  wip_gc_script="$root/scripts/bin/git-wip-gc"
+  if [[ -x "$wip_gc_script" ]];then
+    wip_repo="$tmp/wip-gc"
+    git init -q -b main "$wip_repo"
+    printf 'one\n' > "$wip_repo/a.txt"
+    git -C "$wip_repo" add .
+    git -C "$wip_repo" -c user.name=Test -c user.email=test@example.invalid commit -qm init
+    git -C "$wip_repo" branch wip/autosync/local/main
+    output=$("$wip_gc_script" --repo "$wip_repo" --ttl-days 0 --apply)
+    if git -C "$wip_repo" rev-parse --verify --quiet wip/autosync/local/main >/dev/null \
+       && grep -q 'PR liveness check unavailable' <<<"$output";then
+      pass self_test.wip_gc_pr_unavailable "WIP GC refuses deletion when PR check is unavailable" "$wip_repo"
+    else
+      fail self_test.wip_gc_pr_unavailable "WIP GC should refuse deletion when PR check is unavailable" "$(printf '%s' "$output" | cut -c1-400)"
+    fi
+  else
+    warn self_test.wip_gc_pr_unavailable "git-wip-gc script not found; skipping WIP GC fixture" "$wip_gc_script"
+  fi
+  rm -rf "$tmp"
+}
+
+cmd=${1:-check}
+shift || true
+case "$cmd" in
+  check)
+    while [[ $# -gt 0 ]];do
+      case "$1" in
+        --repo) repo=${2:-}; shift 2;;
+        --allow-dirty) allow_dirty=1; shift;;
+        -h|--help) usage; exit 0;;
+        *) repo=$1; shift;;
+      esac
+    done
+    check_repo
+    ;;
+  policy)
+    sub=${1:-}
+    shift || true
+    [[ "$sub" == validate ]] || { usage >&2; exit 2; }
+    validate_policy_file "${1:-.automation/policy.json}"
+    ;;
+  self-test)
+    self_test
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if (( failures > 0 ));then
+  exit 1
+fi

@@ -1,0 +1,40 @@
+name: pr-link-check
+on:
+  pull_request:
+    types: [opened, edited]
+permissions:
+  contents: read
+jobs:
+  check-issue-link:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: write
+    steps:
+      - name: Verify PR body links an issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+          # Bypassing WIP branches automatically
+          if [[ "$HEAD_REF" == wip/* ]]; then
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label pr-needs-issue 2>/dev/null || true
+            echo "WIP PRs bypass issue link requirement; cleared pr-needs-issue if present"
+            exit 0
+          fi
+
+          if printf '%s' "$PR_BODY" | grep -qiE '(closes|fixes|resolves)[[:space:]]+#[0-9]+'; then
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label pr-needs-issue 2>/dev/null || true
+            echo "PR has issue link; cleared pr-needs-issue if present"
+            exit 0
+          fi
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label pr-needs-issue 2>/dev/null || true
+          echo "PR is missing an issue link; applied pr-needs-issue label"

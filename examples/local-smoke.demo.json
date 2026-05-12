@@ -1,0 +1,54 @@
+{
+  "name": "local-smoke",
+  "startUrl": "./fixtures/smoke.html",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "steps": [
+    {
+      "action": "zoom",
+      "scale": 0.95,
+      "label": "Fit the page to the recording frame"
+    },
+    {
+      "action": "waitForText",
+      "text": "Pipeline Console",
+      "label": "Confirm landing view"
+    },
+    {
+      "action": "click",
+      "selector": "#nav-opportunities",
+      "label": "Open opportunity review"
+    },
+    {
+      "action": "waitForText",
+      "text": "Opportunity Review",
+      "label": "Confirm review view"
+    },
+    {
+      "action": "fill",
+      "selector": "#search",
+      "value": "voice automation",
+      "label": "Search the table"
+    },
+    {
+      "action": "scroll",
+      "y": 180,
+      "label": "Scroll supporting detail"
+    },
+    {
+      "action": "screenshot",
+      "name": "opportunity-review",
+      "fullPage": true,
+      "label": "Capture final state"
+    }
+  ]
+}
