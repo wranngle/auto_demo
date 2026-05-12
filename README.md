@@ -70,7 +70,9 @@ Create a `*.demo.json` file beside the app you want to record:
 Run it:
 
 ```bash
-node dist/cli.js run path/to/console-overview.demo.json --output output/console-overview
+node dist/cli.js run path/to/console-overview.demo.json \
+  --output output/console-overview \
+  --speed 1.25
 ```
 
 Relative `startUrl` and `goto.url` values resolve against the flow file's
@@ -79,8 +81,11 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 ## Supported actions
 
 - `goto`: navigate to another URL.
+- `caption`: show a short on-video caption for a timed beat.
 - `waitForText`: wait until visible text appears.
 - `waitForSelector`: wait until a selector is visible.
+- `focus`: move the cursor to a selector and smoothly zoom toward it.
+- `resetZoom`: return from a focus or zoom beat to full-frame context.
 - `click`: click a selector with a visible cursor pulse.
 - `fill`: fill a field.
 - `hover`: hover a selector.
@@ -89,6 +94,43 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 - `pause`: wait for a fixed number of milliseconds.
 - `zoom`: set document zoom for cleaner video framing.
 - `screenshot`: write a PNG artifact.
+
+## Polish controls
+
+Flow files can opt into the recording style used for portfolio demos:
+
+```json
+{
+  "timing": {
+    "speed": 1.25,
+    "moveMs": 180,
+    "clickPauseMs": 160,
+    "zoomMs": 360
+  },
+  "polish": {
+    "cursor": {
+      "style": "modern",
+      "accentColor": "#ff5f00"
+    },
+    "actionRail": {
+      "enabled": true
+    },
+    "captions": {
+      "enabled": true,
+      "position": "bottom"
+    },
+    "zoom": {
+      "defaultScale": 1.06,
+      "durationMs": 360,
+      "resetMs": 260
+    }
+  }
+}
+```
+
+Use the action rail for internal review clips and dense walkthroughs where the
+viewer needs to see the planned sequence. Turn it off for final public exports if
+it competes with the product UI.
 
 ## Design bias
 

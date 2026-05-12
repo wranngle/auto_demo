@@ -1,14 +1,16 @@
-# demo/cassette.tape — VHS recording script (https://github.com/charmbracelet/vhs)
-# Records the recorder's own CLI smoke path.
+# VHS terminal clip for the recorder itself.
 
-Output demo/cassette.gif
+Output examples/portfolio/output/ui-demo-runner.gif
 
 Set FontSize 18
-Set Width 1200
+Set Width 1280
 Set Height 720
-Set Padding 20
+Set Padding 24
 Set Theme "Catppuccin Frappe"
 
+Type "cd ~/projects/ui-demo-runner"
+Enter
+Sleep 400ms
 Type "npm run build"
 Enter
 Sleep 2s
