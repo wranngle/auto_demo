@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "lint": "xo src tests",
+    "package:smoke": "npm run build && npm pack --dry-run",
+    "prepare": "npm run build",
     "demo:smoke": "npm run build && node dist/cli.js run examples/local-smoke.demo.json --output .work/smoke-demo"
   },
   "keywords": [
