@@ -13,7 +13,7 @@
     }
   },
   "metadata": {
-    "sourcedBy": "auto-demo author",
+    "sourcedBy": "auto_demo author",
     "prompt": "Scroll through the landing page from top to bottom in deliberate moves, pausing briefly to let each major section be visible. Do not click any links. Once you reach the bottom of the page, call the done tool.",
     "model": "claude-haiku-4-5-20251001"
   },

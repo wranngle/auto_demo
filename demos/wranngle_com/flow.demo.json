@@ -13,7 +13,7 @@
     }
   },
   "metadata": {
-    "sourcedBy": "auto-demo author",
+    "sourcedBy": "auto_demo author",
     "prompt": "Scroll through the Wranngle Systems homepage from top to bottom in deliberate moves, pausing briefly so each major section is visible. Hover over the navigation if present. Do not click any external links or trigger the voice agent. Once you reach the bottom, call the done tool.",
     "model": "claude-haiku-4-5-20251001"
   },

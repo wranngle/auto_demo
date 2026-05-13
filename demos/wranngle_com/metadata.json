@@ -9,8 +9,8 @@
     "height": 720
   },
   "duration_ms": 71329,
-  "raw_video_path": "/home/wranngle/projects/ui-demo-runner/demos/wranngle_com/e196fd89-b203-42f3-88aa-5321fff5f3f9/raw.webm",
-  "event_log_path": "/home/wranngle/projects/ui-demo-runner/demos/wranngle_com/e196fd89-b203-42f3-88aa-5321fff5f3f9/events.json",
+  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/wranngle_com/e196fd89-b203-42f3-88aa-5321fff5f3f9/raw.webm",
+  "event_log_path": "/home/wranngle/projects/auto_demo/demos/wranngle_com/e196fd89-b203-42f3-88aa-5321fff5f3f9/events.json",
   "chapters": [
     {
       "start_ms": 0,

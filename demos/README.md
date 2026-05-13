@@ -1,6 +1,6 @@
 # UI Demos
 
-Auto-recorded with `auto-demo author` against the dev server of each repo.
+Auto-recorded with `auto_demo author` against the dev server of each repo.
 Each directory holds the polished `composed.mp4`, a `flow.demo.json` (best-effort
 deterministic re-run), `metadata.json`, and a `preview.jpg` still.
 

@@ -1,10 +1,10 @@
 {
-  "name": "auto-demo",
+  "name": "auto_demo",
   "version": "0.2.0",
   "description": "Record browser UI demos: replay deterministic JSON flows or capture with an AI agent. No hosted login required.",
   "type": "module",
   "bin": {
-    "auto-demo": "./dist/cli.js"
+    "auto_demo": "./dist/cli.js"
   },
   "files": [
     "dist",

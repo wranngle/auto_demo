@@ -13,7 +13,7 @@
     }
   },
   "metadata": {
-    "sourcedBy": "auto-demo author",
+    "sourcedBy": "auto_demo author",
     "prompt": "Show the gtm_ops dashboard. Take a screenshot to orient. Then click into the first visible workflow, opportunity, or evaluation in the main view. After the detail view loads, call the done tool. Do not log in or modify any data.",
     "model": "claude-haiku-4-5-20251001"
   },

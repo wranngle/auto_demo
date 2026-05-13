@@ -10,7 +10,7 @@ import {authorCommand} from './commands/author.js';
 const program = new Command();
 
 program
-  .name('auto-demo')
+  .name('auto_demo')
   .description('Record browser UI demos: deterministic JSON flows or AI-driven capture.')
   .version('0.2.0');
 
@@ -72,7 +72,7 @@ program
   .description('Drive the page with an AI agent and produce a polished video. Uses ~/.claude OAuth bearer when available.')
   .argument('<url>', 'Starting URL')
   .requiredOption('-p, --prompt <text>', 'Instructions for the AI agent')
-  .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto-demo-capture')
+  .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto_demo-capture')
   .option('--viewport <WxH>', 'Viewport size', '1280x720')
   .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
   .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
@@ -124,7 +124,7 @@ program
   .description('Capture a demo with the agent and emit a deterministic .demo.json that can be replayed for free.')
   .argument('<url>', 'Starting URL')
   .requiredOption('-p, --prompt <text>', 'Instructions for the AI agent')
-  .option('-o, --output <dir>', 'Directory for video, events, and flow', '.work/auto-demo-author')
+  .option('-o, --output <dir>', 'Directory for video, events, and flow', '.work/auto_demo-author')
   .option('--flow-out <path>', 'Explicit path for the emitted flow.demo.json')
   .option('--flow-name <name>', 'Name to embed in the emitted flow')
   .option('--viewport <WxH>', 'Viewport size', '1280x720')

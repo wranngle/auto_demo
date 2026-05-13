@@ -9,8 +9,8 @@
     "height": 720
   },
   "duration_ms": 9074,
-  "raw_video_path": "/home/wranngle/projects/ui-demo-runner/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/raw.webm",
-  "event_log_path": "/home/wranngle/projects/ui-demo-runner/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/events.json",
+  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/raw.webm",
+  "event_log_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/events.json",
   "chapters": [
     {
       "start_ms": 0,

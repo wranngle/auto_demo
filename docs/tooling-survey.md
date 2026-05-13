@@ -1,6 +1,6 @@
 # Tooling Survey (Historical)
 
-This survey was the original "what off-the-shelf tool fits?" pass. **It is preserved for context only — the answer is now in-repo: `auto-demo`** combines the determinism of a Playwright JSON-flow runner with the agent loop and ffmpeg composition pipeline from screencli, dropping the hosted-login surface.
+This survey was the original "what off-the-shelf tool fits?" pass. **It is preserved for context only — the answer is now in-repo: `auto_demo`** combines the determinism of a Playwright JSON-flow runner with the agent loop and ffmpeg composition pipeline from screencli, dropping the hosted-login surface.
 
 See [README.md](../README.md) for current usage.
 
@@ -16,8 +16,8 @@ See [README.md](../README.md) for current usage.
 
 Cloned screencli MIT, lifted `agent/`, `browser/`, `video/`, `recording/`, `utils/`, and `assets/` into this repo, deleted everything cloud-shaped, and added:
 
-- **OAuth bearer auto-discovery** — `auto-demo` reads `~/.claude/.credentials.json` and uses the Claude Code subscription token (`anthropic-beta: oauth-2025-04-20`). No raw API key needed, no screencli.sh proxy, no credit meter.
-- **`auto-demo author`** — captures with the agent once and emits a re-runnable `.demo.json` from the agent's tool-call log, so deterministic replay costs $0.
+- **OAuth bearer auto-discovery** — `auto_demo` reads `~/.claude/.credentials.json` and uses the Claude Code subscription token (`anthropic-beta: oauth-2025-04-20`). No raw API key needed, no screencli.sh proxy, no credit meter.
+- **`auto_demo author`** — captures with the agent once and emits a re-runnable `.demo.json` from the agent's tool-call log, so deterministic replay costs $0.
 - **No init flow** — the only step that talked to a hosted service (the OAuth login listener) is gone.
 
 The other survey candidates remain unchanged: Browser-use et al. are still wrong for this use case, and Playwright is still the right substrate.

@@ -9,8 +9,8 @@
     "height": 720
   },
   "duration_ms": 14381,
-  "raw_video_path": "/home/wranngle/projects/ui-demo-runner/demos/career_architect/385d7831-e0f8-497c-a47d-afd4751fa096/raw.webm",
-  "event_log_path": "/home/wranngle/projects/ui-demo-runner/demos/career_architect/385d7831-e0f8-497c-a47d-afd4751fa096/events.json",
+  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/career_architect/385d7831-e0f8-497c-a47d-afd4751fa096/raw.webm",
+  "event_log_path": "/home/wranngle/projects/auto_demo/demos/career_architect/385d7831-e0f8-497c-a47d-afd4751fa096/events.json",
   "chapters": [
     {
       "start_ms": 0,

@@ -38,13 +38,13 @@ export async function authorCommand(options: AuthorOptions): Promise<{
   ).length;
 
   console.log('');
-  console.log(`auto-demo author flow written`);
+  console.log(`auto_demo author flow written`);
   console.log(`  flow:           ${flowPath}`);
   console.log(`  steps:          ${flow.steps.length}`);
   if (needsManual > 0) {
     console.log(`  needs editing:  ${needsManual} step(s) lack a stable selector — search for "TODO selector" in the flow`);
   } else {
-    console.log(`  ready to replay: auto-demo run ${flowPath}`);
+    console.log(`  ready to replay: auto_demo run ${flowPath}`);
   }
 
   return {

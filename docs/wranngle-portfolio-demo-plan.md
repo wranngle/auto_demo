@@ -39,7 +39,7 @@ than typing drama.
 | `logo_maker` | Generate one asset set | Utility clip only if asset pipeline comes up. |
 | `comfyui_bulk_python_generator` | `comfybulk --help`, seeded manifest run | Utility clip. Keep it about seeded media automation and manifests. |
 | `droidlan` | LAN file-transfer CLI | Mention-only unless a reviewer asks about utilities. |
-| `ui-demo-runner` | Smoke recording command | Meta clip only if explaining the recording system itself. |
+| `auto_demo` | Smoke recording command | Meta clip only if explaining the recording system itself. |
 
 ## Editing principles borrowed from the media pipeline
 

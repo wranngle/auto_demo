@@ -13,7 +13,7 @@
     }
   },
   "metadata": {
-    "sourcedBy": "auto-demo author",
+    "sourcedBy": "auto_demo author",
     "prompt": "Show the unified presales report dashboard. Take one screenshot to orient. Then click into the first visible report, evaluation, pipeline, or sub-page link in the main view. After the next page loads, take one final screenshot and call the done tool. Do not submit any forms or modify data.",
     "model": "claude-haiku-4-5-20251001"
   },

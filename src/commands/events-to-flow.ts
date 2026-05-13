@@ -39,7 +39,7 @@ export function eventsToFlow(input: EventsToFlowInput): DemoFlow {
     viewport: input.viewport,
     record: {enabled: true, size: input.viewport},
     metadata: {
-      sourcedBy: 'auto-demo author',
+      sourcedBy: 'auto_demo author',
       ...(input.prompt ? {prompt: input.prompt} : {}),
       ...(input.model ? {model: input.model} : {}),
     },
@@ -122,7 +122,7 @@ function mapEvent(event: RecordingEvent): DemoStep | undefined {
 }
 
 /**
- * Map agent target metadata to a Playwright locator string the ui-demo-runner can replay.
+ * Map agent target metadata to a Playwright locator string the auto_demo can replay.
  * Priority: explicit selector → role+name → role-only/name-only → undefined.
  * Text fallback is intentionally excluded: the agent's `text` field is ambiguous
  * (sometimes the typed value, sometimes the target label) and produces incorrect selectors.

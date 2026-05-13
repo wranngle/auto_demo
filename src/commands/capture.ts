@@ -59,7 +59,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   const id = uuid();
   const recDir = recordingDir(resolve(options.output), id);
 
-  console.log(`auto-demo capture`);
+  console.log(`auto_demo capture`);
   console.log(`  id:        ${id}`);
   console.log(`  url:       ${options.url}`);
   console.log(`  model:     ${options.model}`);
@@ -157,7 +157,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   }
 
   console.log('');
-  console.log(`auto-demo capture complete`);
+  console.log(`auto_demo capture complete`);
   console.log(`  summary:   ${result.summary}`);
   console.log(`  actions:   ${result.stats.total_actions}`);
   console.log(`  tokens:    ${result.stats.input_tokens} in / ${result.stats.output_tokens} out`);

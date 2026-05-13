@@ -9,8 +9,8 @@
     "height": 720
   },
   "duration_ms": 44779,
-  "raw_video_path": "/home/wranngle/projects/ui-demo-runner/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/raw.webm",
-  "event_log_path": "/home/wranngle/projects/ui-demo-runner/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/events.json",
+  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/raw.webm",
+  "event_log_path": "/home/wranngle/projects/auto_demo/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/events.json",
   "chapters": [
     {
       "start_ms": 0,
