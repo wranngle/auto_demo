@@ -1,0 +1,42 @@
+{
+  "name": "career-architect-landing",
+  "startUrl": "http://127.0.0.1:3001/",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "metadata": {
+    "sourcedBy": "auto-demo author",
+    "prompt": "Scroll through the landing page from top to bottom in deliberate moves, pausing briefly to let each major section be visible. Do not click any links. Once you reach the bottom of the page, call the done tool.",
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "steps": [
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to reveal the first major section of the landing page"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to let the current section be visible"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling down to the next section"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to let the final section be visible at the bottom"
+    }
+  ]
+}

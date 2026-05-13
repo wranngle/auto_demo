@@ -1,21 +1,24 @@
-# ui-demo-runner
+# auto-demo
 
-Deterministic CLI recorder for browser UI demos.
+CLI for recording browser UI demos — two modes, one repo:
 
-The point is simple: stop hand-recording the same Loom walkthroughs. Put the demo
-flow in a repo, run it from the CLI, and get a video, screenshots, and a manifest
-that says exactly what happened.
+- **`run`**: replay a deterministic `.demo.json` flow file. Zero model cost, byte-identical reruns. Already great for "re-record this every time the UI changes."
+- **`capture`**: drive the page with an AI agent (Claude via the Anthropic SDK) and produce a polished `composed.mp4` with cursor pulse, zoom, and a Loom-grade background. Useful for one-shot "show me this app" reels.
+- **`author`**: capture once with the agent, *then* dump a re-runnable `.demo.json` next to the recording so the rest of the project can replay it deterministically forever.
 
-## Why this exists
+Built on Playwright. Composition pipeline (ffmpeg) and agent loop adapted from
+[screencli](https://github.com/usefulagents/screencli) (MIT), but **without** the
+hosted login / cloud-credit gate.
 
-The obvious off-the-shelf candidate is screencli. It is close, but local testing
-showed it forces first-run hosted auth unless an Anthropic API key or screencli
-config already exists. That fails the bar for unattended repo-local recording.
+## Auth
 
-This repo uses Playwright as the first backend because it is deterministic, local,
-and already gives us browser control plus video capture. AI can still help author
-or repair flow files, but the recording run itself should not depend on a chatty
-agent improvising against the page.
+`auto-demo capture` and `auto-demo author` need Anthropic access. The CLI looks for credentials in this order:
+
+1. `ANTHROPIC_API_KEY` (env)
+2. `ANTHROPIC_AUTH_TOKEN` (env)
+3. `~/.claude/.credentials.json` — the OAuth bearer your local Claude Code subscription already manages. **Preferred** — no raw key, no hosted login, no credit meter. The bearer is sent with the `anthropic-beta: oauth-2025-04-20` header.
+
+`auto-demo run` needs no credentials.
 
 ## Install
 
@@ -25,115 +28,100 @@ npx playwright install chromium
 npm run build
 ```
 
-## Run the smoke demo
+## Three modes, three commands
+
+### `run` — replay a deterministic flow
 
 ```bash
-npm run demo:smoke
+auto-demo run examples/local-smoke.demo.json --output .work/smoke-demo
 ```
 
-The run writes:
+Outputs:
+- `recording.webm` — Playwright-native video
+- `manifest.json` — per-step durations and statuses
+- `screenshots/*.png` — explicit `screenshot` steps
 
-- `.work/smoke-demo/recording.webm`
-- `.work/smoke-demo/manifest.json`
-- `.work/smoke-demo/screenshots/opportunity-review.png`
+### `capture` — agent drives the page, produces a polished video
 
-## Record another repo
+```bash
+auto-demo capture http://127.0.0.1:5180/smoke.html \
+  --prompt 'Open Opportunity Review, search "voice automation", scroll the table, then call done.' \
+  --output .work/capture-demo
+```
 
-Create a `*.demo.json` file beside the app you want to record:
+Outputs:
+- `raw.webm` — Playwright recording
+- `composed.mp4` — post-processed with ember background, cursor pulse, zoom
+- `events.json` — every agent tool call with timestamps and (when available) `target_meta`
+- `metadata.json` — model, token usage, chapters, duration
+
+The default background is `ember`; pick from `midnight ember forest nebula slate copper none`.
+
+### `author` — capture once, replay forever
+
+```bash
+auto-demo author http://127.0.0.1:5180/smoke.html \
+  --prompt 'Open Opportunity Review, search "voice automation", scroll the table, then call done.' \
+  --output .work/author-demo
+```
+
+Same artifacts as `capture`, **plus** `flow.demo.json` — a ui-demo-runner flow built from `events.json` that you can re-run with `auto-demo run` for free as many times as you want. Steps the agent couldn't pin to a stable selector get labeled `TODO selector — …` so you know what to hand-edit.
+
+**v1 limitation**: smaller models (Haiku) often act by accessibility-tree index alone (e.g. "click element 2"), which is session-specific. Author mode marks those steps `TODO selector` and the captured `composed.mp4` is still valid; the **replay** path needs you to fill in selectors. Use `-m claude-sonnet-4-5-20250929` for richer `role`/`name` capture, or hand-edit the flow once before checking it in.
+
+## Flow files (for `run` and `author`)
 
 ```json
 {
   "name": "console-overview",
   "startUrl": "http://127.0.0.1:5177/console/",
-  "viewport": {
-    "width": 1280,
-    "height": 720
-  },
+  "viewport": {"width": 1280, "height": 720},
   "steps": [
-    {
-      "action": "waitForText",
-      "text": "Pipeline Console"
-    },
-    {
-      "action": "click",
-      "selector": "text=Opportunities",
-      "label": "Open opportunity review"
-    },
-    {
-      "action": "screenshot",
-      "name": "opportunity-review"
-    }
+    {"action": "waitForText", "text": "Pipeline Console"},
+    {"action": "click", "selector": "text=Opportunities", "label": "Open opportunity review"},
+    {"action": "screenshot", "name": "opportunity-review"}
   ]
 }
 ```
 
-Run it:
+Relative `startUrl` and `goto.url` resolve against the flow file's directory. With `--base-url`, relative URLs resolve against that local dev server.
 
-```bash
-node dist/cli.js run path/to/console-overview.demo.json \
-  --output output/console-overview \
-  --speed 1.25
-```
+### Supported actions
 
-Relative `startUrl` and `goto.url` values resolve against the flow file's
-directory. With `--base-url`, relative URLs resolve against that local dev server.
+- `goto` — navigate to another URL
+- `caption` — on-video caption for a timed beat
+- `waitForText` / `waitForSelector` — gate on visibility
+- `focus` / `resetZoom` / `zoom` — cursor + zoom framing
+- `click` / `fill` / `hover` / `press` / `scroll` — interaction
+- `pause` — fixed wait
+- `screenshot` — write a PNG artifact
 
-## Supported actions
-
-- `goto`: navigate to another URL.
-- `caption`: show a short on-video caption for a timed beat.
-- `waitForText`: wait until visible text appears.
-- `waitForSelector`: wait until a selector is visible.
-- `focus`: move the cursor to a selector and smoothly zoom toward it.
-- `resetZoom`: return from a focus or zoom beat to full-frame context.
-- `click`: click a selector with a visible cursor pulse.
-- `fill`: fill a field.
-- `hover`: hover a selector.
-- `press`: press a keyboard key, optionally scoped to a selector.
-- `scroll`: scroll by pixel delta.
-- `pause`: wait for a fixed number of milliseconds.
-- `zoom`: set document zoom for cleaner video framing.
-- `screenshot`: write a PNG artifact.
-
-## Polish controls
-
-Flow files can opt into the recording style used for portfolio demos:
+### Polish controls
 
 ```json
 {
-  "timing": {
-    "speed": 1.25,
-    "moveMs": 180,
-    "clickPauseMs": 160,
-    "zoomMs": 360
-  },
+  "timing": {"speed": 1.25, "moveMs": 180, "clickPauseMs": 160, "zoomMs": 360},
   "polish": {
-    "cursor": {
-      "style": "modern",
-      "accentColor": "#ff5f00"
-    },
-    "actionRail": {
-      "enabled": true
-    },
-    "captions": {
-      "enabled": true,
-      "position": "bottom"
-    },
-    "zoom": {
-      "defaultScale": 1.06,
-      "durationMs": 360,
-      "resetMs": 260
-    }
+    "cursor": {"style": "modern", "accentColor": "#ff5f00"},
+    "actionRail": {"enabled": true},
+    "captions": {"enabled": true, "position": "bottom"},
+    "zoom": {"defaultScale": 1.06, "durationMs": 360, "resetMs": 260}
   }
 }
 ```
 
-Use the action rail for internal review clips and dense walkthroughs where the
-viewer needs to see the planned sequence. Turn it off for final public exports if
-it competes with the product UI.
+Use the action rail for review clips and walkthroughs; turn it off for public exports if it competes with the product UI.
+
+## Why this exists
+
+The off-the-shelf candidate was screencli — close, but its public release shipped a broken composition step (missing `assets/`) and routes inference through a hosted proxy with a free-tier credit meter, *even though it's MIT-licensed*. The agent loop was good; the surrounding flow wasn't.
+
+auto-demo absorbs screencli's agent + composition, drops the cloud surface, and adds:
+
+- **OAuth bearer auto-discovery** — your existing Claude Code subscription pays for `capture`, no separate API key or screencli login.
+- **Deterministic replay path** — `author` mode turns a one-shot capture into a reusable flow file.
+- **The boring path stays boring** — `run` is still deterministic, free, and doesn't talk to anything but your Playwright browser.
 
 ## Design bias
 
-This tool is intentionally boring at runtime. The valuable part of a demo
-recording tool is not an agent hallucinating a flow; it is a flow you can rerun
-after every UI repair pass and trust enough to publish.
+`run` is intentionally boring at runtime. The valuable part of a demo recording tool is not an agent hallucinating a flow; it is a flow you can rerun after every UI change and trust enough to publish. `capture` and `author` use the agent only where the agent earns its keep: turning a fuzzy "show me X" prompt into a concrete plan.

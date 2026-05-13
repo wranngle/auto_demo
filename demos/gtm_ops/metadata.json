@@ -1,0 +1,26 @@
+{
+  "id": "83922f73-5795-4354-9dc7-1d5da36ec781",
+  "created_at": "2026-05-13T03:40:34.797Z",
+  "url": "http://127.0.0.1:3002/",
+  "prompt": "Show the gtm_ops dashboard. Take a screenshot to orient. Then click into the first visible workflow, opportunity, or evaluation in the main view. After the detail view loads, call the done tool. Do not log in or modify any data.",
+  "model": "claude-haiku-4-5-20251001",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "duration_ms": 44779,
+  "raw_video_path": "/home/wranngle/projects/ui-demo-runner/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/raw.webm",
+  "event_log_path": "/home/wranngle/projects/ui-demo-runner/demos/gtm_ops/83922f73-5795-4354-9dc7-1d5da36ec781/events.json",
+  "chapters": [
+    {
+      "start_ms": 0,
+      "end_ms": 44779,
+      "title": "Navigate to http://127.0.0.1:3002/"
+    }
+  ],
+  "agent_stats": {
+    "total_actions": 14,
+    "input_tokens": 83382,
+    "output_tokens": 1728
+  }
+}

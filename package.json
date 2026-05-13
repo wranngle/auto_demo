@@ -1,13 +1,14 @@
 {
-  "name": "ui-demo-runner",
-  "version": "0.1.0",
-  "description": "Deterministic CLI runner for recording browser UI demos from flow files.",
+  "name": "auto-demo",
+  "version": "0.2.0",
+  "description": "Record browser UI demos: replay deterministic JSON flows or capture with an AI agent. No hosted login required.",
   "type": "module",
   "bin": {
-    "ui-demo-runner": "./dist/cli.js"
+    "auto-demo": "./dist/cli.js"
   },
   "files": [
     "dist",
+    "assets",
     "examples",
     "README.md",
     "LICENSE"
@@ -19,14 +20,16 @@
     "lint": "xo src tests",
     "package:smoke": "npm run build && npm pack --dry-run",
     "prepare": "npm run build",
-    "demo:smoke": "npm run build && node dist/cli.js run examples/local-smoke.demo.json --output .work/smoke-demo"
+    "demo:smoke": "npm run build && node dist/cli.js run examples/local-smoke.demo.json --output .work/smoke-demo",
+    "demo:capture": "npm run build && node dist/cli.js capture http://127.0.0.1:5180/smoke.html --prompt 'Open Opportunity Review from the left nav, search for voice automation, then call done.' --output .work/capture-demo"
   },
   "keywords": [
     "browser-automation",
     "demo-recording",
     "playwright",
     "screen-recording",
-    "ui-automation"
+    "ui-automation",
+    "ai-agent"
   ],
   "author": "Cody Arnold",
   "license": "MIT",
@@ -34,12 +37,15 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "arktype": "^2.1.27",
     "commander": "^14.0.2",
-    "playwright": "^1.57.0"
+    "playwright": "^1.57.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
+    "@types/uuid": "^10.0.0",
     "eslint-config-xo-typescript": "^7.0.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.15",

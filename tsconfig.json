@@ -6,8 +6,6 @@
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "types": ["node"],
     "strict": true,
-    "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true

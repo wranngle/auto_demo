@@ -1,66 +1,27 @@
-# Autonomous UI Demo Tooling Survey
+# Tooling Survey (Historical)
 
-Fresh pass: the closest public tool I found is screencli, but it does not pass the
-"fully autonomous from a clean CLI on this workstation" bar yet.
+This survey was the original "what off-the-shelf tool fits?" pass. **It is preserved for context only — the answer is now in-repo: `auto-demo`** combines the determinism of a Playwright JSON-flow runner with the agent loop and ffmpeg composition pipeline from screencli, dropping the hosted-login surface.
 
-## Current verdict
+See [README.md](../README.md) for current usage.
 
-- screencli is the closest fit: prompt in, browser flow out, video export
-  presets. It failed local testing because first run forces setup/login unless
-  `ANTHROPIC_API_KEY` or a `~/.screencli/config.json` API key is already present.
-- Browser-use, Skyvern, and Stagehand are useful automation stacks, but they
-  optimize for completing browser tasks, not producing polished demo recordings
-  with repeatable framing, click emphasis, manifests, and repo-local flow specs.
-- Playwright already exposes deterministic browser control plus native video
-  capture. That is the right substrate for a repo-local tool because it can run
-  without cloud auth and can be tested in CI.
+## Original verdict (preserved)
 
-## Tested locally
+- **screencli** was the closest off-the-shelf fit: prompt in, browser flow out, video export presets. It failed local testing on two axes:
+  1. The npm-published tarball (0.2.3) is missing `assets/`, so the polished composition step crashes with `Error opening input file …/assets/cursor.png` even when the agent loop succeeds.
+  2. Inference is gated through `screencli.sh/api/agent/messages` with a 10-credit-per-month free tier — despite the MIT license on the code, the OSS surface phones home for the model call.
+- **Browser-use, Skyvern, Stagehand** are automation stacks aimed at completing tasks, not producing polished demo recordings with repeatable framing, click emphasis, manifests, and repo-local flow specs.
+- **Playwright** already exposes deterministic browser control plus native video capture. The right substrate for a repo-local tool because it can run without cloud auth and can be tested in CI.
 
-Command shape tested against a local static `gtm_ops` console:
+## What we did instead
 
-```bash
-npx -y screencli record 'http://127.0.0.1:5177/console/' \
-  --prompt 'Record a concise demo...' \
-  --viewport 1280x720 \
-  --max-steps 12 \
-  --slow-mo 100 \
-  --background ember \
-  --local \
-  --output /tmp/screencli-test-gtm \
-  --verbose
-```
+Cloned screencli MIT, lifted `agent/`, `browser/`, `video/`, `recording/`, `utils/`, and `assets/` into this repo, deleted everything cloud-shaped, and added:
 
-Observed result:
+- **OAuth bearer auto-discovery** — `auto-demo` reads `~/.claude/.credentials.json` and uses the Claude Code subscription token (`anthropic-beta: oauth-2025-04-20`). No raw API key needed, no screencli.sh proxy, no credit meter.
+- **`auto-demo author`** — captures with the agent once and emits a re-runnable `.demo.json` from the agent's tool-call log, so deterministic replay costs $0.
+- **No init flow** — the only step that talked to a hosted service (the OAuth login listener) is gone.
 
-```text
-First time? Let's get you set up.
-screencli setup
-Sign in with GitHub or Google to get started.
-Opening browser to sign in...
-```
+The other survey candidates remain unchanged: Browser-use et al. are still wrong for this use case, and Playwright is still the right substrate.
 
-Package inspection showed screencli treats the machine as configured only when an
-Anthropic API key is present through env/config or the user has completed hosted
-login. That makes it a useful reference, not the answer for autonomous repo
-recording.
+## For CLI-only demos
 
-## Tool direction
-
-`ui-demo-runner` is now the working path for repo-local demo capture:
-
-- JSON flow files live with the repo being demoed.
-- A run emits `recording.webm`, screenshots, and `manifest.json`.
-- Clicks get a modern in-page cursor/pulse overlay so the video is readable.
-- Captions, action rails, speed controls, and smooth `focus` / `resetZoom`
-  actions keep recordings closer to polished Loom clips without manual editing.
-- Local files, `file://`, `http(s)://`, and relative URLs with `--base-url` are
-  supported.
-
-For CLI-only repos, use VHS `.tape` files beside the browser flows. That keeps
-custom command-line demos deterministic while avoiding a fake browser shell
-around terminal tools.
-
-The next useful adapter is a PinchTab playback adapter for flows captured from
-live browser sessions. A desktop/computer-use adapter can sit behind the same
-manifest contract later, but it should not block browser demos.
+VHS `.tape` files are still the right answer for terminal recordings. Keep them beside the browser flows.

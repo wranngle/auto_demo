@@ -1,0 +1,101 @@
+{
+  "name": "wranngle-com-homepage",
+  "startUrl": "http://127.0.0.1:5173/",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "metadata": {
+    "sourcedBy": "auto-demo author",
+    "prompt": "Scroll through the Wranngle Systems homepage from top to bottom in deliberate moves, pausing briefly so each major section is visible. Hover over the navigation if present. Do not click any external links or trigger the voice agent. Once you reach the bottom, call the done tool.",
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "steps": [
+    {
+      "action": "hover",
+      "label": "TODO selector — Hover over Offerings navigation button"
+    },
+    {
+      "action": "hover",
+      "label": "TODO selector — Hover over About navigation button"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to view first major section below the header"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause briefly to let the first section be visible"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to view the next major section"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to view this section"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view more content sections"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to view the offerings section with AI Agents and other options"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to see more sections"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to view the product offerings section"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view more agent options"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to view the agent comparison and demo section"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down further to view more sections"
+    },
+    {
+      "action": "pause",
+      "ms": 500,
+      "label": "Pause to view the FAQ and contact section"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view more FAQ and footer content"
+    },
+    {
+      "action": "caption",
+      "text": "Some steps need a hand-picked selector — see TODO labels.",
+      "ms": 800,
+      "label": "Author note"
+    }
+  ]
+}

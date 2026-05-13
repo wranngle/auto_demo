@@ -1,0 +1,63 @@
+{
+  "name": "gtm-ops-console",
+  "startUrl": "http://127.0.0.1:3002/",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "metadata": {
+    "sourcedBy": "auto-demo author",
+    "prompt": "Show the gtm_ops dashboard. Take a screenshot to orient. Then click into the first visible workflow, opportunity, or evaluation in the main view. After the detail view loads, call the done tool. Do not log in or modify any data.",
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "steps": [
+    {
+      "action": "click",
+      "label": "TODO selector — Click on the Evaluation Dashboard link to navigate to the gtm_ops dashboard view"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to see the evaluations in the main view"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll back up to see the first evaluation at the top of the list"
+    },
+    {
+      "action": "click",
+      "label": "TODO selector — Click on the first evaluation row (bland-veterinary-001)"
+    },
+    {
+      "action": "click",
+      "label": "TODO selector — Click on the case study name in the first evaluation row"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down slightly to ensure table rows are fully visible and rendered"
+    },
+    {
+      "action": "click",
+      "label": "TODO selector — Click on the first evaluation row (bland-veterinary-001) to open the detail view"
+    },
+    {
+      "action": "click",
+      "label": "TODO selector — Click on the evaluation ID to open the detail view"
+    },
+    {
+      "action": "caption",
+      "text": "Some steps need a hand-picked selector — see TODO labels.",
+      "ms": 800,
+      "label": "Author note"
+    }
+  ]
+}
