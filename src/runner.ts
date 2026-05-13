@@ -8,12 +8,14 @@ import {
 } from 'playwright';
 import {
   clearCaption,
+  hideAnnotation,
   installOverlay,
   moveCursor,
   pulseCursor,
   resetZoom,
   setActionRail,
   setActiveAction,
+  showAnnotation,
   showCaption,
   smoothZoom,
 } from './overlay.js';
@@ -291,6 +293,31 @@ async function runStep(page: Page, step: DemoStep, context: StepContext): Promis
         fullPage: step.fullPage ?? false,
       });
       return path;
+    }
+
+    case 'annotate': {
+      const durationMs = step.durationMs ?? 1800;
+      let x = step.x ?? 0;
+      let y = step.y ?? 0;
+      if (step.anchor !== undefined) {
+        const locator = page.locator(step.anchor).first();
+        await locator.waitFor({state: 'visible', timeout});
+        const box = await locator.boundingBox();
+        if (box !== null) {
+          x = Math.round(box.x + box.width / 2);
+          y = Math.round(box.y + box.height / 2);
+        }
+      }
+      await showAnnotation(page, {
+        kind: step.kind ?? 'callout',
+        x,
+        y,
+        text: step.text,
+        color: step.color,
+      });
+      await page.waitForTimeout(delay(durationMs, timing));
+      await hideAnnotation(page);
+      return undefined;
     }
   }
 }

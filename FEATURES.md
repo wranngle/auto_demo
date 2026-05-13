@@ -2,7 +2,7 @@
 
 Every user-visible and internal feature. Maintained as the contract that the test suite is supposed to defend.
 
-## CLI surface (3 subcommands)
+## CLI surface (8 subcommands)
 
 ### `auto_demo run <flow>`
 Deterministic Playwright-driven replay of a `.demo.json` flow file.
@@ -16,9 +16,10 @@ Agent-driven recording with polished post-production.
 - Prompt options: `--prompt <text>` OR `--explore` (or omit both — `--explore` is the implicit default and runs a tour prompt).
 - Output options: `--output`, `--viewport`, `--model`, `--max-steps`, `--slow-mo`, `--headed`, `--verbose`.
 - Polish options: `--background midnight|ember|forest|nebula|slate|copper|none`, `--padding`, `--corner-radius`, `--no-shadow`.
-- Format options: `--format mp4|webm|gif`, `--aspect 16:9|1:1|9:16`, `--logo <path>`.
+- Format options: `--format mp4[,webm,gif]` (comma-separated for matrix output), `--aspect 16:9[,1:1,9:16]` (comma-separated), `--logo <path>`.
+- Audio options: `--tts none|flite|elevenlabs|openai` — synthesize voiceover from `narrate` events and mux into the composed mp4. `flite` runs offline through ffmpeg's libflite filter (no key, no network); `elevenlabs` reads `ELEVENLABS_API_KEY`; `openai` reads `OPENAI_API_KEY`.
 - Authentication options: `--auth-state <path>` (Playwright storageState JSON for protected apps), `--skip-preflight` (bypass the URL reachability probe).
-- Output: `raw.webm`, `composed.mp4` (+ optional `composed.gif` / `composed.webm` from `--format`), `events.json`, `metadata.json`, `screenshots/step-*.jpg`, `thumbnail.jpg`.
+- Output: `raw.webm`, `composed.mp4` (+ optional `composed.gif` / `composed.webm` from `--format`, `composed-audio.mp4` when `--tts` is set), `events.json`, `metadata.json`, `screenshots/step-*.jpg`, `thumbnail.jpg`, `audio/narration-NNN.{wav,mp3}`.
 - Auth: required (Anthropic via one of the three sources below).
 
 ### `auto_demo author <url>`
@@ -32,6 +33,27 @@ Print README-ready markdown + HTML snippets to embed a recording.
 - Options: `--relative-to <dir>` (make video/poster paths relative), `--title <text>`.
 - Picks the best available output: `composed.mp4` → `composed.gif` → `composed.webm` → `recording.webm`.
 - Emits a linked-poster markdown image + an HTML5 `<video controls muted playsinline loop>` fallback.
+
+### `auto_demo stitch <dir1> <dir2> ...`
+Concatenate two or more recording directories into a single video.
+- Options: `--output <path>`, `--fade <seconds>` (cross-fade duration; 0 = hard cut), `--reencode` (force re-encode rather than concat-demuxer copy).
+- Picks the best per-directory video: `composed-audio.mp4` → `composed.mp4` → `composed.webm` → `recording.webm`.
+- Concat-demuxer for byte-copy when codecs match; xfade + acrossfade filter chain when `--fade` is set.
+
+### `auto_demo watch <flow>`
+File watcher that re-runs the flow whenever it changes; reports selector regressions across runs.
+- Options: `--output <dir>`, `--base-url <url>`, `--headed`, `--debounce <ms>` (default 500), `--once`.
+- Exits non-zero on detected regressions for CI.
+
+### `auto_demo judge <recordingDir>`
+Send the recording's `thumbnail.jpg` + the agent's prompt to Claude vision; receive `{covers_prompt, aesthetic, blockers[]}` JSON.
+- Options: `--model <name>` (defaults to `claude-haiku-4-5-20251001`).
+- Auth: same three-source cascade as capture/author.
+
+### `auto_demo regress <flows...>`
+Re-run a list of flow.demo.json files; emit JSON with selector quality + per-step pass rate.
+- Options: `--threshold <0..1>` (default 0.75), `--score-only` (skip running, score selectors only), `--report <path>`, `--base-url <url>`.
+- Exits non-zero when any flow falls below the threshold.
 
 ## Pre-flight reachability check
 
@@ -57,6 +79,7 @@ Supported actions (from `src/types.ts`):
 - `scroll` — by pixel delta
 - `pause` — fixed wait
 - `screenshot` — write a PNG artifact
+- `annotate` — render an `arrow` / `callout` / `box` overlay (anchored to a selector or x/y) for a timed duration; visible in both `run` (DOM overlay) and `capture` (ffmpeg drawbox/drawtext) pipelines
 
 Top-level fields: `name`, `startUrl`, `viewport`, `record.{enabled,size}`, `timing.{speed,moveMs,clickPauseMs,fillPauseMs,pressPauseMs,scrollPauseMs,zoomMs}`, `polish.{cursor,actionRail,captions,zoom}`, `metadata`, `steps`.
 
@@ -69,10 +92,15 @@ In-page overlay (during `run`):
 - Cursor styles: `modern` / `classic` / `none`, configurable accent color, move/pulse timings.
 
 Post-production (during `capture`/`author`):
-- `src/video/compose.ts` runs an ffmpeg filter graph: cursor PNG overlay (with smoothed coordinates), zoom-in around clicks, rounded-corner frame, drop shadow, gradient background, final H.264 mp4 + thumbnail jpg.
+- `src/video/compose.ts` runs an ffmpeg filter graph: cursor PNG overlay (with smoothed coordinates), annotation overlays, zoom-in around clicks, rounded-corner frame, drop shadow, gradient background, final H.264 mp4 + thumbnail jpg.
 - `src/video/trim.ts` strips significant idle time from the raw recording.
 - `src/video/background.ts` resolves one of six gradient backgrounds: `midnight`, `ember`, `forest`, `nebula`, `slate`, `copper`. Random preset when not specified.
-- `src/video/cursor.ts` + `src/video/zoom.ts` + `src/video/highlight.ts` generate the ffmpeg expressions for those effects.
+- `src/video/cursor.ts` + `src/video/zoom.ts` + `src/video/highlight.ts` + `src/video/annotations.ts` generate the ffmpeg expressions for those effects.
+- `src/video/format.ts` converts the composed mp4 to GIF / WebM and applies aspect-crop + logo overlay. `convertMatrix(...)` runs the (formats × aspects) matrix in one pass.
+
+Audio post-production (`src/audio/`):
+- `src/audio/tts.ts` resolves the requested TTS provider (`flite`, `elevenlabs`, `openai`) and synthesizes one audio clip per `narrate` event.
+- `src/audio/compose-audio.ts` builds the `adelay + amix` filter chain that drops each clip at its post-trim timestamp, then mux into a `composed-audio.mp4` alongside the silent composed mp4.
 
 ## Agent loop (Anthropic Messages API)
 
@@ -123,10 +151,15 @@ Auth state save/load for target sites: `src/browser/auth.ts` (Playwright `storag
 - `assets/cursor.png` — cursor overlay sprite (used by ffmpeg compose).
 - `assets/backgrounds/{midnight,ember,forest,nebula,slate,copper}.png` — gradient backgrounds.
 
+## Determinism
+
+`capture` is **nondeterministic by design** — the agent picks elements and decides when to stop. Two captures of the same URL will not produce byte-identical mp4s. For byte-identical reruns, use `author` once to emit a `flow.demo.json`, then `run` it forever.
+
 ## Not implemented (deliberately or aspirationally)
 
 - Cloud upload / share URL — dropped from screencli.
 - Hosted login (`init`, `login`, `logout`, `whoami`) — dropped.
 - Cloud rerender via `render` — dropped.
 - Multi-browser support — chromium only.
-- Sonnet-grade selector capture — see [Roast](./tests/ROAST.md).
+- Visual diff of composed output — see [Roast](./tests/ROAST.md).
+- Sonnet-grade selector capture against non-semantic UIs — see [Roast](./tests/ROAST.md).

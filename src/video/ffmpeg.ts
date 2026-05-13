@@ -6,6 +6,8 @@ export interface FFmpegOptions {
   input: string;
   /** Additional inputs (e.g. background image). */
   extraInputs?: string[];
+  /** Args inserted before -i <input> (e.g. -f lavfi, -f concat -safe 0). */
+  inputArgs?: string[];
   output: string;
   filterComplex?: string;
   outputArgs?: string[];
@@ -13,10 +15,9 @@ export interface FFmpegOptions {
 }
 
 export async function runFFmpeg(options: FFmpegOptions): Promise<void> {
-  const args: string[] = [
-    '-y',
-    '-i', options.input,
-  ];
+  const args: string[] = ['-y'];
+  if (options.inputArgs) args.push(...options.inputArgs);
+  args.push('-i', options.input);
 
   if (options.extraInputs) {
     for (const extra of options.extraInputs) {

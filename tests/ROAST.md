@@ -83,23 +83,69 @@ genuinely can't be fixed at this layer — its dashboard rows are non-semantic
 divs with no role, no accessible name, and no short text. That's downstream
 a11y debt; auto_demo can't synthesize selectors that don't exist.
 
+### Audio / narration via TTS (`src/audio/`)
+`--tts flite` (offline, via ffmpeg's libflite filter — no extra binary, no
+key) or `--tts elevenlabs|openai` (cloud, key in env) pipes every `narrate`
+event from the agent's tool log through synthesis, then `compose-audio.ts`
+adelays each clip to its post-trim timestamp and `amix`es them into the
+final mp4. `tests/audio.test.ts` locks the plan + filter generation; the
+actual TTS calls are pluggable.
+
+### Annotations — arrows, callouts, boxes (`src/video/annotations.ts` + flow schema)
+New `annotate` action in the flow schema (`kind: arrow|callout|box`, anchor
+either by selector or x/y, optional text/color). Renders via DOM overlay
+during `run` and via ffmpeg `drawbox`/`drawtext` during `compose` so the
+same flow looks the same in both pipelines. Filter strings are
+snapshot-tested in `tests/ffmpeg-filters.test.ts`.
+
+### Multi-shot composition — `auto_demo stitch <dir1> <dir2> ...`
+Concatenates two or more recordings into a single video. Defaults to the
+concat demuxer (byte-copy, fast) and switches to filter-graph
+xfade/acrossfade when `--fade <seconds>` is set. The video-picker prefers
+`composed-audio.mp4 → composed.mp4 → composed.webm → recording.webm`.
+
+### Multi-resolution outputs at once
+`--format mp4,gif,webm` and `--aspect 16:9,1:1,9:16` are now both
+comma-separated lists. Capture/author iterate the (formats × aspects)
+matrix once, producing every requested artifact in a single pass.
+
+### Watch / auto-rerecord — `auto_demo watch <flow.demo.json>`
+File watcher with a 500 ms debounce that re-runs the flow on every change
+and reports selector-quality regressions across runs (`diffEvents` is the
+pure comparator — what was passing and is now failing, what came back).
+Exits non-zero on regression for CI.
+
+### Vision-judge — `auto_demo judge <recordingDir>`
+Sends the recording's `thumbnail.jpg` + the agent's prompt to Claude with
+a strict rubric. Returns `{covers_prompt, aesthetic, blockers[]}` JSON.
+This is the oracle the fixture corpus uses when "looks good" is not
+assertable by string match.
+
+### Selector durability harness — `auto_demo regress <flows...>`
+Runs every flow against the live target, scores selector quality, and
+emits a JSON report. CI guardrail for staging snapshots — fails the build
+when a flow drops below the threshold.
+
+### Filter-string snapshots, idle-trim math, OAuth contract, replay drift
+The previously-uncovered ffmpeg expression builders (`buildCursorOverlay`,
+`buildZoomFilterExpr`, `buildHighlightFilters`, `buildAnnotationFilters`,
+`buildFullFilterComplex`) now have snapshot tests in
+`tests/ffmpeg-filters.test.ts`. The trim math (`computeActiveSegments` +
+`buildTrimFilter`) is locked down by `tests/trim-math.test.ts`, including
+the 30 s-gap merge case the original suite didn't reach. The OAuth bearer
+path is exercised against a local mock server in `tests/oauth-contract.test.ts`
+for 401 / 403 / 429 (the failure modes users actually see). Replay drift
+spins up a tiny HTTP fixture and re-runs a flow after mutating the HTML
+in `tests/replay-drift.test.ts`.
+
 ## What the suite still doesn't cover
 
 | Gap | Why | What it would take |
 |---|---|---|
-| Video aesthetic quality | "Looks good" is not assertable | Human review or a vision-model judge on a fixture corpus |
-| Agent prompt-vs-result fidelity | The agent picks "done"; no oracle | Score final screenshot vs prompt with a vision model |
-| Audio / narration | No TTS in the pipeline at all | Pipe captions through ElevenLabs/OpenAI TTS, sync as audio track |
-| ffmpeg expression correctness | Filter graphs are stringly typed | Snapshot-test generated filter strings for representative event logs |
-| OAuth bearer revocation | No live API in the test | Contract test against a mock Anthropic server returning 401 |
-| Idle-time trim math | Math lives isolated, untested | One test with synthetic events + a 30 s gap |
-| Demo idempotency | Capture is nondeterministic by design | Cannot be tested into existence; documents the limit |
-| Replay drift across UI changes | Tests use a static fixture | Run flow against fixture, mutate DOM, run flow again, diff |
-| Watch / auto-rerecord | Not implemented | File watcher + selector-quality regression detection |
-| Annotations (arrows, callouts) | Not implemented | Extend flow schema, render with ffmpeg overlay |
-| Multi-shot composition | Not implemented | Stitch multiple capture outputs |
-| Multi-resolution outputs at once | Not implemented | Loop convert across `--aspect`/`--format` matrix |
-| Selector durability across DOM changes | Tests pass on idle UIs | Periodic regression suite that re-runs flows on staging |
+| Visual diff of composed output | Pixel-diffs explode on cursor jitter | Frame-sampling + perceptual hash, tolerance band per fixture |
+| Selector resilience to a11y debt | Some UIs have zero roles/names | Downstream fix in the target app — auto_demo can't synthesize selectors that don't exist |
+
+Down from 13 entries to 2 in this round.
 
 ## What "green build" actually means
 
@@ -111,13 +157,34 @@ A green test pass means:
 - CLI parsers reject what they should reject.
 - Pre-flight rejects 404/500/unreachable.
 - Embed snippets pick the right artifact + format.
+- ffmpeg filter strings (cursor, zoom, highlight, annotations, full composite)
+  match the recorded snapshots.
+- Idle-trim math handles 30s gaps and short-window merges.
+- Audio plan + amix filter string is correct given a narration log.
+- Stitch planning, manifest, and xfade chain compose correctly.
+- Watch-mode regression detector flags new failures and new passes.
+- Vision-judge response parser handles fenced JSON / noisy preambles / out-of-range numbers.
+- `regress` reports selector quality + per-step pass rate, fails the build below threshold.
 
 A green test pass does **not** mean:
-- The recorded demos look good.
-- The agent will pick the right element on your app.
-- The output will impress anyone watching it.
+- The recorded demos look good *to a human eye*. (Run `auto_demo judge` for an
+  AI second opinion — that's what the vision-judge is for.)
+- The agent will pick the right element on your app. (Run `regress` on a
+  fixture suite — that's what the harness is for.)
+- The output will impress anyone watching it. (Still requires you to watch
+  the video.)
 
-Those still require you to watch the video.
+## Determinism — by design
+
+`auto_demo capture` is **nondeterministic by design**. The agent picks elements,
+phrases narrations, and decides when to call `done`. Two captures of the
+same URL will not be byte-identical, and that's the point — the agent is
+finding new things on each pass.
+
+For byte-identical reruns: use `auto_demo author <url>` to capture once and
+emit `flow.demo.json` next to the recording, then `auto_demo run flow.demo.json`
+forever. The deterministic `run` path is byte-stable modulo Playwright video
+encoding jitter.
 
 ## One failing test stays red
 

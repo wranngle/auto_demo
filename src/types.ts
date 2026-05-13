@@ -12,7 +12,10 @@ export type DemoAction
     | 'pause'
     | 'zoom'
     | 'waitForSelector'
-    | 'waitForText';
+    | 'waitForText'
+    | 'annotate';
+
+export type AnnotationKind = 'arrow' | 'callout' | 'box';
 
 export type ViewportSize = {
   width: number;
@@ -36,6 +39,12 @@ export type DemoStep = {
   holdMs?: number;
   timeoutMs?: number;
   fullPage?: boolean;
+  /** annotate-action only: arrow | callout | box. */
+  kind?: AnnotationKind;
+  /** annotate-action only: pin to a CSS selector instead of x/y. */
+  anchor?: string;
+  /** annotate-action only: accent color (CSS) — defaults to the project accent. */
+  color?: string;
 };
 
 export type DemoTiming = {

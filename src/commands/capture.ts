@@ -19,8 +19,11 @@ import {
 import {setLogLevel} from '../utils/logger.js';
 import {resolveAnthropicAuth, describeAuth} from '../oauth.js';
 import {preflight} from '../preflight.js';
-import {convertVideo, type OutputFormat, type AspectRatio} from '../video/format.js';
+import {convertMatrix, type OutputFormat, type AspectRatio} from '../video/format.js';
 import {existsSync, readFileSync} from 'node:fs';
+import {resolveProvider, synthBatch, type TtsProviderName} from '../audio/tts.js';
+import {planAudioFromEvents, muxAudioIntoVideo, audioVideoPath} from '../audio/compose-audio.js';
+import {ensureDir} from '../utils/paths.js';
 
 export const EXPLORE_DEFAULT_PROMPT =
   'Take a brief tour of this UI. Scroll through the main page in deliberate moves, hover ' +
@@ -42,11 +45,18 @@ export interface CaptureOptions {
   cornerRadius: number;
   shadow: boolean;
   verbose: boolean;
+  /** Single format (back-compat). Prefer `formats` for multi. */
   format?: OutputFormat;
+  /** Multi-format list — when set, capture writes every entry. */
+  formats?: OutputFormat[];
   aspect?: AspectRatio;
+  /** Multi-aspect list — capture writes the (formats × aspects) matrix. */
+  aspects?: AspectRatio[];
   logoPath?: string;
   authStatePath?: string;
   skipPreflight?: boolean;
+  /** TTS provider for narration overlays. `none` = silent (default). */
+  tts?: TtsProviderName | 'none';
 }
 
 export interface CaptureResult {
@@ -59,6 +69,10 @@ export interface CaptureResult {
   composedVideo?: string;
   rawVideo?: string;
   formatOutput?: string;
+  /** All format-matrix outputs (composed.mp4, composed.gif, etc.). */
+  matrixOutputs?: string[];
+  /** Path to the audio-mixed video when TTS ran. */
+  audioVideo?: string;
 }
 
 export async function captureCommand(options: CaptureOptions): Promise<CaptureResult> {
@@ -188,19 +202,55 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     }
   }
 
-  // Optional output-format conversion (gif / aspect ratio / logo overlay)
-  let formatOutput: string | undefined;
-  const needsFormatPass =
-    composedPath &&
-    (options.format && options.format !== 'mp4' || options.aspect || options.logoPath);
-  if (composedPath && needsFormatPass) {
+  // Optional TTS audio overlay (#3) — runs before the format matrix so the
+  // audio-mixed video becomes the input to the matrix passes.
+  let audioVideo: string | undefined;
+  let videoForMatrix = composedPath;
+  if (composedPath && options.tts && options.tts !== 'none') {
     try {
-      formatOutput = await convertVideo({
-        input: composedPath,
-        format: options.format ?? 'mp4',
-        ...(options.aspect ? {aspect: options.aspect} : {}),
+      const plan = planAudioFromEvents(events);
+      if (plan.clips.length === 0) {
+        console.warn('  tts: no narrate events to voice — skipping audio mix.');
+      } else {
+        const provider = resolveProvider(options.tts);
+        const audioDir = ensureDir(resolve(recDir, 'audio'));
+        const clipPaths = await synthBatch(provider, plan.clips.map((c) => ({text: c.text, index: c.index})), audioDir);
+        const outAudio = audioVideoPath(recDir);
+        await muxAudioIntoVideo({
+          videoPath: composedPath,
+          outputPath: outAudio,
+          clipPaths,
+          plan,
+        });
+        audioVideo = outAudio;
+        videoForMatrix = outAudio;
+      }
+    } catch (err) {
+      console.warn(`  tts skipped: ${(err as Error).message}`);
+    }
+  }
+
+  // Output-format matrix (gif / aspect ratios / logo overlay). #12 in the roast.
+  let formatOutput: string | undefined;
+  let matrixOutputs: string[] | undefined;
+  const formats = options.formats && options.formats.length > 0
+    ? options.formats
+    : (options.format ? [options.format] : []);
+  const aspects = options.aspects && options.aspects.length > 0
+    ? options.aspects
+    : (options.aspect ? [options.aspect] : []);
+  const needsFormatPass =
+    videoForMatrix &&
+    (formats.length > 0 || aspects.length > 0 || options.logoPath);
+  if (videoForMatrix && needsFormatPass) {
+    try {
+      matrixOutputs = await convertMatrix({
+        input: videoForMatrix,
+        formats: formats.length > 0 ? formats : ['mp4'],
+        aspects,
         ...(options.logoPath ? {logoPath: options.logoPath} : {}),
       });
+      formatOutput = matrixOutputs[matrixOutputs.length - 1];
     } catch (err) {
       console.warn(`  format conversion skipped: ${(err as Error).message}`);
     }
@@ -213,7 +263,10 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   console.log(`  tokens:    ${result.stats.input_tokens} in / ${result.stats.output_tokens} out`);
   console.log(`  duration:  ${(eventLog.getDurationMs() / 1000).toFixed(1)}s`);
   console.log(`  output:    ${recDir}`);
-  if (formatOutput) console.log(`  format:    ${formatOutput}`);
+  if (matrixOutputs && matrixOutputs.length > 0) {
+    for (const out of matrixOutputs) console.log(`  format:    ${out}`);
+  } else if (formatOutput) console.log(`  format:    ${formatOutput}`);
+  if (audioVideo) console.log(`  audio:     ${audioVideo}`);
 
   return {
     recordingDir: recDir,
@@ -225,6 +278,8 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     composedVideo: composedPath,
     rawVideo,
     ...(formatOutput ? {formatOutput} : {}),
+    ...(matrixOutputs ? {matrixOutputs} : {}),
+    ...(audioVideo ? {audioVideo} : {}),
   };
 }
 

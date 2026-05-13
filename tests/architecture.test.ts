@@ -39,15 +39,17 @@ describe('architectural guarantees', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('runtime SDK imports concentrate in agent/loop.ts (type-only imports allowed)', () => {
+  test('runtime SDK imports concentrate in agent/loop.ts + agent/client.ts (type-only imports allowed)', () => {
     // Concentrate runtime coupling so the auth choice + retry policy live
     // together. Type-only imports (`import type ...`) compile away to nothing
-    // and are fine anywhere.
+    // and are fine anywhere. agent/client.ts is the shared factory used by
+    // every command that needs a client (capture/author via loop.ts, judge).
+    const allowed = ['agent/loop.ts', 'agent/client.ts'];
     const offenders: string[] = [];
     for (const file of sources) {
       const body = readFileSync(file, 'utf8');
       const runtimeImport = /^import\s+(?!type\s)[^;]*from ['"]@anthropic-ai\/sdk['"]/m.test(body);
-      if (runtimeImport && !file.endsWith('agent/loop.ts')) {
+      if (runtimeImport && !allowed.some((suffix) => file.endsWith(suffix))) {
         offenders.push(file);
       }
     }

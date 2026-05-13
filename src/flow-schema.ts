@@ -44,7 +44,10 @@ const actions = [
   'zoom',
   'waitForSelector',
   'waitForText',
+  'annotate',
 ] as const satisfies readonly DemoAction[];
+
+const annotationKinds = ['arrow', 'callout', 'box'] as const;
 
 const actionSet: ReadonlySet<string> = new Set(actions);
 
@@ -145,6 +148,9 @@ function validateStep(input: Record<string, unknown>, label: string): asserts in
   assertOptionalString(input.url, `${label}.url`);
   assertOptionalString(input.key, `${label}.key`);
   assertOptionalString(input.name, `${label}.name`);
+  assertOptionalString(input.kind, `${label}.kind`);
+  assertOptionalString(input.anchor, `${label}.anchor`);
+  assertOptionalString(input.color, `${label}.color`);
   assertOptionalBoolean(input.fullPage, `${label}.fullPage`);
   assertOptionalNumber(input.ms, `${label}.ms`);
   assertOptionalNumber(input.x, `${label}.x`);
@@ -184,6 +190,17 @@ function validateStep(input: Record<string, unknown>, label: string): asserts in
 
   if (action === 'zoom' && typeof input.scale !== 'number') {
     throw new Error(`Invalid ${label}: zoom requires scale`);
+  }
+
+  if (action === 'annotate') {
+    if (typeof input.kind !== 'string' || !(annotationKinds as readonly string[]).includes(input.kind)) {
+      throw new Error(`Invalid ${label}: annotate.kind must be one of ${annotationKinds.join(', ')}`);
+    }
+    const hasAnchor = typeof input.anchor === 'string' && input.anchor.length > 0;
+    const hasXY = typeof input.x === 'number' && typeof input.y === 'number';
+    if (!hasAnchor && !hasXY) {
+      throw new Error(`Invalid ${label}: annotate requires anchor (selector) OR both x and y`);
+    }
   }
 }
 

@@ -18,6 +18,14 @@ type ZoomOptions = {
   durationMs: number;
 };
 
+type AnnotationOptions = {
+  kind: 'arrow' | 'callout' | 'box';
+  x: number;
+  y: number;
+  text?: string;
+  color?: string;
+};
+
 const defaultOverlayConfig: OverlayConfig = {
   cursorStyle: 'modern',
   accentColor: '#ff5f00',
@@ -260,6 +268,78 @@ export async function installOverlay(page: Page, polish: DemoPolish | undefined)
       document.body.style.transform = 'scale(1)';
     });
 
+    Reflect.set(globalThis, '__uiDemoRunnerAnnotate', (options: AnnotationOptions) => {
+      mount();
+      let layer = document.querySelector<HTMLElement>('#ui-demo-runner-annotation-layer');
+      if (layer === null) {
+        layer = document.createElement('div');
+        layer.id = 'ui-demo-runner-annotation-layer';
+        layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483644;';
+        document.documentElement.append(layer);
+      }
+      layer.replaceChildren();
+      const accent = options.color ?? runtimeConfig.accentColor;
+
+      if (options.kind === 'arrow') {
+        // 80x80 SVG with a diagonal arrow pointing to its bottom-right corner.
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        arrow.setAttribute('width', '120');
+        arrow.setAttribute('height', '120');
+        arrow.setAttribute('viewBox', '0 0 120 120');
+        arrow.style.cssText = `position:fixed;left:${options.x - 100}px;top:${options.y - 100}px;`;
+        arrow.innerHTML =
+          `<defs><marker id="ah" markerWidth="14" markerHeight="14" refX="6" refY="6" orient="auto">` +
+          `<path d="M0,0 L12,6 L0,12 Z" fill="${accent}"/></marker></defs>` +
+          `<line x1="10" y1="10" x2="100" y2="100" stroke="${accent}" stroke-width="5" marker-end="url(#ah)" />`;
+        layer.append(arrow);
+        if (options.text) {
+          const label = document.createElement('div');
+          label.textContent = options.text;
+          label.style.cssText =
+            `position:fixed;left:${Math.max(0, options.x - 280)}px;top:${Math.max(0, options.y - 110)}px;` +
+            `padding:8px 12px;background:rgb(18 17 26 / .9);color:#fcfaf5;` +
+            `border:1px solid ${accent};border-radius:6px;font:600 14px/1.2 Inter,system-ui,sans-serif;`;
+          layer.append(label);
+        }
+        return;
+      }
+
+      if (options.kind === 'box') {
+        const box = document.createElement('div');
+        box.style.cssText =
+          `position:fixed;left:${options.x - 60}px;top:${options.y - 32}px;width:120px;height:64px;` +
+          `border:3px solid ${accent};border-radius:6px;box-shadow:0 0 0 2px rgb(0 0 0 / .25);`;
+        layer.append(box);
+        if (options.text) {
+          const label = document.createElement('div');
+          label.textContent = options.text;
+          label.style.cssText =
+            `position:fixed;left:${options.x - 60}px;top:${options.y + 38}px;padding:6px 10px;` +
+            `background:rgb(18 17 26 / .88);color:#fcfaf5;border-radius:4px;` +
+            `font:500 13px/1.3 Inter,system-ui,sans-serif;max-width:240px;`;
+          layer.append(label);
+        }
+        return;
+      }
+
+      // callout
+      const callout = document.createElement('div');
+      callout.style.cssText =
+        `position:fixed;left:${options.x}px;top:${Math.max(0, options.y - 76)}px;` +
+        `max-width:240px;padding:12px 14px;` +
+        `background:rgb(18 17 26 / .92);color:#fcfaf5;border:2px solid ${accent};border-radius:8px;` +
+        `box-shadow:0 12px 36px rgb(0 0 0 / .35);` +
+        `font:500 14px/1.4 Inter,system-ui,sans-serif;`;
+      callout.textContent = options.text ?? '';
+      layer.append(callout);
+    });
+
+    Reflect.set(globalThis, '__uiDemoRunnerHideAnnotation', () => {
+      mount();
+      const layer = document.querySelector<HTMLElement>('#ui-demo-runner-annotation-layer');
+      if (layer !== null) layer.replaceChildren();
+    });
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', mount, {once: true});
     } else {
@@ -340,6 +420,26 @@ export async function pulseCursor(page: Page, x: number, y: number): Promise<voi
       pulse(x, y);
     }
   }, {x, y});
+}
+
+export async function showAnnotation(page: Page, options: AnnotationOptions): Promise<void> {
+  await page.evaluate(annotationOptions => {
+    const show: unknown = Reflect.get(globalThis, '__uiDemoRunnerAnnotate');
+    const isShowCallback = (value: unknown): value is ((options: AnnotationOptions) => void) => typeof value === 'function';
+    if (isShowCallback(show)) {
+      show(annotationOptions);
+    }
+  }, options);
+}
+
+export async function hideAnnotation(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const hide: unknown = Reflect.get(globalThis, '__uiDemoRunnerHideAnnotation');
+    const isHideCallback = (value: unknown): value is (() => void) => typeof value === 'function';
+    if (isHideCallback(hide)) {
+      hide();
+    }
+  });
 }
 
 function normalizeOverlayConfig(polish: DemoPolish | undefined): OverlayConfig {

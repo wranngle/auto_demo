@@ -97,3 +97,59 @@ export async function convertVideo(opts: ConvertOptions): Promise<string> {
 
 export const OUTPUT_FORMATS: OutputFormat[] = ['mp4', 'webm', 'gif'];
 export const ASPECT_RATIOS: AspectRatio[] = ['16:9', '1:1', '9:16'];
+
+/**
+ * Parse a comma-separated `--format` or `--aspect` value into a list, validating
+ * each entry against the known set. Empty input → empty array.
+ */
+export function parseFormatList(input: string | undefined): OutputFormat[] {
+  if (input === undefined || input.trim() === '') return [];
+  const parts = input.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+  for (const p of parts) {
+    if (!OUTPUT_FORMATS.includes(p as OutputFormat)) {
+      throw new Error(`Invalid --format value "${p}". Allowed: ${OUTPUT_FORMATS.join(', ')}`);
+    }
+  }
+  return [...new Set(parts as OutputFormat[])];
+}
+
+export function parseAspectList(input: string | undefined): AspectRatio[] {
+  if (input === undefined || input.trim() === '') return [];
+  const parts = input.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+  for (const p of parts) {
+    if (!ASPECT_RATIOS.includes(p as AspectRatio)) {
+      throw new Error(`Invalid --aspect value "${p}". Allowed: ${ASPECT_RATIOS.join(', ')}`);
+    }
+  }
+  return [...new Set(parts as AspectRatio[])];
+}
+
+export interface MatrixConvertOptions {
+  input: string;
+  formats: OutputFormat[];
+  aspects: AspectRatio[];
+  logoPath?: string;
+}
+
+/**
+ * Run convertVideo for every (format × aspect) combination. Returns the full
+ * list of written paths in stable order. When `aspects` is empty, runs once per
+ * format with no aspect crop.
+ */
+export async function convertMatrix(opts: MatrixConvertOptions): Promise<string[]> {
+  const aspects: (AspectRatio | undefined)[] = opts.aspects.length > 0 ? opts.aspects : [undefined];
+  const formats: OutputFormat[] = opts.formats.length > 0 ? opts.formats : ['mp4'];
+  const written: string[] = [];
+  for (const format of formats) {
+    for (const aspect of aspects) {
+      const out = await convertVideo({
+        input: opts.input,
+        format,
+        ...(aspect ? {aspect} : {}),
+        ...(opts.logoPath ? {logoPath: opts.logoPath} : {}),
+      });
+      written.push(out);
+    }
+  }
+  return written;
+}

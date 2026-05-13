@@ -7,8 +7,12 @@ import {runFlow} from './runner.js';
 import {captureCommand, BACKGROUND_PRESETS, EXPLORE_DEFAULT_PROMPT} from './commands/capture.js';
 import {authorCommand} from './commands/author.js';
 import {buildEmbedSnippet} from './commands/embed.js';
-import {OUTPUT_FORMATS, ASPECT_RATIOS} from './video/format.js';
+import {OUTPUT_FORMATS, ASPECT_RATIOS, parseFormatList, parseAspectList} from './video/format.js';
 import {parseInteger, parseSpeed, parseViewport} from './cli-parsers.js';
+import {stitchVideos} from './commands/stitch.js';
+import {watchCommand} from './commands/watch.js';
+import {judgeRecording} from './commands/judge.js';
+import {runRegression} from './commands/regress.js';
 
 const program = new Command();
 
@@ -84,12 +88,21 @@ function addCaptureOptions<T extends Command>(cmd: T): T {
     .option('--padding <percent>', 'Background padding percentage', parseInteger, 8)
     .option('--corner-radius <px>', 'Video corner radius', parseInteger, 12)
     .option('--no-shadow', 'Disable drop shadow on composed video')
-    .addOption(new Option('--format <name>', 'Additional output format').choices(OUTPUT_FORMATS))
-    .addOption(new Option('--aspect <ratio>', 'Aspect ratio for the output').choices(ASPECT_RATIOS))
+    .option('--format <name[,name...]>', `Output format(s) — single or comma-separated. Allowed: ${OUTPUT_FORMATS.join(', ')}`)
+    .option('--aspect <ratio[,ratio...]>', `Aspect ratio(s) — single or comma-separated. Allowed: ${ASPECT_RATIOS.join(', ')}`)
     .option('--logo <path>', 'Path to a logo PNG to overlay (bottom-right)')
     .option('--auth-state <path>', 'Playwright storageState JSON for protected apps')
     .option('--skip-preflight', 'Skip the HTTP reachability probe before launching the browser')
+    .addOption(new Option('--tts <provider>', 'Synthesize voiceover from narrate events').choices(['none', 'flite', 'elevenlabs', 'openai']).default('none'))
     .option('-v, --verbose', 'Verbose logging') as T;
+}
+
+function resolveFormats(input: string | undefined) {
+  return parseFormatList(input);
+}
+
+function resolveAspects(input: string | undefined) {
+  return parseAspectList(input);
 }
 
 function resolvePrompt(opts: {prompt?: string; explore?: boolean}): string {
@@ -106,6 +119,8 @@ addCaptureOptions(
 )
   .action(async (url: string, options: any) => {
     try {
+      const formats = resolveFormats(options.format);
+      const aspects = resolveAspects(options.aspect);
       await captureCommand({
         url,
         prompt: resolvePrompt(options),
@@ -120,11 +135,12 @@ addCaptureOptions(
         cornerRadius: options.cornerRadius,
         shadow: options.shadow,
         verbose: options.verbose ?? false,
-        format: options.format,
-        aspect: options.aspect,
+        formats,
+        aspects,
         logoPath: options.logo,
         authStatePath: options.authState,
         skipPreflight: options.skipPreflight ?? false,
+        tts: options.tts,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -142,6 +158,8 @@ addCaptureOptions(
 )
   .action(async (url: string, options: any) => {
     try {
+      const formats = resolveFormats(options.format);
+      const aspects = resolveAspects(options.aspect);
       await authorCommand({
         url,
         prompt: resolvePrompt(options),
@@ -158,12 +176,105 @@ addCaptureOptions(
         cornerRadius: options.cornerRadius,
         shadow: options.shadow,
         verbose: options.verbose ?? false,
-        format: options.format,
-        aspect: options.aspect,
+        formats,
+        aspects,
         logoPath: options.logo,
         authStatePath: options.authState,
         skipPreflight: options.skipPreflight ?? false,
+        tts: options.tts,
       });
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('stitch')
+  .description('Concatenate two or more recordings into a single video.')
+  .argument('<inputs...>', 'Recording directories (each must contain a composed.mp4 / composed.webm / recording.webm)')
+  .option('-o, --output <path>', 'Output mp4 path', '.work/auto_demo-stitched.mp4')
+  .option('--fade <seconds>', 'Cross-fade duration between clips (0 = hard cut)', parseSpeed, 0)
+  .option('--reencode', 'Force re-encode (concat-demuxer copy is the default)')
+  .action(async (inputs: string[], options: {output: string; fade: number; reencode?: boolean}) => {
+    try {
+      const result = await stitchVideos({
+        inputs,
+        output: resolve(options.output),
+        fadeS: options.fade,
+        reencode: options.reencode ?? false,
+      });
+      console.log(`stitched: ${result.output}`);
+      for (const seg of result.segments) console.log(`  + ${seg.video} (${seg.duration_s.toFixed(1)}s)`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('watch')
+  .description('Re-run a flow whenever its file changes. Reports selector regressions between runs.')
+  .argument('<flow>', 'Path to a .demo.json flow file')
+  .option('-o, --output <dir>', 'Base output directory for re-runs', '.work/auto_demo-watch')
+  .option('--base-url <url>', 'Base URL for relative flow URLs')
+  .option('--headed', 'Show the browser window')
+  .option('--debounce <ms>', 'Debounce window for file events', parseInteger, 500)
+  .option('--once', 'Run once and exit (used by tests)')
+  .action(async (flow: string, options: {output: string; baseUrl?: string; headed?: boolean; debounce: number; once?: boolean}) => {
+    try {
+      const result = await watchCommand({
+        flowPath: flow,
+        outputBase: resolve(options.output),
+        ...(options.baseUrl ? {baseUrl: options.baseUrl} : {}),
+        headed: options.headed ?? false,
+        debounceMs: options.debounce,
+        once: options.once ?? false,
+      });
+      console.log(`watch: ${result.runs} run(s) completed.`);
+      if (result.lastReport && result.lastReport.totalRegressions > 0) {
+        process.exitCode = 1;
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('judge')
+  .description('Score a finished recording (covers_prompt + aesthetic) via Claude vision.')
+  .argument('<recordingDir>', 'A recording directory written by capture/author')
+  .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
+  .action(async (recordingDir: string, options: {model: string}) => {
+    try {
+      const score = await judgeRecording({recordingDir, model: options.model});
+      console.log(JSON.stringify(score, null, 2));
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('regress')
+  .description('Re-run a list of flows; report selector quality and pass rate (CI guardrail).')
+  .argument('<flows...>', 'flow.demo.json files to regress-test')
+  .option('--threshold <ratio>', 'Selector-quality threshold (0..1)', parseSpeed, 0.75)
+  .option('--score-only', 'Skip running flows — score selectors only')
+  .option('--report <path>', 'Write a JSON report to this path')
+  .option('--base-url <url>', 'Base URL applied to relative flow URLs')
+  .action(async (flows: string[], options: {threshold: number; scoreOnly?: boolean; report?: string; baseUrl?: string}) => {
+    try {
+      const report = await runRegression({
+        flows,
+        threshold: options.threshold,
+        scoreOnly: options.scoreOnly ?? false,
+        ...(options.report ? {outputPath: resolve(options.report)} : {}),
+        ...(options.baseUrl ? {baseUrl: options.baseUrl} : {}),
+      });
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.passed) process.exitCode = 1;
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

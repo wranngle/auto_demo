@@ -6,6 +6,7 @@ import { buildCursorOverlay } from './cursor.js';
 import { computeActiveSegments, buildTrimFilter, estimateTrimmedDuration } from './trim.js';
 import { runFFmpeg, getVideoDuration } from './ffmpeg.js';
 import { buildBackgroundFilterComplex, backgroundImagePath, type BackgroundOptions } from './background.js';
+import { buildAnnotationFilters, type Annotation } from './annotations.js';
 import { logger } from '../utils/logger.js';
 import { unlinkSync } from 'node:fs';
 
@@ -42,6 +43,8 @@ export interface ComposeOptions {
   highlight: boolean;
   cursor: boolean;
   background?: BackgroundOptions;
+  /** Static annotations to overlay (post-trim timestamps). */
+  annotations?: Annotation[];
 }
 
 /**
@@ -70,15 +73,18 @@ function remapEvents(events: RecordingEvent[], segments: { start_s: number; end_
 
 /**
  * Build a filter_complex that applies all effects (highlights, animated cursor,
- * zoom) and optionally composites onto a background.
+ * annotations, zoom) and optionally composites onto a background.
  *
  * Filter order (in original viewport coordinates):
  *   1. Highlight drawboxes  (marks click/type targets)
  *   2. Cursor overlay        (smooth animated dot)
- *   3. Zoom (zoompan)        (crops + scales — cursor/highlights move with content)
- *   4. Background composite  (gradient, padding, corners, shadow)
+ *   3. Annotation overlays   (arrows, callouts, boxes from flow / capture)
+ *   4. Zoom (zoompan)        (crops + scales — cursor/highlights move with content)
+ *   5. Background composite  (gradient, padding, corners, shadow)
+ *
+ * Exported for snapshot tests.
  */
-function buildFullFilterComplex(
+export function buildFullFilterComplex(
   eventsForEffects: RecordingEvent[],
   viewport: Viewport,
   options: ComposeOptions,
@@ -99,6 +105,15 @@ function buildFullFilterComplex(
     chains.push(`[${cursorIdx}:v]${cursorOverlay.inputFilter}[cursor]`);
     chains.push(`[${videoLabel}][cursor]overlay=${cursorOverlay.overlay}[with_cursor]`);
     videoLabel = 'with_cursor';
+  }
+
+  // ── 2. Static annotation overlays (drawbox / drawtext) ──
+  if (options.annotations && options.annotations.length > 0) {
+    const annotationFilters = buildAnnotationFilters(options.annotations);
+    if (annotationFilters.length > 0) {
+      chains.push(`[${videoLabel}]${annotationFilters.join(',')}[annotated]`);
+      videoLabel = 'annotated';
+    }
   }
 
   // ── 3. Zoom ──
@@ -218,7 +233,8 @@ export async function composeVideo(options: ComposeOptions): Promise<string> {
   }
 
   // Step 2: Build and apply effects via filter_complex
-  const hasEffects = options.highlight || options.cursor || options.zoom || options.background;
+  const hasAnnotations = !!options.annotations && options.annotations.length > 0;
+  const hasEffects = options.highlight || options.cursor || options.zoom || options.background || hasAnnotations;
 
   if (hasEffects) {
     const { filterComplex, outputLabel, extraInputs } = buildFullFilterComplex(

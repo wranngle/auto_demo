@@ -77,6 +77,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' },
       })
     : new Anthropic({ apiKey: options.apiKey });
+  // (Shared factory lives in ./client.ts; loop.ts kept inline to stay the
+  // unique place where retry policy + SDK runtime coupling co-locate.)
   const handlers = new ToolHandlers(
     options.page,
     options.eventLog,
