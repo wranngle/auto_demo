@@ -32,7 +32,7 @@ export interface JudgeOptions {
   stubScore?: JudgeScore;
 }
 
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const DEFAULT_MODEL = 'claude-opus-4-7';
 
 const RUBRIC = [
   'You are a critic scoring a UI demo recording.',

@@ -80,7 +80,7 @@ function addCaptureOptions<T extends Command>(cmd: T): T {
     .option('--explore', 'Use the default "tour this UI" prompt — skip writing one')
     .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto_demo-capture')
     .option('--viewport <WxH>', 'Viewport size', '1280x720')
-    .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
+    .option('-m, --model <model>', 'Claude model — defaults to current top of the code/vision rankings', 'claude-opus-4-7')
     .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
     .option('--slow-mo <ms>', 'Extra delay between actions', parseInteger, 150)
     .option('--headed', 'Show the browser window')
@@ -94,6 +94,7 @@ function addCaptureOptions<T extends Command>(cmd: T): T {
     .option('--auth-state <path>', 'Playwright storageState JSON for protected apps')
     .option('--skip-preflight', 'Skip the HTTP reachability probe before launching the browser')
     .addOption(new Option('--tts <provider>', 'Synthesize voiceover from narrate events').choices(['none', 'flite', 'elevenlabs', 'openai']).default('none'))
+    .option('--load-extension <path>', 'Path to an unpacked Chrome MV3 extension (forces headed mode, persistent context)')
     .option('-v, --verbose', 'Verbose logging') as T;
 }
 
@@ -141,6 +142,7 @@ addCaptureOptions(
         authStatePath: options.authState,
         skipPreflight: options.skipPreflight ?? false,
         tts: options.tts,
+        loadExtension: options.loadExtension,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -182,6 +184,7 @@ addCaptureOptions(
         authStatePath: options.authState,
         skipPreflight: options.skipPreflight ?? false,
         tts: options.tts,
+        loadExtension: options.loadExtension,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -245,7 +248,7 @@ program
   .command('judge')
   .description('Score a finished recording (covers_prompt + aesthetic) via Claude vision.')
   .argument('<recordingDir>', 'A recording directory written by capture/author')
-  .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
+  .option('-m, --model <model>', 'Claude model — defaults to current top of vision rankings', 'claude-opus-4-7')
   .action(async (recordingDir: string, options: {model: string}) => {
     try {
       const score = await judgeRecording({recordingDir, model: options.model});

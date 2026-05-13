@@ -45,6 +45,8 @@ export type DemoStep = {
   anchor?: string;
   /** annotate-action only: accent color (CSS) — defaults to the project accent. */
   color?: string;
+  /** click-action only: keyboard modifiers (Alt, Control, Meta, Shift) held during the click. */
+  modifiers?: Array<'Alt' | 'Control' | 'Meta' | 'Shift'>;
 };
 
 export type DemoTiming = {

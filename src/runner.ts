@@ -219,7 +219,10 @@ async function runStep(page: Page, step: DemoStep, context: StepContext): Promis
     case 'click': {
       const locator = page.locator(required(step.selector, 'click.selector')).first();
       await moveToLocator(page, locator, true, timing);
-      await locator.click({timeout});
+      await locator.click({
+        timeout,
+        ...(step.modifiers && step.modifiers.length > 0 ? {modifiers: step.modifiers} : {}),
+      });
       await page.waitForTimeout(delay(timing.clickPauseMs, timing));
       return undefined;
     }

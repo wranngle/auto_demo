@@ -57,6 +57,8 @@ export interface CaptureOptions {
   skipPreflight?: boolean;
   /** TTS provider for narration overlays. `none` = silent (default). */
   tts?: TtsProviderName | 'none';
+  /** Path to an unpacked Chrome MV3 extension. Forces headed mode. */
+  loadExtension?: string;
 }
 
 export interface CaptureResult {
@@ -114,10 +116,11 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
 
   const session = await launchSession({
     viewport: options.viewport,
-    headless: options.headless,
+    headless: options.loadExtension ? false : options.headless,
     slowMo: options.slowMoMs,
     recordDir: recDir,
     ...(storageState ? {storageState} : {}),
+    ...(options.loadExtension ? {loadExtension: options.loadExtension} : {}),
   });
 
   const eventLog = new EventLog(eventsPath(recDir));

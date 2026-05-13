@@ -159,6 +159,7 @@ function validateStep(input: Record<string, unknown>, label: string): asserts in
   assertOptionalNumber(input.durationMs, `${label}.durationMs`);
   assertOptionalNumber(input.holdMs, `${label}.holdMs`);
   assertOptionalNumber(input.timeoutMs, `${label}.timeoutMs`);
+  assertOptionalStringArray(input.modifiers, `${label}.modifiers`);
 
   if ((action === 'click' || action === 'fill' || action === 'focus' || action === 'hover' || action === 'waitForSelector') && typeof input.selector !== 'string') {
     throw new Error(`Invalid ${label}: ${action} requires selector`);
@@ -506,6 +507,13 @@ function assertOptionalBoolean(value: unknown, label: string): void {
 function assertOptionalNumber(value: unknown, label: string): void {
   if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
     throw new Error(`Invalid ${label}: expected finite number`);
+  }
+}
+
+function assertOptionalStringArray(value: unknown, label: string): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
+    throw new Error(`Invalid ${label}: expected string[]`);
   }
 }
 
