@@ -8,7 +8,9 @@ import {join, resolve, basename} from 'node:path';
 import {runFFmpeg, getVideoDuration} from '../video/ffmpeg.js';
 import {ensureDir} from '../utils/paths.js';
 
-const VIDEO_PRIORITY = ['composed-audio.mp4', 'composed.mp4', 'composed.webm', 'recording.webm'];
+// Both dir-suffixed (<dir>/composed-audio.mp4) and keyed-prefix
+// (<dir>/<key>.composed-audio.mp4) forms are searched.
+const VIDEO_PRIORITY = ['composed-audio.mp4', 'composed.mp4', 'composed.webm', 'recording.webm', 'raw.mp4', 'raw.webm'];
 
 export interface StitchOptions {
   inputs: string[];
@@ -24,10 +26,19 @@ export interface StitchResult {
   segments: Array<{dir: string; video: string; duration_s: number}>;
 }
 
-/** Find the best available video file in a recording directory. */
-export function pickBestVideo(dir: string): string | undefined {
+/** Find the best available video file given a directory OR a keyed prefix (.auto_demo/<key>). */
+export function pickBestVideo(hint: string): string | undefined {
+  if (existsSync(hint) && statSync(hint).isDirectory()) {
+    for (const name of VIDEO_PRIORITY) {
+      const candidate = join(hint, name);
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    }
+  }
+  // Keyed prefix mode: hint might be `.auto_demo/pinchgrab` or
+  // `.auto_demo/pinchgrab.composed.mp4` — strip artifact suffix and try.
+  const stem = hint.replace(/\.(composed-audio|composed|raw|thumbnail|events|metadata|manifest|flow\.demo|log)\.[a-z0-9]+$/, '');
   for (const name of VIDEO_PRIORITY) {
-    const candidate = join(dir, name);
+    const candidate = `${stem}.${name}`;
     if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
   return undefined;
@@ -40,15 +51,22 @@ export function pickBestVideo(dir: string): string | undefined {
 export function planStitch(inputs: string[]): Array<{dir: string; video: string}> {
   const plan: Array<{dir: string; video: string}> = [];
   for (const inp of inputs) {
-    const dir = resolve(inp);
-    if (!existsSync(dir)) {
-      throw new Error(`Stitch input does not exist: ${inp}`);
+    const hint = resolve(inp);
+    // Distinguish "the hint is a missing directory" from "the directory exists
+    // but has no video" — both are user errors but the diagnostic differs.
+    if (!existsSync(hint)) {
+      // The hint might still be a valid keyed-prefix where `<hint>.composed.mp4`
+      // exists. Only complain when *no* keyed sibling resolves.
+      const probe = pickBestVideo(hint);
+      if (!probe) throw new Error(`Stitch input does not exist: ${inp}`);
+      plan.push({dir: hint, video: probe});
+      continue;
     }
-    const vid = pickBestVideo(dir);
+    const vid = pickBestVideo(hint);
     if (!vid) {
-      throw new Error(`No video found in ${dir} (looked for: ${VIDEO_PRIORITY.join(', ')})`);
+      throw new Error(`No video found in ${hint} (looked for: ${VIDEO_PRIORITY.join(', ')})`);
     }
-    plan.push({dir, video: vid});
+    plan.push({dir: hint, video: vid});
   }
   return plan;
 }

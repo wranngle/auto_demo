@@ -18,6 +18,8 @@ export interface AgentLoopOptions {
   page: Page;
   eventLog: EventLog;
   recordingDir: string;
+  /** Directory for step-N.jpg screenshots. Defaults to <recordingDir>/screenshots when omitted. */
+  screenshotsDir?: string;
   actionDelayMs: number;
   maxSteps: number;
   onAction?: (step: number, toolName: string, description: string) => void;
@@ -83,7 +85,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     options.page,
     options.eventLog,
     options.recordingDir,
-    options.actionDelayMs
+    options.actionDelayMs,
+    options.screenshotsDir,
   );
 
   const systemPrompt = buildSystemPrompt(options.url, options.prompt);

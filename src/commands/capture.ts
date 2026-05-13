@@ -1,4 +1,4 @@
-import {resolve} from 'node:path';
+import {resolve, dirname} from 'node:path';
 import {v4 as uuid} from 'uuid';
 import {launchSession} from '../browser/session.js';
 import {EventLog} from '../recording/event-log.js';
@@ -10,20 +10,15 @@ import {
   BACKGROUND_PRESETS,
 } from '../video/background.js';
 import type {BackgroundPreset, BackgroundOptions} from '../video/background.js';
-import {
-  recordingDir,
-  eventsPath,
-  metadataPath,
-  composedVideoPath,
-} from '../utils/paths.js';
+import {resolveOutputs, ensureDir, type OutputPaths} from '../utils/paths.js';
 import {setLogLevel} from '../utils/logger.js';
+import {RuntimeLog} from '../utils/runtime-log.js';
 import {resolveAnthropicAuth, describeAuth} from '../oauth.js';
 import {preflight} from '../preflight.js';
 import {convertMatrix, type OutputFormat, type AspectRatio} from '../video/format.js';
 import {existsSync, readFileSync} from 'node:fs';
 import {resolveProvider, synthBatch, type TtsProviderName} from '../audio/tts.js';
-import {planAudioFromEvents, muxAudioIntoVideo, audioVideoPath} from '../audio/compose-audio.js';
-import {ensureDir} from '../utils/paths.js';
+import {planAudioFromEvents, muxAudioIntoVideo} from '../audio/compose-audio.js';
 
 export const EXPLORE_DEFAULT_PROMPT =
   'Take a brief tour of this UI. Scroll through the main page in deliberate moves, hover ' +
@@ -34,7 +29,10 @@ export const EXPLORE_DEFAULT_PROMPT =
 export interface CaptureOptions {
   url: string;
   prompt: string;
-  output: string;
+  /** Optional explicit output base dir. Defaults to <cwd>/.auto_demo. */
+  output?: string;
+  /** Optional explicit key (kebab-case). Defaults to slug of URL host+path. */
+  key?: string;
   viewport: {width: number; height: number};
   model: string;
   maxSteps: number;
@@ -62,6 +60,9 @@ export interface CaptureOptions {
 }
 
 export interface CaptureResult {
+  /** Full keyed paths for every artifact. */
+  paths: OutputPaths;
+  /** @deprecated Use paths.baseDir. */
   recordingDir: string;
   summary: string;
   actions: number;
@@ -75,6 +76,8 @@ export interface CaptureResult {
   matrixOutputs?: string[];
   /** Path to the audio-mixed video when TTS ran. */
   audioVideo?: string;
+  /** NDJSON runtime log path. */
+  log: string;
 }
 
 export async function captureCommand(options: CaptureOptions): Promise<CaptureResult> {
@@ -95,7 +98,23 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   }
 
   const id = uuid();
-  const recDir = recordingDir(resolve(options.output), id);
+  const paths = resolveOutputs({
+    ...(options.key ? {key: options.key} : {}),
+    ...(options.output ? {baseDir: options.output} : {}),
+    url: options.url,
+  });
+  ensureDir(paths.baseDir);
+  ensureDir(paths.screenshotsDir);
+  const runtimeLog = new RuntimeLog(paths.log);
+  runtimeLog.event({
+    action: 'capture.start',
+    message: `capture ${paths.key}`,
+    key: paths.key,
+    url: options.url,
+    model: options.model,
+    auth_source: auth.source,
+    id,
+  });
 
   let storageState: object | undefined;
   if (options.authStatePath) {
@@ -106,24 +125,29 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   }
 
   console.log(`auto_demo capture`);
+  console.log(`  key:       ${paths.key}`);
   console.log(`  id:        ${id}`);
   console.log(`  url:       ${options.url}`);
   console.log(`  model:     ${options.model}`);
   console.log(`  auth:      ${describeAuth(auth)}`);
   if (storageState) console.log(`  storage:   ${options.authStatePath}`);
-  console.log(`  output:    ${recDir}`);
+  console.log(`  output:    ${paths.baseDir}`);
+  console.log(`  log:       ${paths.log}`);
   console.log('');
 
+  // Playwright wants a directory to drop the raw video into; it then renames
+  // the file. The new layout writes to <baseDir>/<key>.raw.mp4 directly via
+  // a small move in close(). We tell Playwright to use the baseDir as scratch.
   const session = await launchSession({
     viewport: options.viewport,
     headless: options.loadExtension ? false : options.headless,
     slowMo: options.slowMoMs,
-    recordDir: recDir,
+    recordDir: paths.baseDir,
     ...(storageState ? {storageState} : {}),
     ...(options.loadExtension ? {loadExtension: options.loadExtension} : {}),
   });
 
-  const eventLog = new EventLog(eventsPath(recDir));
+  const eventLog = new EventLog(paths.events);
 
   let result;
   try {
@@ -136,26 +160,44 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
       prompt: options.prompt,
       page: session.page,
       eventLog,
-      recordingDir: recDir,
+      recordingDir: paths.baseDir,
+      screenshotsDir: paths.screenshotsDir,
       actionDelayMs: 150,
       maxSteps: options.maxSteps,
       onAction: (step, toolName, description) => {
         const desc = description.length > 80 ? description.slice(0, 77) + '...' : description;
         console.log(`  [${String(step).padStart(2, '0')}] ${toolName.padEnd(12)} ${desc}`);
+        runtimeLog.event({action: `agent.${toolName}`, step, message: description});
       },
     });
   } catch (err) {
     eventLog.flush();
     await session.close();
+    runtimeLog.event({action: 'capture.error', outcome: 'failure', level: 'error', message: (err as Error).message});
     throw err;
   }
 
-  const rawVideo = await session.close();
+  let rawVideo = await session.close();
   eventLog.flush();
+  // Promote Playwright's <baseDir>/raw.webm to the keyed <key>.raw.mp4 path.
+  if (rawVideo && existsSync(rawVideo) && rawVideo !== paths.rawVideo) {
+    try {
+      const {renameSync} = await import('node:fs');
+      // .webm → keep the extension Playwright produced; treat the keyed path
+      // as a stable alias by symlinking when the extensions differ. The
+      // compose step reads whichever exists.
+      const keyedRaw = paths.rawVideo.replace(/\.mp4$/, '.webm');
+      renameSync(rawVideo, keyedRaw);
+      rawVideo = keyedRaw;
+      runtimeLog.event({action: 'raw.rename', from: 'raw.webm', to: keyedRaw});
+    } catch (err) {
+      runtimeLog.event({action: 'raw.rename', outcome: 'failure', level: 'warn', message: (err as Error).message});
+    }
+  }
 
   const events = eventLog.getEvents();
   const chapters = deriveChapters(events);
-  writeMetadata(metadataPath(recDir), {
+  writeMetadata(paths.metadata, {
     id,
     created_at: new Date().toISOString(),
     url: options.url,
@@ -164,7 +206,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     viewport: options.viewport,
     duration_ms: eventLog.getDurationMs(),
     raw_video_path: rawVideo ?? '',
-    event_log_path: eventsPath(recDir),
+    event_log_path: paths.events,
     chapters,
     agent_stats: result.stats,
   });
@@ -183,24 +225,26 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
         : undefined;
 
     try {
-      composedPath = composedVideoPath(recDir);
-      await composeVideo({
+      composedPath = paths.composedVideo;
+      await runtimeLog.time('ffmpeg.compose', async () => composeVideo({
         rawVideoPath: rawVideo,
         events,
-        outputPath: composedPath,
+        outputPath: composedPath!,
         viewport: options.viewport,
         zoom: true,
         highlight: false,
         cursor: true,
         background,
-      });
+      }), {output: composedPath});
       try {
-        await generateThumbnail(composedPath, resolve(recDir, 'thumbnail.jpg'));
-      } catch {
-        // non-fatal
+        await generateThumbnail(composedPath, paths.thumbnail);
+        runtimeLog.event({action: 'ffmpeg.thumbnail', output: paths.thumbnail});
+      } catch (err) {
+        runtimeLog.event({action: 'ffmpeg.thumbnail', outcome: 'failure', level: 'warn', message: (err as Error).message});
       }
     } catch (err) {
       console.warn(`  compose skipped: ${(err as Error).message}`);
+      runtimeLog.event({action: 'ffmpeg.compose', outcome: 'failure', level: 'warn', message: (err as Error).message});
       composedPath = undefined;
     }
   }
@@ -216,17 +260,17 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
         console.warn('  tts: no narrate events to voice — skipping audio mix.');
       } else {
         const provider = resolveProvider(options.tts);
-        const audioDir = ensureDir(resolve(recDir, 'audio'));
+        const audioDir = ensureDir(paths.audioDir);
         const clipPaths = await synthBatch(provider, plan.clips.map((c) => ({text: c.text, index: c.index})), audioDir);
-        const outAudio = audioVideoPath(recDir);
-        await muxAudioIntoVideo({
-          videoPath: composedPath,
-          outputPath: outAudio,
+        runtimeLog.event({action: 'tts.synth', provider: provider.name, clips: clipPaths.length, dir: audioDir});
+        await runtimeLog.time('ffmpeg.audio-mix', async () => muxAudioIntoVideo({
+          videoPath: composedPath!,
+          outputPath: paths.composedAudioVideo,
           clipPaths,
           plan,
-        });
-        audioVideo = outAudio;
-        videoForMatrix = outAudio;
+        }), {output: paths.composedAudioVideo});
+        audioVideo = paths.composedAudioVideo;
+        videoForMatrix = paths.composedAudioVideo;
       }
     } catch (err) {
       console.warn(`  tts skipped: ${(err as Error).message}`);
@@ -259,20 +303,36 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     }
   }
 
+  runtimeLog.event({
+    action: 'capture.complete',
+    duration_ms: eventLog.getDurationMs(),
+    actions: result.stats.total_actions,
+    input_tokens: result.stats.input_tokens,
+    output_tokens: result.stats.output_tokens,
+    summary: result.summary,
+    composed: composedPath,
+    audio: audioVideo,
+  });
+  runtimeLog.close();
+
   console.log('');
   console.log(`auto_demo capture complete`);
   console.log(`  summary:   ${result.summary}`);
   console.log(`  actions:   ${result.stats.total_actions}`);
   console.log(`  tokens:    ${result.stats.input_tokens} in / ${result.stats.output_tokens} out`);
   console.log(`  duration:  ${(eventLog.getDurationMs() / 1000).toFixed(1)}s`);
-  console.log(`  output:    ${recDir}`);
+  console.log(`  base:      ${paths.baseDir}`);
+  console.log(`  key:       ${paths.key}`);
+  if (composedPath) console.log(`  composed:  ${composedPath}`);
   if (matrixOutputs && matrixOutputs.length > 0) {
     for (const out of matrixOutputs) console.log(`  format:    ${out}`);
   } else if (formatOutput) console.log(`  format:    ${formatOutput}`);
   if (audioVideo) console.log(`  audio:     ${audioVideo}`);
+  console.log(`  log:       ${paths.log}`);
 
   return {
-    recordingDir: recDir,
+    paths,
+    recordingDir: paths.baseDir,
     summary: result.summary,
     actions: result.stats.total_actions,
     inputTokens: result.stats.input_tokens,
@@ -280,6 +340,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     durationMs: eventLog.getDurationMs(),
     composedVideo: composedPath,
     rawVideo,
+    log: paths.log,
     ...(formatOutput ? {formatOutput} : {}),
     ...(matrixOutputs ? {matrixOutputs} : {}),
     ...(audioVideo ? {audioVideo} : {}),

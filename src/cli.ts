@@ -78,7 +78,8 @@ function addCaptureOptions<T extends Command>(cmd: T): T {
   return cmd
     .option('-p, --prompt <text>', `Instructions for the AI agent (default: --explore tour prompt)`)
     .option('--explore', 'Use the default "tour this UI" prompt — skip writing one')
-    .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto_demo-capture')
+    .option('-o, --output <dir>', 'Base directory for keyed artifacts. Defaults to <cwd>/.auto_demo when omitted.')
+    .option('--key <slug>', 'Kebab-case key for the artifact set. Auto-derived from the URL when omitted.')
     .option('--viewport <WxH>', 'Viewport size', '1280x720')
     .option('-m, --model <model>', 'Claude model — defaults to current top of the code/vision rankings', 'claude-opus-4-7')
     .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
@@ -125,7 +126,8 @@ addCaptureOptions(
       await captureCommand({
         url,
         prompt: resolvePrompt(options),
-        output: options.output,
+        ...(options.output ? {output: options.output} : {}),
+        ...(options.key ? {key: options.key} : {}),
         viewport: parseViewport(options.viewport),
         model: options.model,
         maxSteps: options.maxSteps,
@@ -165,7 +167,8 @@ addCaptureOptions(
       await authorCommand({
         url,
         prompt: resolvePrompt(options),
-        output: options.output,
+        ...(options.output ? {output: options.output} : {}),
+        ...(options.key ? {key: options.key} : {}),
         flowOut: options.flowOut,
         flowName: options.flowName,
         viewport: parseViewport(options.viewport),

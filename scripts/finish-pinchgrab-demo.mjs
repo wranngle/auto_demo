@@ -1,67 +1,75 @@
 #!/usr/bin/env node
 // Compose + audio pass over the raw screen recording made by
-// record-pinchgrab-demo.mjs. Produces composed.mp4 (with cursor overlay +
-// rounded corners + background) and composed-audio.mp4 (with flite-narrated
-// audio mixed in).
-import {readFileSync, mkdirSync, writeFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+// record-pinchgrab-demo.mjs. Produces composed + composed-audio at the
+// keyed paths under <cwd>/.auto_demo/.
+import {mkdirSync} from 'node:fs';
 import {composeVideo, generateThumbnail} from '../dist/video/compose.js';
 import {fliteProvider, synthBatch} from '../dist/audio/tts.js';
 import {planAudioFromEvents, muxAudioIntoVideo} from '../dist/audio/compose-audio.js';
+import {readEventLog} from '../dist/recording/event-log.js';
+import {resolveOutputs} from '../dist/utils/paths.js';
+import {RuntimeLog} from '../dist/utils/runtime-log.js';
 
-const DIR = resolve(process.cwd(), '.work/pinchgrab-demo');
-const RAW = resolve(DIR, 'raw.mp4');
-const EVENTS = resolve(DIR, 'events.json');
-const COMPOSED = resolve(DIR, 'composed.mp4');
-const COMPOSED_AUDIO = resolve(DIR, 'composed-audio.mp4');
+const PATHS = resolveOutputs({key: 'pinchgrab'});
+const runtimeLog = new RuntimeLog(PATHS.log);
 
 async function main() {
-  const events = JSON.parse(readFileSync(EVENTS, 'utf8'));
-  console.log(`events: ${events.length}`);
+  const events = readEventLog(PATHS.events);
+  console.log(`events: ${events.length} (from ${PATHS.events})`);
+  runtimeLog.event({action: 'finish.start', events: events.length, source: PATHS.events});
 
   console.log('composing with cursor + ember background...');
-  await composeVideo({
-    rawVideoPath: RAW,
+  await runtimeLog.time('ffmpeg.compose', async () => composeVideo({
+    rawVideoPath: PATHS.rawVideo,
     events,
-    outputPath: COMPOSED,
+    outputPath: PATHS.composedVideo,
     viewport: {width: 1280, height: 720},
     cursor: true,
     highlight: false,
-    zoom: false, // zoom math expects bounding_box on every click; our log has one, so leave off
+    zoom: false,
     background: {gradient: 'ember', padding: 6, cornerRadius: 14, shadow: true},
-  });
-  console.log(`composed: ${COMPOSED}`);
+  }), {output: PATHS.composedVideo});
+  console.log(`composed: ${PATHS.composedVideo}`);
 
   try {
-    await generateThumbnail(COMPOSED, resolve(DIR, 'thumbnail.jpg'));
+    await generateThumbnail(PATHS.composedVideo, PATHS.thumbnail);
+    runtimeLog.event({action: 'ffmpeg.thumbnail', output: PATHS.thumbnail});
   } catch (err) {
     console.warn(`thumbnail skipped: ${err.message}`);
+    runtimeLog.event({action: 'ffmpeg.thumbnail', outcome: 'failure', level: 'warn', message: err.message});
   }
 
   console.log('synthesizing narration with flite...');
   const plan = planAudioFromEvents(events);
   if (plan.clips.length === 0) {
     console.log('no narrate events — skipping audio.');
+    runtimeLog.event({action: 'tts.skip', reason: 'no narrate events'});
+    runtimeLog.close();
     return;
   }
-  const audioDir = resolve(DIR, 'audio');
-  mkdirSync(audioDir, {recursive: true});
+  mkdirSync(PATHS.audioDir, {recursive: true});
   const clipPaths = await synthBatch(
     fliteProvider(),
     plan.clips.map((c) => ({text: c.text, index: c.index})),
-    audioDir,
+    PATHS.audioDir,
   );
   console.log(`clips: ${clipPaths.length}`);
-  await muxAudioIntoVideo({
-    videoPath: COMPOSED,
-    outputPath: COMPOSED_AUDIO,
+  runtimeLog.event({action: 'tts.synth', clips: clipPaths.length, dir: PATHS.audioDir});
+
+  await runtimeLog.time('ffmpeg.audio-mix', async () => muxAudioIntoVideo({
+    videoPath: PATHS.composedVideo,
+    outputPath: PATHS.composedAudioVideo,
     clipPaths,
     plan,
-  });
-  console.log(`composed (audio): ${COMPOSED_AUDIO}`);
+  }), {output: PATHS.composedAudioVideo});
+  console.log(`composed (audio): ${PATHS.composedAudioVideo}`);
+  runtimeLog.event({action: 'finish.complete', composed: PATHS.composedVideo, audio: PATHS.composedAudioVideo});
+  runtimeLog.close();
 }
 
 main().catch((err) => {
   console.error(`finish failed: ${err.stack ?? err.message}`);
+  runtimeLog.event({action: 'finish.error', outcome: 'failure', level: 'error', message: err.message});
+  runtimeLog.close();
   process.exit(1);
 });

@@ -2,7 +2,7 @@ import type { Page } from 'playwright';
 import * as actions from '../browser/actions.js';
 import { getInteractiveElements, getPageInfo, type InteractiveElement } from '../browser/accessibility.js';
 import { EventLog } from '../recording/event-log.js';
-import { screenshotsDir } from '../utils/paths.js';
+import { ensureDir, screenshotsDir as legacyScreenshotsDir } from '../utils/paths.js';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ElementTarget } from '../browser/resolve-locator.js';
@@ -25,8 +25,15 @@ export class ToolHandlers {
     private page: Page,
     private eventLog: EventLog,
     private recordingDir: string,
-    private actionDelayMs: number
+    private actionDelayMs: number,
+    private explicitScreenshotsDir?: string,
   ) {}
+
+  private screenshotsDir(): string {
+    return this.explicitScreenshotsDir
+      ? ensureDir(this.explicitScreenshotsDir)
+      : legacyScreenshotsDir(this.recordingDir);
+  }
 
   /** Seed the element cache from outside (e.g. the initial observation in loop.ts). */
   seedElements(elements: InteractiveElement[]): void {
@@ -99,7 +106,7 @@ export class ToolHandlers {
   private saveScreenshot(buffer: Buffer): string {
     this.actionCount++;
     const filename = `step-${String(this.actionCount).padStart(3, '0')}.jpg`;
-    const dir = screenshotsDir(this.recordingDir);
+    const dir = this.screenshotsDir();
     const path = join(dir, filename);
     writeFileSync(path, buffer);
     return path;

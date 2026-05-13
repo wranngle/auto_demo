@@ -19,15 +19,19 @@
 // Re-run: node scripts/record-pinchgrab-demo.mjs
 
 import {spawn} from 'node:child_process';
-import {mkdirSync, writeFileSync} from 'node:fs';
+import {appendFileSync, mkdirSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {chromium} from 'playwright';
+import {resolveOutputs} from '../dist/utils/paths.js';
+import {RuntimeLog} from '../dist/utils/runtime-log.js';
 
 const VIRTUAL_DISPLAY = ':99';
 
 const EXT_DIR = '/mnt/c/Users/root/Documents/dev/visual_copy_design/extension';
 const TARGET_URL = 'https://app.wranngle.com/console/';
-const OUT_DIR = resolve(process.cwd(), '.work/pinchgrab-demo');
+const KEY = 'pinchgrab';
+// resolveOutputs lands artifacts at <cwd>/.auto_demo/pinchgrab.<artifact>.
+const PATHS = resolveOutputs({key: KEY});
 // WSLg's default virtual display caps at 1280x720; oversizing produces
 // "Capture area outside the screen size" + ffmpeg exit code 234. The window
 // size below is intentionally an inset to leave room for browser chrome
@@ -98,27 +102,40 @@ async function resolveExtensionId(context, timeoutMs = 5000) {
   throw new Error('extension service worker never registered');
 }
 
-const events = [];
+// NDJSON event log — same shape EventLog writes, written by hand here since
+// this script doesn't go through the agent loop.
+let startedAt = Date.now();
+const runtimeLog = new RuntimeLog(PATHS.log);
 function recordEvent(type, description, extra = {}) {
-  events.push({
-    id: events.length + 1,
+  const event = {
+    id: recordEvent.nextId++,
     timestamp_ms: Date.now() - startedAt,
     type,
     description,
     viewport: {width: REGION.w, height: REGION.h},
     ...extra,
-  });
+  };
+  try {
+    appendFileSync(PATHS.events, JSON.stringify(event) + '\n');
+  } catch (err) {
+    runtimeLog.event({action: 'events.write', outcome: 'failure', level: 'warn', message: err.message});
+  }
+  return event;
 }
-
-let startedAt = Date.now();
+recordEvent.nextId = 1;
 
 async function main() {
-  mkdirSync(OUT_DIR, {recursive: true});
-  const rawPath = resolve(OUT_DIR, 'raw.mp4');
-  const eventsPath = resolve(OUT_DIR, 'events.json');
-  const metadataPath = resolve(OUT_DIR, 'metadata.json');
+  mkdirSync(PATHS.baseDir, {recursive: true});
+  // Truncate any stale events file from a prior run.
+  writeFileSync(PATHS.events, '');
 
-  log(`output dir: ${OUT_DIR}`);
+  log(`base:   ${PATHS.baseDir}`);
+  log(`key:    ${PATHS.key}`);
+  log(`raw:    ${PATHS.rawVideo}`);
+  log(`events: ${PATHS.events}`);
+  log(`log:    ${PATHS.log}`);
+  runtimeLog.event({action: 'record.start', key: KEY, url: TARGET_URL, target: PATHS.rawVideo});
+
   // Start an isolated Xvfb so x11grab can actually see the Chromium window
   // (Playwright's headed Chromium under WSLg renders to Wayland by default,
   // invisible to x11grab on :0). Xvfb gives us a controlled X11 surface.
@@ -126,14 +143,15 @@ async function main() {
   const xvfb = startXvfb(VIRTUAL_DISPLAY, REGION.w, REGION.h);
   await delay(700); // give Xvfb a moment to bind the socket
 
-  const recorder = startScreenRecord(rawPath, REGION, VIRTUAL_DISPLAY);
+  const recorder = startScreenRecord(PATHS.rawVideo, REGION, VIRTUAL_DISPLAY);
+  runtimeLog.event({action: 'ffmpeg.x11grab.start', display: VIRTUAL_DISPLAY, region: REGION});
   // Let ffmpeg attach to the display before we open the browser.
   await delay(800);
 
   let userDataDir;
   let context;
   try {
-    userDataDir = resolve(OUT_DIR, '_chromium-profile');
+    userDataDir = resolve(PATHS.baseDir, `${KEY}.chromium-profile`);
     mkdirSync(userDataDir, {recursive: true});
     log(`launching headed Chromium on DISPLAY=${VIRTUAL_DISPLAY}`);
     context = await chromium.launchPersistentContext(userDataDir, {
@@ -154,6 +172,7 @@ async function main() {
 
     const extId = await resolveExtensionId(context);
     log(`extension id resolved: ${extId}`);
+    runtimeLog.event({action: 'extension.resolved', extId});
 
     startedAt = Date.now();
     const page = context.pages()[0] ?? await context.newPage();
@@ -161,18 +180,31 @@ async function main() {
     log(`navigating to ${TARGET_URL}`);
     await page.goto(TARGET_URL, {waitUntil: 'domcontentloaded', timeout: 30_000});
     recordEvent('navigate', `Navigate to ${TARGET_URL}`, {url: TARGET_URL, value: TARGET_URL});
-    await delay(1500);
+    // Wait for the page to settle AND the content-script to register.
+    // PinchGrab's manifest sets `run_at: document_idle` which fires after
+    // navigation network idle. 3.5s is enough on this page.
+    await delay(3500);
 
-    // Pick targets that exist in nearly every Wranngle console build.
-    // Fall through to body bounding boxes if none of the semantic targets match.
-    // Prefer interactable, non-overlapped targets: the H1 was getting blocked
-    // by ph__actions in the prior run. Buttons + the page-title h1 itself are
-    // hit-test-clean.
+    // Pick content-area targets, NOT page-header buttons. The original run
+    // hit `.ph__actions` overlap and the framework swallowed the click before
+    // PinchGrab's capture-phase listener fired. Workspace nav, stat cards,
+    // and agent rows are static content with no aggressive click handlers.
     const targets = [
-      {label: 'page header title', selector: '#console-page-title, header h1, .ph__title'},
-      {label: 'primary action button', selector: 'header button, .ph__actions button, [data-test="primary-action"]'},
-      {label: 'first card heading', selector: '.card h2, .card h3, [data-test="card"] h2, main h2'},
+      {label: 'PIPELINE stat card', selector: 'text=PIPELINE >> xpath=ancestor::div[contains(@class,"card") or contains(@class,"stat") or .//*[contains(text(),"$108K")]][1]'},
+      {label: 'Pipeline nav link', selector: 'nav >> text=Pipeline'},
+      {label: 'agent row "Hunter"', selector: 'text=Hunter'},
     ];
+
+    // Helper: dispatch Alt+click via CDP if the locator-based click loses
+    // to a capture-phase listener. CDP's Input.dispatchMouseEvent goes through
+    // the same event path the user's keyboard+mouse would.
+    const cdp = await context.newCDPSession(page);
+    async function altClickByCoords(x, y) {
+      await cdp.send('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Alt', code: 'AltLeft', modifiers: 1});
+      await cdp.send('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', clickCount: 1, modifiers: 1});
+      await cdp.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', clickCount: 1, modifiers: 1});
+      await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Alt', code: 'AltLeft', modifiers: 0});
+    }
 
     for (const t of targets) {
       try {
@@ -180,18 +212,24 @@ async function main() {
         await loc.waitFor({state: 'visible', timeout: 5_000});
         const box = await loc.boundingBox();
         if (!box) continue;
-        log(`alt+click on: ${t.label}`);
-        recordEvent('narrate', `Alt+Click ${t.label} to capture it via PinchGrab`, {
-          value: `Alt+Click on ${t.label} fires PinchGrab's capture handler.`,
+        const cx = Math.round(box.x + box.width / 2);
+        const cy = Math.round(box.y + box.height / 2);
+        log(`alt+click on: ${t.label} @ ${cx},${cy}`);
+        recordEvent('narrate', `Alt-click ${t.label} to capture it via PinchGrab`, {
+          value: `Alt-click on ${t.label} fires PinchGrab's capture handler.`,
         });
-        await loc.click({modifiers: ['Alt'], timeout: 5_000});
+        // CDP dispatch — survives capture-phase event interception that
+        // Playwright's locator.click() lost to in the first pass.
+        await altClickByCoords(cx, cy);
         recordEvent('click', `Alt+Click ${t.label}`, {
           bounding_box: {x: box.x, y: box.y, width: box.width, height: box.height},
           target_meta: {selector: t.selector, name: t.label},
         });
-        await delay(1500);
+        runtimeLog.event({action: 'altclick.dispatched', target: t.label, cx, cy});
+        await delay(1800);
       } catch (err) {
         log(`skipped ${t.label}: ${err.message}`);
+        runtimeLog.event({action: 'altclick.skipped', outcome: 'failure', level: 'warn', target: t.label, message: err.message});
       }
     }
 
@@ -209,8 +247,10 @@ async function main() {
 
     recordEvent('done', 'PinchGrab demo recorded', {});
     log('demo sequence complete');
+    runtimeLog.event({action: 'record.complete', duration_ms: Date.now() - startedAt});
   } catch (err) {
     log(`demo error: ${err.stack ?? err.message}`);
+    runtimeLog.event({action: 'record.error', outcome: 'failure', level: 'error', message: err.message});
   } finally {
     try { await context?.close(); } catch (e) { log(`context close failed: ${e.message}`); }
     await delay(400);
@@ -218,22 +258,24 @@ async function main() {
     try { xvfb.kill('SIGTERM'); } catch { /* ignore */ }
   }
 
-  writeFileSync(eventsPath, JSON.stringify(events, null, 2));
-  writeFileSync(metadataPath, JSON.stringify({
-    id: 'pinchgrab-demo',
+  writeFileSync(PATHS.metadata, JSON.stringify({
+    id: KEY,
     created_at: new Date().toISOString(),
     url: TARGET_URL,
     prompt: 'Demo of PinchGrab: Alt+click captures elements, side panel reviews them.',
     model: 'hand-authored',
     viewport: {width: REGION.w, height: REGION.h},
     duration_ms: Date.now() - startedAt,
-    raw_video_path: rawPath,
-    event_log_path: eventsPath,
+    raw_video_path: PATHS.rawVideo,
+    event_log_path: PATHS.events,
     chapters: [],
-    agent_stats: {total_actions: events.length, input_tokens: 0, output_tokens: 0},
+    agent_stats: {total_actions: recordEvent.nextId - 1, input_tokens: 0, output_tokens: 0},
   }, null, 2));
-  log(`raw video: ${rawPath}`);
-  log(`events: ${eventsPath}`);
+  runtimeLog.close();
+  log(`raw video: ${PATHS.rawVideo}`);
+  log(`events:    ${PATHS.events}`);
+  log(`metadata:  ${PATHS.metadata}`);
+  log(`log:       ${PATHS.log}`);
 }
 
 main().catch((err) => {

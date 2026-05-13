@@ -1,9 +1,8 @@
-import {writeFileSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
-import type {RecordingEvent} from '../recording/types.js';
+import {writeFileSync} from 'node:fs';
 import {captureCommand, type CaptureOptions} from './capture.js';
 import {eventsToFlow} from './events-to-flow.js';
-import {eventsPath} from '../utils/paths.js';
+import {readEventLog} from '../recording/event-log.js';
+import type {OutputPaths} from '../utils/paths.js';
 
 export interface AuthorOptions extends CaptureOptions {
   flowName?: string;
@@ -14,12 +13,11 @@ export async function authorCommand(options: AuthorOptions): Promise<{
   flowPath: string;
   recordingDir: string;
   needsManualSelectorCount: number;
+  paths: OutputPaths;
 }> {
   const result = await captureCommand(options);
 
-  const events = JSON.parse(
-    readFileSync(eventsPath(result.recordingDir), 'utf8'),
-  ) as RecordingEvent[];
+  const events = readEventLog(result.paths.events);
 
   const flow = eventsToFlow({
     events,
@@ -30,7 +28,7 @@ export async function authorCommand(options: AuthorOptions): Promise<{
     model: options.model,
   });
 
-  const flowPath = options.flowOut ?? join(result.recordingDir, 'flow.demo.json');
+  const flowPath = options.flowOut ?? result.paths.flow;
   writeFileSync(flowPath, JSON.stringify(flow, null, 2));
 
   const needsManual = flow.steps.filter((step) =>
@@ -49,7 +47,8 @@ export async function authorCommand(options: AuthorOptions): Promise<{
 
   return {
     flowPath,
-    recordingDir: result.recordingDir,
+    recordingDir: result.paths.baseDir,
     needsManualSelectorCount: needsManual,
+    paths: result.paths,
   };
 }
