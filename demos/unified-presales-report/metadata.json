@@ -1,26 +1,26 @@
 {
-  "id": "6ea5653d-0bef-4592-8161-4c7934e4ab2f",
-  "created_at": "2026-05-13T03:51:23.160Z",
+  "id": "4f95fe3c-1df4-4e78-b93d-92e1b34455a6",
+  "created_at": "2026-05-13T05:19:56.557Z",
   "url": "http://127.0.0.1:3003/",
-  "prompt": "Show the unified presales report dashboard. Take one screenshot to orient. Then click into the first visible report, evaluation, pipeline, or sub-page link in the main view. After the next page loads, take one final screenshot and call the done tool. Do not submit any forms or modify data.",
+  "prompt": "Show the dashboard. Take one screenshot. Click into the first visible report, evaluation, or pipeline link in the main view. After the next view loads, call the done tool. Do not submit any forms.",
   "model": "claude-haiku-4-5-20251001",
   "viewport": {
     "width": 1280,
     "height": 720
   },
-  "duration_ms": 9074,
-  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/raw.webm",
-  "event_log_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/6ea5653d-0bef-4592-8161-4c7934e4ab2f/events.json",
+  "duration_ms": 6900,
+  "raw_video_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/4f95fe3c-1df4-4e78-b93d-92e1b34455a6/raw.webm",
+  "event_log_path": "/home/wranngle/projects/auto_demo/demos/unified-presales-report/4f95fe3c-1df4-4e78-b93d-92e1b34455a6/events.json",
   "chapters": [
     {
       "start_ms": 0,
-      "end_ms": 9074,
+      "end_ms": 6900,
       "title": "Navigate to http://127.0.0.1:3003/"
     }
   ],
   "agent_stats": {
-    "total_actions": 4,
-    "input_tokens": 15795,
-    "output_tokens": 711
+    "total_actions": 3,
+    "input_tokens": 10555,
+    "output_tokens": 388
   }
 }

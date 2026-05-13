@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import * as actions from '../browser/actions.js';
-import { getInteractiveElements, getPageInfo } from '../browser/accessibility.js';
+import { getInteractiveElements, getPageInfo, type InteractiveElement } from '../browser/accessibility.js';
 import { EventLog } from '../recording/event-log.js';
 import { screenshotsDir } from '../utils/paths.js';
 import { writeFileSync } from 'node:fs';
@@ -16,6 +16,10 @@ export interface ToolResult {
 
 export class ToolHandlers {
   private actionCount = 0;
+  // Cached element list from the most recent observation. Used to back-resolve
+  // an index → role/name when the agent acts by index alone, so author-mode
+  // flows still get stable selectors.
+  private lastElements: InteractiveElement[] = [];
 
   constructor(
     private page: Page,
@@ -24,10 +28,30 @@ export class ToolHandlers {
     private actionDelayMs: number
   ) {}
 
+  /** Seed the element cache from outside (e.g. the initial observation in loop.ts). */
+  seedElements(elements: InteractiveElement[]): void {
+    this.lastElements = elements;
+  }
+
   /** Return element list only (no vision — fast). Used by all action tools. */
   private async elementsOnly(): Promise<ToolResult['content']> {
-    const { formatted } = await getInteractiveElements(this.page);
+    const { elements, formatted } = await getInteractiveElements(this.page);
+    this.lastElements = elements;
     return [{ type: 'text', text: formatted }];
+  }
+
+  /** Back-resolve an index to {role, name, text} from the most recent snapshot. */
+  private resolveIndex(index: number | undefined): {role?: string; name?: string; text?: string} {
+    if (index === undefined) return {};
+    const hit = this.lastElements.find((el) => el.index === index);
+    if (!hit) return {};
+    const role = hit.role && hit.role !== 'generic' ? hit.role : undefined;
+    const name = hit.name && hit.name.trim().length > 0 ? hit.name.trim() : undefined;
+    // Visible text content — last-resort selector when role/name aren't useful.
+    // Truncate long blocks so `text=` doesn't try to match a 500-char paragraph.
+    const rawText = hit.text?.trim();
+    const text = rawText && rawText.length > 0 && rawText.length <= 80 ? rawText : undefined;
+    return {role, name, text};
   }
 
   async handle(toolName: string, input: Record<string, any>): Promise<ToolResult> {
@@ -114,6 +138,16 @@ export class ToolHandlers {
     if (target.text) meta.text = target.text;
     if (target.selector) meta.selector = target.selector;
     if (target.index !== undefined) meta.index = target.index;
+
+    // Back-resolve: if the agent only sent an index, look up the cached element
+    // to fill in role/name/text so author-mode flows get a stable selector.
+    if (target.index !== undefined && !meta.role && !meta.name) {
+      const resolved = this.resolveIndex(target.index);
+      if (resolved.role) meta.role = resolved.role;
+      if (resolved.name) meta.name = resolved.name;
+      if (resolved.text && !meta.text) meta.text = resolved.text;
+    }
+
     return Object.keys(meta).length > 0 ? meta : undefined;
   }
 

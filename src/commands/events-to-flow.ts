@@ -14,8 +14,8 @@ export function eventsToFlow(input: EventsToFlowInput): DemoFlow {
   const steps: DemoStep[] = [];
   let lastSelectorMissing = false;
 
-  for (const event of input.events) {
-    const step = mapEvent(event);
+  for (const [index, event] of input.events.entries()) {
+    const step = mapEvent(event, index);
     if (!step) continue;
     if (step.selector === undefined && (step.action === 'click' || step.action === 'fill' || step.action === 'hover' || step.action === 'focus')) {
       step.label = `TODO selector — ${step.label ?? step.action}`;
@@ -47,11 +47,11 @@ export function eventsToFlow(input: EventsToFlowInput): DemoFlow {
   };
 }
 
-function mapEvent(event: RecordingEvent): DemoStep | undefined {
+function mapEvent(event: RecordingEvent, index: number): DemoStep | undefined {
   switch (event.type) {
     case 'navigate':
-      // The initial navigate is captured implicitly via startUrl; skip duplicates.
-      if (event.id === 1) return undefined;
+      // The first event in the log is always the implicit startUrl navigate — skip.
+      if (index === 0) return undefined;
       return event.url
         ? {action: 'goto', url: event.url, label: event.description}
         : undefined;
@@ -123,9 +123,9 @@ function mapEvent(event: RecordingEvent): DemoStep | undefined {
 
 /**
  * Map agent target metadata to a Playwright locator string the auto_demo can replay.
- * Priority: explicit selector → role+name → role-only/name-only → undefined.
- * Text fallback is intentionally excluded: the agent's `text` field is ambiguous
- * (sometimes the typed value, sometimes the target label) and produces incorrect selectors.
+ * Priority: explicit selector → role+name → role-only → name as text → text content.
+ * The typedValue check guards `type`/`fill` events where the agent's text/name fields
+ * may carry the value being typed rather than the target label.
  */
 function selectorFromTarget(meta: TargetMeta | undefined, typedValue?: string): string | undefined {
   if (!meta) return undefined;
@@ -142,6 +142,11 @@ function selectorFromTarget(meta: TargetMeta | undefined, typedValue?: string): 
 
   if (meta.name && meta.name !== typedValue) {
     return `text=${meta.name}`;
+  }
+
+  // Last-resort: visible text content from the back-resolved snapshot.
+  if (meta.text && meta.text !== typedValue) {
+    return `text=${meta.text}`;
   }
 
   return undefined;

@@ -4,15 +4,18 @@ import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {runFlow} from './runner.js';
-import {captureCommand, BACKGROUND_PRESETS} from './commands/capture.js';
+import {captureCommand, BACKGROUND_PRESETS, EXPLORE_DEFAULT_PROMPT} from './commands/capture.js';
 import {authorCommand} from './commands/author.js';
+import {buildEmbedSnippet} from './commands/embed.js';
+import {OUTPUT_FORMATS, ASPECT_RATIOS} from './video/format.js';
+import {parseInteger, parseSpeed, parseViewport} from './cli-parsers.js';
 
 const program = new Command();
 
 program
   .name('auto_demo')
   .description('Record browser UI demos: deterministic JSON flows or AI-driven capture.')
-  .version('0.2.0');
+  .version('0.3.0');
 
 program
   .command('run')
@@ -67,51 +70,61 @@ program
     }
   });
 
-program
-  .command('capture')
-  .description('Drive the page with an AI agent and produce a polished video. Uses ~/.claude OAuth bearer when available.')
-  .argument('<url>', 'Starting URL')
-  .requiredOption('-p, --prompt <text>', 'Instructions for the AI agent')
-  .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto_demo-capture')
-  .option('--viewport <WxH>', 'Viewport size', '1280x720')
-  .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
-  .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
-  .option('--slow-mo <ms>', 'Extra delay between actions', parseInteger, 150)
-  .option('--headed', 'Show the browser window')
-  .addOption(new Option('--background <name>', 'Composed-video background').choices(['none', ...BACKGROUND_PRESETS]).default('ember'))
-  .option('--padding <percent>', 'Background padding percentage', parseInteger, 8)
-  .option('--corner-radius <px>', 'Video corner radius', parseInteger, 12)
-  .option('--no-shadow', 'Disable drop shadow on composed video')
-  .option('-v, --verbose', 'Verbose logging')
-  .action(async (url: string, options: {
-    prompt: string;
-    output: string;
-    viewport: string;
-    model: string;
-    maxSteps: number;
-    slowMo: number;
-    headed?: boolean;
-    background: string;
-    padding: number;
-    cornerRadius: number;
-    shadow: boolean;
-    verbose?: boolean;
-  }) => {
+function addCaptureOptions<T extends Command>(cmd: T): T {
+  return cmd
+    .option('-p, --prompt <text>', `Instructions for the AI agent (default: --explore tour prompt)`)
+    .option('--explore', 'Use the default "tour this UI" prompt — skip writing one')
+    .option('-o, --output <dir>', 'Directory for video, events, and metadata', '.work/auto_demo-capture')
+    .option('--viewport <WxH>', 'Viewport size', '1280x720')
+    .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
+    .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
+    .option('--slow-mo <ms>', 'Extra delay between actions', parseInteger, 150)
+    .option('--headed', 'Show the browser window')
+    .addOption(new Option('--background <name>', 'Composed-video background').choices(['none', ...BACKGROUND_PRESETS]).default('ember'))
+    .option('--padding <percent>', 'Background padding percentage', parseInteger, 8)
+    .option('--corner-radius <px>', 'Video corner radius', parseInteger, 12)
+    .option('--no-shadow', 'Disable drop shadow on composed video')
+    .addOption(new Option('--format <name>', 'Additional output format').choices(OUTPUT_FORMATS))
+    .addOption(new Option('--aspect <ratio>', 'Aspect ratio for the output').choices(ASPECT_RATIOS))
+    .option('--logo <path>', 'Path to a logo PNG to overlay (bottom-right)')
+    .option('--auth-state <path>', 'Playwright storageState JSON for protected apps')
+    .option('--skip-preflight', 'Skip the HTTP reachability probe before launching the browser')
+    .option('-v, --verbose', 'Verbose logging') as T;
+}
+
+function resolvePrompt(opts: {prompt?: string; explore?: boolean}): string {
+  if (opts.prompt) return opts.prompt;
+  if (opts.explore) return EXPLORE_DEFAULT_PROMPT;
+  return EXPLORE_DEFAULT_PROMPT;
+}
+
+addCaptureOptions(
+  program
+    .command('capture')
+    .description('Drive the page with an AI agent and produce a polished video. Uses ~/.claude OAuth bearer when available. Omit --prompt to run an exploratory tour.')
+    .argument('<url>', 'Starting URL'),
+)
+  .action(async (url: string, options: any) => {
     try {
       await captureCommand({
         url,
-        prompt: options.prompt,
+        prompt: resolvePrompt(options),
         output: options.output,
         viewport: parseViewport(options.viewport),
         model: options.model,
         maxSteps: options.maxSteps,
         slowMoMs: options.slowMo,
         headless: !options.headed,
-        background: options.background as any,
+        background: options.background,
         padding: options.padding,
         cornerRadius: options.cornerRadius,
         shadow: options.shadow,
         verbose: options.verbose ?? false,
+        format: options.format,
+        aspect: options.aspect,
+        logoPath: options.logo,
+        authStatePath: options.authState,
+        skipPreflight: options.skipPreflight ?? false,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -119,44 +132,19 @@ program
     }
   });
 
-program
-  .command('author')
-  .description('Capture a demo with the agent and emit a deterministic .demo.json that can be replayed for free.')
-  .argument('<url>', 'Starting URL')
-  .requiredOption('-p, --prompt <text>', 'Instructions for the AI agent')
-  .option('-o, --output <dir>', 'Directory for video, events, and flow', '.work/auto_demo-author')
-  .option('--flow-out <path>', 'Explicit path for the emitted flow.demo.json')
-  .option('--flow-name <name>', 'Name to embed in the emitted flow')
-  .option('--viewport <WxH>', 'Viewport size', '1280x720')
-  .option('-m, --model <model>', 'Claude model', 'claude-haiku-4-5-20251001')
-  .option('--max-steps <n>', 'Max agent iterations', parseInteger, 24)
-  .option('--slow-mo <ms>', 'Extra delay between actions', parseInteger, 150)
-  .option('--headed', 'Show the browser window')
-  .addOption(new Option('--background <name>', 'Composed-video background').choices(['none', ...BACKGROUND_PRESETS]).default('ember'))
-  .option('--padding <percent>', 'Background padding percentage', parseInteger, 8)
-  .option('--corner-radius <px>', 'Video corner radius', parseInteger, 12)
-  .option('--no-shadow', 'Disable drop shadow on composed video')
-  .option('-v, --verbose', 'Verbose logging')
-  .action(async (url: string, options: {
-    prompt: string;
-    output: string;
-    flowOut?: string;
-    flowName?: string;
-    viewport: string;
-    model: string;
-    maxSteps: number;
-    slowMo: number;
-    headed?: boolean;
-    background: string;
-    padding: number;
-    cornerRadius: number;
-    shadow: boolean;
-    verbose?: boolean;
-  }) => {
+addCaptureOptions(
+  program
+    .command('author')
+    .description('Capture a demo with the agent and emit a deterministic .demo.json. Omit --prompt to run an exploratory tour.')
+    .argument('<url>', 'Starting URL')
+    .option('--flow-out <path>', 'Explicit path for the emitted flow.demo.json')
+    .option('--flow-name <name>', 'Name to embed in the emitted flow'),
+)
+  .action(async (url: string, options: any) => {
     try {
       await authorCommand({
         url,
-        prompt: options.prompt,
+        prompt: resolvePrompt(options),
         output: options.output,
         flowOut: options.flowOut,
         flowName: options.flowName,
@@ -165,11 +153,16 @@ program
         maxSteps: options.maxSteps,
         slowMoMs: options.slowMo,
         headless: !options.headed,
-        background: options.background as any,
+        background: options.background,
         padding: options.padding,
         cornerRadius: options.cornerRadius,
         shadow: options.shadow,
         verbose: options.verbose ?? false,
+        format: options.format,
+        aspect: options.aspect,
+        logoPath: options.logo,
+        authStatePath: options.authState,
+        skipPreflight: options.skipPreflight ?? false,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -177,32 +170,28 @@ program
     }
   });
 
+program
+  .command('embed')
+  .description('Print README-ready markdown + HTML snippets to embed a recording.')
+  .argument('<recordingDir>', 'A recording directory written by capture/author/run')
+  .option('--relative-to <dir>', 'Make video/poster paths relative to this directory (e.g. the repo root)')
+  .option('--title <text>', 'Override the embed title')
+  .action((recordingDir: string, options: {relativeTo?: string; title?: string}) => {
+    try {
+      const result = buildEmbedSnippet({
+        recordingDir,
+        ...(options.relativeTo ? {relativeTo: options.relativeTo} : {}),
+        ...(options.title ? {title: options.title} : {}),
+      });
+      console.log('## Markdown');
+      console.log(result.markdown);
+      console.log('');
+      console.log('## HTML');
+      console.log(result.htmlFallback);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
 await program.parseAsync(process.argv);
-
-function parseInteger(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error(`Expected a non-negative integer, received ${value}`);
-  }
-
-  return parsed;
-}
-
-function parseSpeed(value: string): number {
-  const parsed = Number.parseFloat(value);
-
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 8) {
-    throw new Error(`Expected speed > 0 and <= 8, received ${value}`);
-  }
-
-  return parsed;
-}
-
-function parseViewport(value: string): {width: number; height: number} {
-  const match = /^(\d+)x(\d+)$/.exec(value);
-  if (!match) {
-    throw new Error(`Invalid viewport "${value}" — expected format WxH e.g. 1280x720`);
-  }
-  return {width: Number.parseInt(match[1]!, 10), height: Number.parseInt(match[2]!, 10)};
-}

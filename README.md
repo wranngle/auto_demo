@@ -1,10 +1,13 @@
 # auto_demo
 
-CLI for recording browser UI demos — two modes, one repo:
+CLI for recording browser UI demos — four modes, one repo:
 
-- **`run`**: replay a deterministic `.demo.json` flow file. Zero model cost, byte-identical reruns. Already great for "re-record this every time the UI changes."
-- **`capture`**: drive the page with an AI agent (Claude via the Anthropic SDK) and produce a polished `composed.mp4` with cursor pulse, zoom, and a Loom-grade background. Useful for one-shot "show me this app" reels.
-- **`author`**: capture once with the agent, *then* dump a re-runnable `.demo.json` next to the recording so the rest of the project can replay it deterministically forever.
+- **`run`**: replay a deterministic `.demo.json` flow file. Zero model cost, byte-identical reruns. Great for "re-record this every time the UI changes."
+- **`capture`**: drive the page with an AI agent (Claude via the Anthropic SDK) and produce a polished `composed.mp4` with cursor pulse, zoom, and a Loom-grade background. One-shot "show me this app" reels.
+- **`author`**: capture once with the agent, then dump a re-runnable `.demo.json` next to the recording. Role-aware tools + back-resolution from the accessibility snapshot mean the emitted flow has stable selectors on most UIs.
+- **`embed`**: print README-ready markdown + HTML snippets for a recording directory. Closes the "what do I do with this file" loop.
+
+`--prompt` is optional on `capture`/`author` — omit it (or pass `--explore`) for a built-in tour prompt. `--format gif|webm`, `--aspect 16:9|1:1|9:16`, and `--logo path/to/png` cover README embeds, social formats, and branding. `--auth-state storage.json` records against logged-in apps. A pre-flight HTTP probe rejects unreachable / 404 / 500 URLs before Playwright launches, so you don't burn 20k tokens on an error page.
 
 Built on Playwright. Composition pipeline (ffmpeg) and agent loop adapted from
 [screencli](https://github.com/usefulagents/screencli) (MIT), but **without** the

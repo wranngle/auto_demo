@@ -2,7 +2,9 @@ import {readFileSync, existsSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 
-const CLAUDE_CREDENTIALS = join(homedir(), '.claude', '.credentials.json');
+function claudeCredentialsPath(): string {
+  return join(homedir(), '.claude', '.credentials.json');
+}
 
 export interface AnthropicAuth {
   authToken?: string;
@@ -19,9 +21,10 @@ export function resolveAnthropicAuth(): AnthropicAuth {
     return {authToken: process.env['ANTHROPIC_AUTH_TOKEN'], source: 'env-auth-token'};
   }
 
-  if (existsSync(CLAUDE_CREDENTIALS)) {
+  const credsPath = claudeCredentialsPath();
+  if (existsSync(credsPath)) {
     try {
-      const raw = JSON.parse(readFileSync(CLAUDE_CREDENTIALS, 'utf8')) as {
+      const raw = JSON.parse(readFileSync(credsPath, 'utf8')) as {
         claudeAiOauth?: {accessToken?: string; expiresAt?: number; scopes?: string[]};
       };
       const oauth = raw.claudeAiOauth;

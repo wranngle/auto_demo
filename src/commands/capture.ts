@@ -18,6 +18,15 @@ import {
 } from '../utils/paths.js';
 import {setLogLevel} from '../utils/logger.js';
 import {resolveAnthropicAuth, describeAuth} from '../oauth.js';
+import {preflight} from '../preflight.js';
+import {convertVideo, type OutputFormat, type AspectRatio} from '../video/format.js';
+import {existsSync, readFileSync} from 'node:fs';
+
+export const EXPLORE_DEFAULT_PROMPT =
+  'Take a brief tour of this UI. Scroll through the main page in deliberate moves, hover ' +
+  'over the primary navigation if present, then click into the first prominent action or section. ' +
+  'After the next view loads, call the done tool. Do not submit forms, modify data, or trigger ' +
+  'destructive actions.';
 
 export interface CaptureOptions {
   url: string;
@@ -33,6 +42,11 @@ export interface CaptureOptions {
   cornerRadius: number;
   shadow: boolean;
   verbose: boolean;
+  format?: OutputFormat;
+  aspect?: AspectRatio;
+  logoPath?: string;
+  authStatePath?: string;
+  skipPreflight?: boolean;
 }
 
 export interface CaptureResult {
@@ -44,6 +58,7 @@ export interface CaptureResult {
   durationMs: number;
   composedVideo?: string;
   rawVideo?: string;
+  formatOutput?: string;
 }
 
 export async function captureCommand(options: CaptureOptions): Promise<CaptureResult> {
@@ -56,14 +71,30 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     );
   }
 
+  if (!options.skipPreflight) {
+    const probe = await preflight(options.url);
+    if (!probe.ok) {
+      throw new Error(`Pre-flight failed for ${options.url}: ${probe.detail}. Pass --skip-preflight to override.`);
+    }
+  }
+
   const id = uuid();
   const recDir = recordingDir(resolve(options.output), id);
+
+  let storageState: object | undefined;
+  if (options.authStatePath) {
+    if (!existsSync(options.authStatePath)) {
+      throw new Error(`Auth state file not found: ${options.authStatePath}`);
+    }
+    storageState = JSON.parse(readFileSync(options.authStatePath, 'utf8'));
+  }
 
   console.log(`auto_demo capture`);
   console.log(`  id:        ${id}`);
   console.log(`  url:       ${options.url}`);
   console.log(`  model:     ${options.model}`);
   console.log(`  auth:      ${describeAuth(auth)}`);
+  if (storageState) console.log(`  storage:   ${options.authStatePath}`);
   console.log(`  output:    ${recDir}`);
   console.log('');
 
@@ -72,6 +103,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     headless: options.headless,
     slowMo: options.slowMoMs,
     recordDir: recDir,
+    ...(storageState ? {storageState} : {}),
   });
 
   const eventLog = new EventLog(eventsPath(recDir));
@@ -156,6 +188,24 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     }
   }
 
+  // Optional output-format conversion (gif / aspect ratio / logo overlay)
+  let formatOutput: string | undefined;
+  const needsFormatPass =
+    composedPath &&
+    (options.format && options.format !== 'mp4' || options.aspect || options.logoPath);
+  if (composedPath && needsFormatPass) {
+    try {
+      formatOutput = await convertVideo({
+        input: composedPath,
+        format: options.format ?? 'mp4',
+        ...(options.aspect ? {aspect: options.aspect} : {}),
+        ...(options.logoPath ? {logoPath: options.logoPath} : {}),
+      });
+    } catch (err) {
+      console.warn(`  format conversion skipped: ${(err as Error).message}`);
+    }
+  }
+
   console.log('');
   console.log(`auto_demo capture complete`);
   console.log(`  summary:   ${result.summary}`);
@@ -163,6 +213,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
   console.log(`  tokens:    ${result.stats.input_tokens} in / ${result.stats.output_tokens} out`);
   console.log(`  duration:  ${(eventLog.getDurationMs() / 1000).toFixed(1)}s`);
   console.log(`  output:    ${recDir}`);
+  if (formatOutput) console.log(`  format:    ${formatOutput}`);
 
   return {
     recordingDir: recDir,
@@ -173,6 +224,7 @@ export async function captureCommand(options: CaptureOptions): Promise<CaptureRe
     durationMs: eventLog.getDurationMs(),
     composedVideo: composedPath,
     rawVideo,
+    ...(formatOutput ? {formatOutput} : {}),
   };
 }
 

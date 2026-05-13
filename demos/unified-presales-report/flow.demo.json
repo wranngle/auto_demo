@@ -14,19 +14,14 @@
   },
   "metadata": {
     "sourcedBy": "auto_demo author",
-    "prompt": "Show the unified presales report dashboard. Take one screenshot to orient. Then click into the first visible report, evaluation, pipeline, or sub-page link in the main view. After the next page loads, take one final screenshot and call the done tool. Do not submit any forms or modify data.",
+    "prompt": "Show the dashboard. Take one screenshot. Click into the first visible report, evaluation, or pipeline link in the main view. After the next view loads, call the done tool. Do not submit any forms.",
     "model": "claude-haiku-4-5-20251001"
   },
   "steps": [
     {
       "action": "click",
-      "label": "TODO selector — Click on the Evaluation Dashboard link to navigate to the first visible report"
-    },
-    {
-      "action": "caption",
-      "text": "Some steps need a hand-picked selector — see TODO labels.",
-      "ms": 800,
-      "label": "Author note"
+      "selector": "role=link[name=\"Evaluation Dashboard\"]",
+      "label": "Click on the Evaluation Dashboard link to navigate to the first report/evaluation view"
     }
   ]
 }

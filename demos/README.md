@@ -1,83 +1,81 @@
 # UI Demos
 
-Auto-recorded with `auto_demo author` against the dev server of each repo.
-Each directory holds the polished `composed.mp4`, a `flow.demo.json` (best-effort
-deterministic re-run), `metadata.json`, and a `preview.jpg` still.
+Auto-recorded with `auto_demo author`. Each directory has the polished
+`composed.mp4`, a `flow.demo.json` you can replay with `auto_demo run`,
+`metadata.json` with model + token usage, plus `preview.jpg` / `thumbnail.jpg`.
 
-| Repo | Preview | Video | Actions | Tokens (in/out) | Duration |
-|---|---|---|---|---|---|
-| [career_architect](./career_architect/) | ![](./career_architect/preview.jpg) | [composed.mp4](./career_architect/composed.mp4) | 5 | 12,437 / 579 | 14.4 s |
-| [gtm_ops](./gtm_ops/) | ![](./gtm_ops/preview.jpg) | [composed.mp4](./gtm_ops/composed.mp4) | 14 | 83,382 / 1,728 | 44.8 s |
-| [unified-presales-report](./unified-presales-report/) | ![](./unified-presales-report/preview.jpg) | [composed.mp4](./unified-presales-report/composed.mp4) | 4 | 15,795 / 711 | 9.1 s |
-| [wranngle_com](./wranngle_com/) | ![](./wranngle_com/preview.jpg) | [composed.mp4](./wranngle_com/composed.mp4) | 15 | 55,849 / 1,302 | 71.3 s |
+| Repo | Preview | Video | Selector quality |
+|---|---|---|---|
+| [career_architect](./career_architect/) | ![](./career_architect/preview.jpg) | [composed.mp4](./career_architect/composed.mp4) | n/a (scroll-only) |
+| [gtm_ops](./gtm_ops/) | ![](./gtm_ops/preview.jpg) | [composed.mp4](./gtm_ops/composed.mp4) | 0/6 (downstream a11y debt) |
+| [unified-presales-report](./unified-presales-report/) | ![](./unified-presales-report/preview.jpg) | [composed.mp4](./unified-presales-report/composed.mp4) | 1/1 ✅ |
+| [wranngle_com](./wranngle_com/) | ![](./wranngle_com/preview.jpg) | [composed.mp4](./wranngle_com/composed.mp4) | 1/1 ✅ |
+| [selector_quality_proof](./selector_quality_proof/) | ![](./selector_quality_proof/preview.jpg) | [composed.mp4](./selector_quality_proof/composed.mp4) | 3/3 ✅ |
 
-All four used `claude-haiku-4-5-20251001` via the local OAuth bearer
-(`~/.claude/.credentials.json`) — no API key, no screencli.sh proxy, no credit
-meter. Total inference: **167,463 input + 4,320 output tokens** across the four
-recordings, billed against the Claude Max subscription.
+`selector_quality_proof` is the canonical fixture run that proves author-mode
+ships a replayable flow end-to-end. It runs against `examples/fixtures/smoke.html`
+and also emits a `composed.gif` (16:9 cropped) via `--format gif --aspect 16:9`.
+
+## Selector quality, plainly
+
+Author-mode's value depends on the agent picking targets by **role + name**, not
+by accessibility-tree index. Three things now make that work:
+
+1. The system prompt biases the agent toward role + name.
+2. The `click` / `type` / `hover` tools accept `role` and `name` fields directly.
+3. When the agent still falls back to index, tool-handlers back-resolves the
+   element from the cached accessibility snapshot and fills in role/name/text
+   for the emitted flow step.
+
+It works on apps with reasonable ARIA. It does not work on apps where rows
+are non-semantic divs — `gtm_ops` is the example in this set. The remaining
+TODO selectors there reflect downstream a11y debt in the gtm_ops repo, not
+an auto_demo gap.
 
 ## Per-repo notes
 
 ### career_architect
-Next.js landing page (port 3001). Agent scrolled deliberately and called `done`
-cleanly at the bottom. 5 actions, cleanest run.
+Next.js landing page (port 3001). Pure scroll demo, agent calls `done` cleanly.
 
 ### gtm_ops
-Bun + custom server (port 3002). Agent reached the Eval Dashboard, opened an
-evaluation row (`bland-veterinary-001`), and hit max-steps while still exploring.
-The captured video shows the dashboard with the flaw distribution + evaluation
-runs table, the cursor moving into a row, and a click. Flow file has
-`TODO selector` markers — Haiku acted by accessibility-tree index, which doesn't
-replay deterministically. Re-record with Sonnet or hand-edit selectors before
-checking the flow in.
+Bun + custom server (port 3002). Dashboard with non-semantic table rows.
+Agent kept trying different click targets (max-stepped at 14). The video is
+useful as a UI walkthrough; the `flow.demo.json` is mostly TODO selectors
+because the dashboard rows don't expose stable identifiers.
 
 ### unified-presales-report
-Bun + Express (port 3003). **Boot was broken** — required a one-line fix to the
-sqlite schema: `lib/evaluation/corpus.js` declared `case_studies` without a
-`vendor` column even though INSERTs and `SELECT … GROUP BY vendor` referenced it.
-Added `vendor TEXT` to the schema and dropped the existing `.db` files so they
-were recreated. Demo runs cleanly after the fix; the dashboard renders the
-Evaluation Dashboard shell but inline `500 Internal Server Error` messages show
-the empty-state data loaders still need work (`evaluation_runs` and
-`case_studies` queries fail downstream). The video captures the actual UI state
-honestly.
+Bun + Express (port 3003). Clean 2-step demo with a resolved selector.
 
 ### wranngle_com
-Vite SPA (port 5173). Agent scrolled through Offerings, "What we build", and
-sub-sections before max-steps. Last frame shows the navigation hover + the AI
-Agents / Websites / gtm_ops product tabs. Same `TODO selector` caveat as gtm_ops.
+Vite SPA (port 5173). Brief scroll + a single resolved-selector click.
 
-## Skipped
-
-### CIPP
-Next.js M365 management fork (port 3004). Next isn't installed in its local
-`node_modules`; `npx next` resolved to v16.2.6 but turbopack couldn't find the
-workspace root (`Couldn't find the Next.js package … from the project directory`).
-Beyond boot it gates on Azure AD auth. Not in scope to fix.
+### selector_quality_proof
+Minimum-viable proof that author → run round-trips. Also demonstrates
+`--format gif` + `--aspect 16:9`.
 
 ## Re-running
 
-Each demo was captured with:
-
 ```bash
-node dist/cli.js author <url> \
-  --prompt '...' \
+auto_demo author <url> \
+  --prompt '...' \                    # or omit for --explore default
   --output ./demos/<repo> \
   --max-steps 14 \
   --flow-name <slug>
 ```
 
-Dev servers started from each repo's own `dev`/`start` script on a unique port
-(3001 / 3002 / 3003 / 5173) and torn down after recording. The `composed.mp4` +
-`flow.demo.json` + `metadata.json` were lifted from the per-UUID subdir and the
-subdir was pruned.
+To embed a recording in a README:
+
+```bash
+auto_demo embed ./demos/<repo> --relative-to .
+```
+
+That prints the markdown + HTML for paste.
 
 ## Known limitations
 
-- **Selector quality**: Haiku frequently acts by element-index alone. The
-  emitted `flow.demo.json` works as a record of intent but its `click`/`fill`
-  steps often lack stable selectors (marked `TODO selector — …`). Hand-edit
-  before committing the flow to a repo, or rerun with
-  `-m claude-sonnet-4-5-20250929` for richer `role` / `name` capture.
-- **Max steps**: 14 is intentionally low to bound token spend. For longer apps,
-  bump `--max-steps`.
+- **a11y-poor UIs**: if a target element has `role=generic` and no accessible
+  name and no short text, the flow step is marked `TODO selector` and needs
+  a hand-picked Playwright locator.
+- **Author-mode video vs. flow**: `composed.mp4` is always valid even when
+  `flow.demo.json` has TODOs. The video records what the agent did; the flow
+  records what can be replayed. Sometimes one ships without the other.

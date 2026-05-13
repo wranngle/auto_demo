@@ -19,83 +19,120 @@
   },
   "steps": [
     {
-      "action": "hover",
-      "label": "TODO selector — Hover over Offerings navigation button"
+      "action": "caption",
+      "text": "Starting to explore the Wranngle Systems homepage. Currently at the top of the page.",
+      "ms": 1200,
+      "label": "Narration"
     },
     {
       "action": "hover",
-      "label": "TODO selector — Hover over About navigation button"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Scroll down to view first major section below the header"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause briefly to let the first section be visible"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Scroll down to view the next major section"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause to view this section"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Continue scrolling to view more content sections"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause to view the offerings section with AI Agents and other options"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Scroll down to see more sections"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause to view the product offerings section"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Continue scrolling to view more agent options"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause to view the agent comparison and demo section"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Scroll down further to view more sections"
-    },
-    {
-      "action": "pause",
-      "ms": 500,
-      "label": "Pause to view the FAQ and contact section"
-    },
-    {
-      "action": "scroll",
-      "y": 200,
-      "label": "Continue scrolling to view more FAQ and footer content"
+      "selector": "role=button",
+      "label": "Hover over the Offerings button to show navigation menu"
     },
     {
       "action": "caption",
-      "text": "Some steps need a hand-picked selector — see TODO labels.",
-      "ms": 800,
-      "label": "Author note"
+      "text": "Navigation menu shows Offerings, About, and other options. Now scrolling down to view the main content sections.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Scroll down to view the hero section and main content"
+    },
+    {
+      "action": "caption",
+      "text": "Scrolled to 21% of the page. Can see the main call-to-action buttons. Continuing to scroll down.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view more sections"
+    },
+    {
+      "action": "caption",
+      "text": "Now at 30% of the page. Viewing more of the features section. Continuing to scroll down.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling through the features section"
+    },
+    {
+      "action": "caption",
+      "text": "Reached 40% of the page. More offerings appear including AI Agents, Websites, and other options. Continuing to scroll.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view the middle section"
+    },
+    {
+      "action": "caption",
+      "text": "Almost at the halfway point (49% of page). Seeing product offerings including Core Agent and Elite Agent options with spec sheets. Continuing to scroll.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to view more product details"
+    },
+    {
+      "action": "caption",
+      "text": "Past the halfway point at 59% of the page. Seeing voice demo options and pricing links. Continuing to scroll down.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling through the lower sections"
+    },
+    {
+      "action": "caption",
+      "text": "Now at 68% of the page. Seeing FAQ section with questions about deployment speed, equipment requirements, and business learning. Continuing to scroll.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling toward the bottom sections"
+    },
+    {
+      "action": "caption",
+      "text": "Now at 77% of the page. Viewing more FAQ questions covering human handoff, lead qualification, customization, language support, and plan limits. Getting close to the end. Continuing to scroll.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Continue scrolling to reach the bottom section"
+    },
+    {
+      "action": "caption",
+      "text": "At 87% of the page. More FAQ questions about cancellation, data safety, multiple locations, and gtm_ops. Can see footer starting to appear. Almost at the end. Continue scrolling.",
+      "ms": 1200,
+      "label": "Narration"
+    },
+    {
+      "action": "scroll",
+      "y": 200,
+      "label": "Final scroll to reach the very bottom of the page"
+    },
+    {
+      "action": "caption",
+      "text": "Reached the bottom of the page at 96%. The footer section shows links to all major navigation items, products, policies, and social media. Complete homepage tour finished.",
+      "ms": 1200,
+      "label": "Narration"
     }
   ]
 }

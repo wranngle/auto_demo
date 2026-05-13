@@ -105,13 +105,14 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
   // Send element list only (no vision) — agent can act immediately
   const { getInteractiveElements } = await import('../browser/accessibility.js');
-  const { formatted: initialElements } = await getInteractiveElements(options.page);
+  const { elements: initialElementsArr, formatted: initialElements } = await getInteractiveElements(options.page);
+  handlers.seedElements(initialElementsArr);
   messages.push({
     role: 'user',
     content: [
       {
         type: 'text',
-        text: `Page loaded. Use the element indices to interact.\n\n${initialElements}`,
+        text: `Page loaded. Use role + name from the list when available (index is a fallback).\n\n${initialElements}`,
       },
     ],
   });

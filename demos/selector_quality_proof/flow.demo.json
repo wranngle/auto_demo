@@ -1,0 +1,38 @@
+{
+  "name": "selector-quality-proof",
+  "startUrl": "http://127.0.0.1:5180/smoke.html",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "record": {
+    "enabled": true,
+    "size": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "metadata": {
+    "sourcedBy": "auto_demo author",
+    "prompt": "Open Opportunity Review from the left nav, type \"voice automation\" into the search box, then call done.",
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "steps": [
+    {
+      "action": "click",
+      "selector": "role=button",
+      "label": "Click Opportunities button to access the Opportunity Review"
+    },
+    {
+      "action": "click",
+      "selector": "role=input[name=\"Filter accounts\"]",
+      "label": "Click on the search input field to focus it"
+    },
+    {
+      "action": "fill",
+      "selector": "role=input[name=\"Filter accounts\"]",
+      "value": "voice automation",
+      "label": "Type 'voice automation' into the search box"
+    }
+  ]
+}

@@ -18,12 +18,14 @@ export const tools: ToolDef[] = [
   // ── Actions ──
   {
     name: 'click',
-    description: 'Click an element by its index (from the element list returned with every action). Use x/y coordinates as fallback.',
+    description: 'Click an interactive element. Prefer role + name from the element list (produces flows that replay deterministically). Fall back to index, then x/y coordinates.',
     input_schema: {
       type: 'object',
       properties: {
-        index: { type: 'number', description: 'Element index from the interactive elements list.' },
-        x: { type: 'number', description: 'X coordinate (fallback when index unavailable).' },
+        role: { type: 'string', description: 'ARIA role from the element list, e.g. "button", "link", "menuitem". Preferred — produces stable selectors.' },
+        name: { type: 'string', description: 'Accessible name of the target element, exactly as shown in the element list.' },
+        index: { type: 'number', description: 'Element index from the interactive elements list. Use when role+name is ambiguous or absent.' },
+        x: { type: 'number', description: 'X coordinate (last-resort fallback).' },
         y: { type: 'number', description: 'Y coordinate (use with x).' },
         description: { type: 'string', description: 'What this click does.' },
       },
@@ -32,11 +34,13 @@ export const tools: ToolDef[] = [
   },
   {
     name: 'type',
-    description: 'Type text into an element by index, or into the currently focused element if no index given.',
+    description: 'Type text into an input. Prefer role + name to target the input; fall back to index, or type into the currently focused element if no target is given.',
     input_schema: {
       type: 'object',
       properties: {
-        index: { type: 'number', description: 'Element index to type into.' },
+        role: { type: 'string', description: 'ARIA role of the input ("textbox", "searchbox", "combobox", etc.). Preferred.' },
+        name: { type: 'string', description: 'Accessible name (label) of the input, NOT the value being typed.' },
+        index: { type: 'number', description: 'Element index. Use when role+name is ambiguous.' },
         text: { type: 'string', description: 'Text to type.' },
         clear_first: { type: 'boolean', description: 'Clear input before typing.' },
         description: { type: 'string', description: 'What this typing does.' },
@@ -106,14 +110,16 @@ export const tools: ToolDef[] = [
   },
   {
     name: 'hover',
-    description: 'Hover over an element by index.',
+    description: 'Hover over an element. Prefer role+name; fall back to index.',
     input_schema: {
       type: 'object',
       properties: {
-        index: { type: 'number', description: 'Element index.' },
+        role: { type: 'string', description: 'ARIA role.' },
+        name: { type: 'string', description: 'Accessible name.' },
+        index: { type: 'number', description: 'Element index (fallback).' },
         description: { type: 'string', description: 'What this does.' },
       },
-      required: ['index', 'description'],
+      required: ['description'],
     },
   },
   {
