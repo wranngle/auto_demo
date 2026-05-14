@@ -4,6 +4,7 @@ import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {runFlow} from './runner.js';
+import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 
 const program = new Command();
 
@@ -21,6 +22,7 @@ program
   .option('--no-video', 'Disable Playwright video capture')
   .option('--slow-mo <ms>', 'Delay Playwright actions for human-readable demos', parseInteger, 0)
   .option('--speed <factor>', 'Scale demo waits and cursor motion; 1.5 is faster, 0.75 is slower', parseSpeed, 1)
+  .option('--captions-lang <codes>', 'Comma-separated SRT export languages (en,es,pt,fr)', parseLanguages)
   .addOption(new Option('--json', 'Print the run result as JSON').default(false))
   .action(async (flowPath: string, options: {
     output: string;
@@ -29,6 +31,7 @@ program
     video: boolean;
     slowMo: number;
     speed: number;
+    captionsLang?: CaptionLanguage[];
     json: boolean;
   }) => {
     try {
@@ -40,6 +43,7 @@ program
         recordVideo: options.video,
         slowMoMs: options.slowMo,
         speed: options.speed,
+        ...(options.captionsLang === undefined ? {} : {captionsLang: options.captionsLang}),
       };
 
       const result = await runFlow(loaded.flow, options.baseUrl === undefined
@@ -56,6 +60,12 @@ program
         console.log(`Manifest: ${result.manifestPath}`);
         if (result.videoPath !== undefined) {
           console.log(`Video: ${result.videoPath}`);
+        }
+
+        if (result.captionPaths !== undefined) {
+          for (const path of result.captionPaths) {
+            console.log(`Captions: ${path}`);
+          }
         }
       }
     } catch (error) {
