@@ -9,6 +9,7 @@
   "files": [
     "dist",
     "examples",
+    "templates",
     "README.md",
     "LICENSE"
   ],
