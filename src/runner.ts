@@ -39,7 +39,7 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   const rawVideoDir = join(outputDir, 'raw-video');
   const events: StepEvent[] = [];
   const recordVideo = options.recordVideo && (flow.record?.enabled ?? true);
-  const viewport = flow.viewport ?? defaultViewport;
+  const viewport = options.quality?.viewport ?? flow.viewport ?? defaultViewport;
   const timing = normalizeTiming(flow, options);
   const polish = polishWithTiming(flow.polish, timing);
 
@@ -60,7 +60,7 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   if (recordVideo) {
     contextOptions.recordVideo = {
       dir: rawVideoDir,
-      size: flow.record?.size ?? viewport,
+      size: options.quality?.viewport ?? flow.record?.size ?? viewport,
     };
   }
 
@@ -114,6 +114,10 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   const captionPaths = await writeCaptionTracks(flow, outputDir, options.captionsLang);
   if (captionPaths.length > 0) {
     result.captionPaths = captionPaths;
+  }
+
+  if (options.quality !== undefined) {
+    result.quality = options.quality;
   }
 
   await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);

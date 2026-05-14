@@ -100,6 +100,11 @@ export type RunOptions = {
   slowMoMs: number;
   speed: number;
   captionsLang?: readonly CaptionLanguage[];
+  quality?: {
+    preset: string;
+    viewport: ViewportSize;
+    videoBitrateKbps: number;
+  };
 };
 
 export type StepEvent = {
@@ -119,5 +124,10 @@ export type RunResult = {
   manifestPath: string;
   videoPath?: string;
   captionPaths?: string[];
+  quality?: {
+    preset: string;
+    viewport: ViewportSize;
+    videoBitrateKbps: number;
+  };
   events: StepEvent[];
 };

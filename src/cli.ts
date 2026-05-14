@@ -5,6 +5,7 @@ import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {renderNarration} from './modes/narrate.js';
 import {renderSplit} from './modes/split.js';
+import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 
@@ -25,6 +26,7 @@ program
   .option('--slow-mo <ms>', 'Delay Playwright actions for human-readable demos', parseInteger, 0)
   .option('--speed <factor>', 'Scale demo waits and cursor motion; 1.5 is faster, 0.75 is slower', parseSpeed, 1)
   .option('--captions-lang <codes>', 'Comma-separated SRT export languages (en,es,pt,fr)', parseLanguages)
+  .option('--quality <preset>', 'Video preset: 720p | 1080p | 4k (sets viewport + bitrate)', parseQualityPreset)
   .addOption(new Option('--json', 'Print the run result as JSON').default(false))
   .action(async (flowPath: string, options: {
     output: string;
@@ -34,6 +36,7 @@ program
     slowMo: number;
     speed: number;
     captionsLang?: CaptionLanguage[];
+    quality?: QualitySpec;
     json: boolean;
   }) => {
     try {
@@ -46,6 +49,7 @@ program
         slowMoMs: options.slowMo,
         speed: options.speed,
         ...(options.captionsLang === undefined ? {} : {captionsLang: options.captionsLang}),
+        ...(options.quality === undefined ? {} : {quality: options.quality}),
       };
 
       const result = await runFlow(loaded.flow, options.baseUrl === undefined
