@@ -159,6 +159,21 @@ Use the action rail for internal review clips and dense walkthroughs where the
 viewer needs to see the planned sequence. Turn it off for final public exports if
 it competes with the product UI.
 
+## CI integration — re-record on every deploy
+
+Drop in the shipped GitHub Action template so every push to `main` produces a
+fresh demo MP4 + NDJSON event log as a workflow artifact:
+
+```bash
+mkdir -p .github/workflows
+cp "$(npm root -g)/auto_demo/templates/auto-demo-on-deploy.yml.template" \
+   .github/workflows/auto-demo-on-deploy.yml
+git add .github/workflows/auto-demo-on-deploy.yml
+```
+
+Edit the copied workflow to point at your own `flows/<name>.demo.json` and
+commit. Artifacts land under the workflow run as `auto-demo-<sha>`.
+
 ## Design bias
 
 This tool is intentionally boring at runtime. The valuable part of a demo
