@@ -103,6 +103,25 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 - `zoom`: set document zoom for cleaner video framing.
 - `screenshot`: write a PNG artifact.
 
+## Narrate (AI voice mux)
+
+`ui-demo-runner narrate` muxes a voiceover track onto an existing recording.
+The default `--voice mock` synthesizes a deterministic sine tone per line so
+tests never hit the network; pass `--voice elevenlabs` with the
+`ELEVENLABS_API_KEY` env var to swap in real speech.
+
+```bash
+node dist/cli.js narrate \
+  --script fixtures/short-script.txt \
+  --in output/console-overview/recording.mp4 \
+  --out output/console-overview/narrated.mp4 \
+  --voice mock
+```
+
+Script format is one line per cue: `start_sec | duration_sec | text`. Lines
+beginning with `#` and blank lines are ignored. The output MP4 carries the
+original video track plus a single AAC audio track (`ffprobe` reports both).
+
 ## Polish controls
 
 Flow files can opt into the recording style used for portfolio demos:
