@@ -5,6 +5,7 @@ import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {renderNarration} from './modes/narrate.js';
 import {renderSplit} from './modes/split.js';
+import {renderVertical} from './modes/vertical.js';
 import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
@@ -146,6 +147,41 @@ program
         console.log(`Split video: ${result.outputPath}`);
         console.log(`Dimensions: ${result.width}x${result.height}`);
         console.log(`Duration: ${result.durationMs}ms across ${result.stepCount} steps`);
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('vertical')
+  .description('Crop or pad an existing recording into a 9:16 vertical export (YouTube Shorts / TikTok).')
+  .requiredOption('--in <video>', 'Input MP4 to convert')
+  .requiredOption('--out <video>', 'Output MP4 path')
+  .option('--aspect <ratio>', 'Target aspect ratio (only 9:16 is supported)', '9:16')
+  .addOption(new Option('--fit <mode>', 'How to fit the source frame').choices(['crop', 'pad']).default('crop'))
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (options: {
+    in: string;
+    out: string;
+    aspect: string;
+    fit: 'crop' | 'pad';
+    json: boolean;
+  }) => {
+    try {
+      const result = await renderVertical({
+        inputPath: resolve(options.in),
+        outputPath: resolve(options.out),
+        aspect: options.aspect,
+        fit: options.fit,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`Vertical export: ${result.outputPath}`);
+        console.log(`Dimensions: ${result.width}x${result.height} (${result.aspect}, fit=${result.fit})`);
       }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
