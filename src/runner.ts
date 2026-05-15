@@ -21,6 +21,12 @@ import type {
   DemoFlow, DemoPolish, DemoStep, DemoTiming, RunOptions, RunResult, StepEvent,
 } from './types.js';
 import {resolveTarget} from './url-resolver.js';
+import {
+  buildCaptionCues,
+  renderSrt,
+  translateCaption,
+  type CaptionLanguage,
+} from './captions/srt.js';
 
 const defaultViewport = {
   width: 1280,
@@ -105,8 +111,37 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
     result.videoPath = videoPath;
   }
 
+  const captionPaths = await writeCaptionTracks(flow, outputDir, options.captionsLang);
+  if (captionPaths.length > 0) {
+    result.captionPaths = captionPaths;
+  }
+
   await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
   return result;
+}
+
+async function writeCaptionTracks(
+  flow: DemoFlow,
+  outputDir: string,
+  languages: readonly CaptionLanguage[] | undefined,
+): Promise<string[]> {
+  if (languages === undefined || languages.length === 0) {
+    return [];
+  }
+
+  const cues = buildCaptionCues(flow);
+  if (cues.length === 0) {
+    return [];
+  }
+
+  const writes = languages.map(async lang => {
+    const path = join(outputDir, `recording.${lang}.srt`);
+    const body = renderSrt(cues, text => translateCaption(text, lang));
+    await writeFile(path, body);
+    return path;
+  });
+
+  return Promise.all(writes);
 }
 
 type StepsContext = {

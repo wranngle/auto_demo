@@ -1,3 +1,5 @@
+import type {CaptionLanguage} from './captions/srt.js';
+
 export type DemoAction
   = | 'goto'
     | 'click'
@@ -97,6 +99,7 @@ export type RunOptions = {
   recordVideo: boolean;
   slowMoMs: number;
   speed: number;
+  captionsLang?: readonly CaptionLanguage[];
 };
 
 export type StepEvent = {
@@ -115,5 +118,6 @@ export type RunResult = {
   outputDir: string;
   manifestPath: string;
   videoPath?: string;
+  captionPaths?: string[];
   events: StepEvent[];
 };
