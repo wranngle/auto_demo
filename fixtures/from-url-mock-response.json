@@ -1,0 +1,32 @@
+{
+  "name": "from-url mock — credit card add flow",
+  "steps": [
+    {
+      "selector": "[data-test=\"nav-billing\"]",
+      "action": "click",
+      "narration": "Open the Billing page from the main navigation."
+    },
+    {
+      "selector": "[data-test=\"add-payment-method\"]",
+      "action": "click",
+      "narration": "Click Add payment method to start a new card."
+    },
+    {
+      "selector": "input[name=\"card-number\"]",
+      "action": "fill",
+      "value": "4242424242424242",
+      "narration": "Enter the 16-digit card number."
+    },
+    {
+      "selector": "input[name=\"expiry\"]",
+      "action": "fill",
+      "value": "12/30",
+      "narration": "Enter the expiration date."
+    },
+    {
+      "selector": "[data-test=\"submit-card\"]",
+      "action": "click",
+      "narration": "Submit the card to complete the flow."
+    }
+  ]
+}
