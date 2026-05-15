@@ -156,6 +156,24 @@ node dist/cli.js from-url https://example.com/billing \
 Every step in the emitted `steps[]` carries `selector`, `action`, and
 `narration` — the contract that downstream `run` and `narrate` consume.
 
+## Animated SVG export (README hero)
+
+`ui-demo-runner svg` samples frames from an existing MP4 and emits a single
+self-contained animated SVG suitable for embedding directly in a README — the
+same surface as `docs/hero.gif` from the hero block, but as inline markup that
+renders without binary asset hosting.
+
+```bash
+node dist/cli.js svg \
+  --fixture examples/fixtures/short-clip.mp4 \
+  --out out/demo.svg
+```
+
+The output is a single `.svg` file with base64-embedded JPEG frames driven by
+SMIL `<animate>` elements. The renderer enforces a 200KB ceiling so the file
+stays cheap to ship alongside the README; tune `--frames`, `--width`, or
+`--jpeg-quality` if the budget is tight.
+
 ## Polish controls
 
 Flow files can opt into the recording style used for portfolio demos:

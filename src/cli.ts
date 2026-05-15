@@ -13,6 +13,7 @@ import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 import {generateScriptFromUrl} from './from-url/index.js';
 import {watchOnce} from './watch/index.js';
 import {writeStoryboard} from './storyboard/index.js';
+import {renderAnimatedSvg} from './svg/index.js';
 
 const program = new Command();
 
@@ -268,6 +269,48 @@ program
       const resolved = resolve(runDir);
       const {path, rowCount} = await writeStoryboard(resolved);
       console.log(`Storyboard: ${path} (${rowCount} keyframes)`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('svg')
+  .description('Export an animated SVG preview from an MP4 fixture (README-embed friendly).')
+  .requiredOption('--fixture <video>', 'Input MP4 fixture to sample frames from')
+  .requiredOption('--out <path>', 'Output SVG path')
+  .option('--frames <count>', 'Number of frames to sample', parseInteger, 8)
+  .option('--width <px>', 'Target frame width (height is preserved by aspect ratio)', parseInteger, 320)
+  .option('--frame-duration-ms <ms>', 'Per-frame display duration in milliseconds', parseInteger, 150)
+  .option('--jpeg-quality <q>', 'ffmpeg JPEG quality (2=best, 31=worst)', parseInteger, 6)
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (options: {
+    fixture: string;
+    out: string;
+    frames: number;
+    width: number;
+    frameDurationMs: number;
+    jpegQuality: number;
+    json: boolean;
+  }) => {
+    try {
+      const result = await renderAnimatedSvg({
+        fixturePath: resolve(options.fixture),
+        outputPath: resolve(options.out),
+        frameCount: options.frames,
+        width: options.width,
+        frameDurationMs: options.frameDurationMs,
+        jpegQuality: options.jpegQuality,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`Animated SVG: ${result.outputPath}`);
+        console.log(`Frames: ${result.frameCount} @ ${result.width}x${result.height}`);
+        console.log(`Size: ${result.byteSize} bytes / loop ${result.totalDurationMs}ms`);
+      }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
