@@ -3,6 +3,7 @@ import {resolve} from 'node:path';
 import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
+import {renderNarration} from './modes/narrate.js';
 import {runFlow} from './runner.js';
 
 const program = new Command();
@@ -57,6 +58,45 @@ program
         if (result.videoPath !== undefined) {
           console.log(`Video: ${result.videoPath}`);
         }
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('narrate')
+  .description('Mux AI voice narration onto an existing recording (mock voice by default).')
+  .requiredOption('--script <path>', 'Path to a narration script (start|duration|text per line)')
+  .requiredOption('--in <video>', 'Input MP4 to add narration to')
+  .requiredOption('--out <video>', 'Output MP4 with narration track')
+  .option('--voice <id>', 'Voice id: "mock" (deterministic sine) or "elevenlabs"', 'mock')
+  .option('--work-dir <dir>', 'Scratch directory for intermediate WAV files')
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (options: {
+    script: string;
+    in: string;
+    out: string;
+    voice: string;
+    workDir?: string;
+    json: boolean;
+  }) => {
+    try {
+      const result = await renderNarration({
+        scriptPath: resolve(options.script),
+        inputVideoPath: resolve(options.in),
+        outputPath: resolve(options.out),
+        voice: options.voice,
+        ...(options.workDir === undefined ? {} : {workDir: resolve(options.workDir)}),
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`Narrated video: ${result.outputPath}`);
+        console.log(`Voice: ${result.voice} (${result.lineCount} lines)`);
+        console.log(`Streams: ${result.videoStreams} video, ${result.audioStreams} audio`);
       }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));

@@ -1,0 +1,6 @@
+# auto_demo narration fixture
+# Format: start_sec | duration_sec | narration_text
+# Lines starting with '#' and blank lines are ignored.
+0.0 | 1.5 | Welcome to the auto demo narrate fixture.
+1.6 | 1.5 | Each line becomes a deterministic sine tone.
+3.2 | 1.2 | Use --voice elevenlabs and ELEVENLABS_API_KEY for real voices.
