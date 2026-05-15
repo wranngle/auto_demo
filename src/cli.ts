@@ -12,6 +12,7 @@ import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 import {generateScriptFromUrl} from './from-url/index.js';
 import {watchOnce} from './watch/index.js';
+import {writeStoryboard} from './storyboard/index.js';
 
 const program = new Command();
 
@@ -252,6 +253,21 @@ program
       if (result.changed && rerunInvocations !== 1) {
         throw new Error(`watch: expected exactly one re-run invocation, got ${rerunInvocations}`);
       }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('storyboard')
+  .description('Render a markdown storyboard from a recorded run directory.')
+  .argument('<runDir>', 'Directory containing manifest.json (e.g. out/run-<id>)')
+  .action(async (runDir: string) => {
+    try {
+      const resolved = resolve(runDir);
+      const {path, rowCount} = await writeStoryboard(resolved);
+      console.log(`Storyboard: ${path} (${rowCount} keyframes)`);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

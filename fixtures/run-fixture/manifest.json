@@ -1,0 +1,51 @@
+{
+  "flowName": "pipeline-walkthrough",
+  "outputDir": "fixtures/run-fixture",
+  "manifestPath": "fixtures/run-fixture/manifest.json",
+  "events": [
+    {
+      "index": 0,
+      "action": "screenshot",
+      "label": "Open on proof: live pipeline console",
+      "startedAt": "2026-05-14T18:00:00.000Z",
+      "endedAt": "2026-05-14T18:00:01.200Z",
+      "status": "ok",
+      "artifact": "screenshots/step-1-open-on-proof.png"
+    },
+    {
+      "index": 1,
+      "action": "caption",
+      "label": "Click into the opportunities tab",
+      "startedAt": "2026-05-14T18:00:01.500Z",
+      "endedAt": "2026-05-14T18:00:02.700Z",
+      "status": "ok"
+    },
+    {
+      "index": 2,
+      "action": "screenshot",
+      "label": "Opportunities filtered to this week",
+      "startedAt": "2026-05-14T18:00:03.000Z",
+      "endedAt": "2026-05-14T18:00:04.200Z",
+      "status": "ok",
+      "artifact": "screenshots/step-2-opportunities.png"
+    },
+    {
+      "index": 3,
+      "action": "focus",
+      "label": "Zoom into the velocity card",
+      "startedAt": "2026-05-14T18:00:04.500Z",
+      "endedAt": "2026-05-14T18:00:05.700Z",
+      "status": "ok",
+      "artifact": "screenshots/step-3-velocity.png"
+    },
+    {
+      "index": 4,
+      "action": "screenshot",
+      "label": "Close on the next best action ribbon",
+      "startedAt": "2026-05-14T18:00:06.000Z",
+      "endedAt": "2026-05-14T18:00:07.200Z",
+      "status": "ok",
+      "artifact": "screenshots/step-4-ribbon.png"
+    }
+  ]
+}
