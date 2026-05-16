@@ -1,10 +1,18 @@
 # ui-demo-runner
 
-Deterministic CLI recorder for browser UI demos.
+![ui-demo-runner hero](docs/hero.gif)
 
-The point is simple: stop hand-recording the same Loom walkthroughs. Put the demo
-flow in a repo, run it from the CLI, and get a video, screenshots, and a manifest
-that says exactly what happened.
+Deterministic CLI recorder for browser UI demos. One command, one flow file,
+one reproducible video — every time.
+
+```bash
+npm run demo:smoke
+# → .work/smoke-demo/recording.webm + manifest.json + screenshots/
+```
+
+Stop hand-recording the same Loom walkthroughs. Put the demo flow in a repo,
+run it from the CLI, and get a video, screenshots, and a manifest that says
+exactly what happened.
 
 ## Why this exists
 
@@ -78,7 +86,7 @@ node dist/cli.js run path/to/console-overview.demo.json \
 Relative `startUrl` and `goto.url` values resolve against the flow file's
 directory. With `--base-url`, relative URLs resolve against that local dev server.
 
-## Supported actions
+## Modes
 
 - `goto`: navigate to another URL.
 - `caption`: show a short on-video caption for a timed beat.
