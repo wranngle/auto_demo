@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import {resolve} from 'node:path';
+import {writeFile, mkdir} from 'node:fs/promises';
+import {dirname, resolve} from 'node:path';
 import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
@@ -9,6 +10,7 @@ import {renderVertical} from './modes/vertical.js';
 import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
+import {generateScriptFromUrl} from './from-url/index.js';
 
 const program = new Command();
 
@@ -183,6 +185,32 @@ program
         console.log(`Vertical export: ${result.outputPath}`);
         console.log(`Dimensions: ${result.width}x${result.height} (${result.aspect}, fit=${result.fit})`);
       }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('from-url')
+  .description('Generate a deterministic demo script from a URL + goal using a mock LLM client.')
+  .argument('<url>', 'Target URL the script should drive')
+  .requiredOption('--goal <text>', 'Plain-English goal, e.g. "show how to add a credit card"')
+  .option('-o, --out <path>', 'Write the script JSON to this path instead of stdout')
+  .action(async (url: string, options: {goal: string; out?: string}) => {
+    try {
+      const script = await generateScriptFromUrl({url, goal: options.goal});
+      const serialized = JSON.stringify(script, null, 2);
+
+      if (options.out === undefined) {
+        console.log(serialized);
+        return;
+      }
+
+      const outPath = resolve(options.out);
+      await mkdir(dirname(outPath), {recursive: true});
+      await writeFile(outPath, `${serialized}\n`, 'utf8');
+      console.log(`Wrote ${script.steps.length} steps to ${outPath}`);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

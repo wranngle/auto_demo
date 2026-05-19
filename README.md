@@ -141,6 +141,21 @@ node dist/cli.js vertical \
 
 `ffprobe` on the output reports `width=1080,height=1920` (ratio ~0.5625).
 
+## Generate a script from a URL (mock LLM)
+
+For ideation, `from-url` produces a deterministic 5-step script from a URL +
+plain-English goal. The default client is a deterministic mock backed by a
+checked-in fixture, so tests and offline runs are stable.
+
+```bash
+node dist/cli.js from-url https://example.com/billing \
+  --goal "show how to add a credit card" \
+  --out out/credit-card.script.json
+```
+
+Every step in the emitted `steps[]` carries `selector`, `action`, and
+`narration` — the contract that downstream `run` and `narrate` consume.
+
 ## Polish controls
 
 Flow files can opt into the recording style used for portfolio demos:
