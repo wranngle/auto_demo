@@ -13,11 +13,24 @@ const FIXTURE_DURATION_SEC = 3;
 const FIXTURE_DURATION_MS = FIXTURE_DURATION_SEC * 1000;
 const DURATION_TOLERANCE_MS = 200;
 
+async function hasFfmpeg(): Promise<boolean> {
+  try {
+    await execFileAsync('ffmpeg', ['-version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const ffmpegAvailable = await hasFfmpeg();
+const describeIfFfmpeg = ffmpegAvailable ? describe : describe.skip;
+
 let workRoot = '';
 let flowPath = '';
 let recordingPath = '';
 
 beforeAll(async () => {
+  if (!ffmpegAvailable) return;
   workRoot = await mkdtemp(join(tmpdir(), 'auto_demo-split-test-'));
   flowPath = join(workRoot, 'flow.demo.json');
   recordingPath = join(workRoot, 'recording.mp4');
@@ -50,7 +63,7 @@ afterAll(async () => {
   }
 });
 
-describe('renderSplit', () => {
+describeIfFfmpeg('renderSplit', () => {
   test('produces a 1920x1080 split.mp4 with duration close to the input recording', async () => {
     const outputPath = join(workRoot, 'split.mp4');
     const result = await renderSplit({
