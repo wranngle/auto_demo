@@ -4,6 +4,7 @@ import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {renderNarration} from './modes/narrate.js';
+import {renderSplit} from './modes/split.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 
@@ -107,6 +108,40 @@ program
         console.log(`Narrated video: ${result.outputPath}`);
         console.log(`Voice: ${result.voice} (${result.lineCount} lines)`);
         console.log(`Streams: ${result.videoStreams} video, ${result.audioStreams} audio`);
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('split')
+  .description('Render a 1920x1080 split-screen MP4 with the flow on the left and a recording on the right.')
+  .argument('<flow>', 'Path to a .demo.json flow file')
+  .argument('<recording>', 'Path to the recorded MP4')
+  .option('-o, --output <file>', 'Output split.mp4 path', 'split.mp4')
+  .option('--work-dir <dir>', 'Scratch directory for intermediate frames')
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (flowPath: string, recordingPath: string, options: {
+    output: string;
+    workDir?: string;
+    json: boolean;
+  }) => {
+    try {
+      const result = await renderSplit({
+        flowPath,
+        recordingPath,
+        outputPath: resolve(options.output),
+        ...(options.workDir === undefined ? {} : {workDir: resolve(options.workDir)}),
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`Split video: ${result.outputPath}`);
+        console.log(`Dimensions: ${result.width}x${result.height}`);
+        console.log(`Duration: ${result.durationMs}ms across ${result.stepCount} steps`);
       }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
