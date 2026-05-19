@@ -11,6 +11,7 @@ import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 import {generateScriptFromUrl} from './from-url/index.js';
+import {watchOnce} from './watch/index.js';
 
 const program = new Command();
 
@@ -211,6 +212,46 @@ program
       await mkdir(dirname(outPath), {recursive: true});
       await writeFile(outPath, `${serialized}\n`, 'utf8');
       console.log(`Wrote ${script.steps.length} steps to ${outPath}`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('watch')
+  .description('Detect UI changes and re-record. With --once the loop runs a single pass against two fixtures.')
+  .option('--once', 'Run a single comparison pass and exit (no polling)')
+  .option('--fixture <path>', 'Path to the previous DOM snapshot (HTML)')
+  .option('--next <path>', 'Path to the next DOM snapshot (HTML)')
+  .option('--interval <ms>', 'Polling interval in ms (ignored with --once)', parseInteger, 60_000)
+  .action(async (options: {once?: boolean; fixture?: string; next?: string; interval: number}) => {
+    if (options.once !== true) {
+      console.error('watch: only --once mode is wired in this release; pass --once with --fixture and --next');
+      process.exitCode = 2;
+      return;
+    }
+
+    if (options.fixture === undefined || options.next === undefined) {
+      console.error('watch: --fixture and --next are required with --once');
+      process.exitCode = 2;
+      return;
+    }
+
+    try {
+      let rerunInvocations = 0;
+      const result = await watchOnce({
+        fixture: options.fixture,
+        next: options.next,
+        runner: () => {
+          rerunInvocations += 1;
+          console.log(`RERUN_INVOKED count=${rerunInvocations}`);
+        },
+      });
+
+      if (result.changed && rerunInvocations !== 1) {
+        throw new Error(`watch: expected exactly one re-run invocation, got ${rerunInvocations}`);
+      }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

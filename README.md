@@ -208,6 +208,20 @@ git add .github/workflows/auto-demo-on-deploy.yml
 Edit the copied workflow to point at your own `flows/<name>.demo.json` and
 commit. Artifacts land under the workflow run as `auto-demo-<sha>`.
 
+## Watch mode
+
+Re-record only when the UI actually changes. `watch --once` hashes the previous
+and next DOM snapshots, emits `CHANGE_DETECTED` (or `NO_CHANGE`), and fires a
+re-run hook exactly once per detected change. The `--once` mode is what tests
+exercise; the polling-loop variant lives behind the same comparator and is gated
+out of this release.
+
+```bash
+node dist/cli.js watch --once \
+  --fixture fixtures/old-dom.html \
+  --next fixtures/new-dom.html
+```
+
 ## Design bias
 
 This tool is intentionally boring at runtime. The valuable part of a demo
