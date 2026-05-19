@@ -1,0 +1,51 @@
+# auto_demo CI integration: re-record your golden demo on every deploy.
+#
+# Copy this file to `.github/workflows/auto-demo-on-deploy.yml` and edit the
+# placeholders marked CONSUMER:. The workflow installs auto_demo via npx,
+# replays the named .demo.json flow, and uploads the MP4 + NDJSON artifacts
+# alongside the run so reviewers can scrub the demo without a local checkout.
+
+name: auto_demo on deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright browsers
+        run: npx --yes playwright@1.57.0 install --with-deps chromium
+
+      - name: Record demo
+        env:
+          # CONSUMER: provide ANTHROPIC_API_KEY only if your flow uses `capture` mode.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx --yes auto_demo run \
+            flows/golden.demo.json \
+            --output .auto_demo/ci
+
+      - name: Upload demo artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-demo-${{ github.sha }}
+          path: |
+            .auto_demo/ci/recording.mp4
+            .auto_demo/**/*.ndjson
+          if-no-files-found: error
+          retention-days: 30
