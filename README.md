@@ -122,6 +122,25 @@ Script format is one line per cue: `start_sec | duration_sec | text`. Lines
 beginning with `#` and blank lines are ignored. The output MP4 carries the
 original video track plus a single AAC audio track (`ffprobe` reports both).
 
+## Vertical export (9:16)
+
+`ui-demo-runner vertical` converts an existing recording into a 9:16
+(1080x1920) MP4 for YouTube Shorts / TikTok / Reels. The default `--fit
+crop` center-crops the source frame; `--fit pad` letterboxes the
+source onto a black 9:16 canvas instead. The video track is re-encoded
+to H.264 with `+faststart`; the audio track is stripped (mux narration
+on top separately if needed).
+
+```bash
+node dist/cli.js vertical \
+  --in output/console-overview/recording.mp4 \
+  --out output/console-overview/short.mp4 \
+  --aspect 9:16 \
+  --fit crop
+```
+
+`ffprobe` on the output reports `width=1080,height=1920` (ratio ~0.5625).
+
 ## Polish controls
 
 Flow files can opt into the recording style used for portfolio demos:
