@@ -156,6 +156,39 @@ node dist/cli.js from-url https://example.com/billing \
 Every step in the emitted `steps[]` carries `selector`, `action`, and
 `narration` — the contract that downstream `run` and `narrate` consume.
 
+## ElevenLabs widget demos (real agent + deterministic mock)
+
+`ui-demo-runner widget` compiles a `*.scenario.json` into a business landing page
+with an `<elevenlabs-convai>` chat widget plus the matching `.demo.json` flow.
+One scenario, two modes (`live` block present = real agent; absent = mock), both
+driven through the real widget's text-mode selectors.
+
+```bash
+node scripts/provision-agents.mjs        # idempotent — create/reuse 6 demo agents
+node scripts/tune-agents.mjs             # PATCH each agent: markdown reply + client tools
+node scripts/record-live-demos.mjs       # record all 6 → output/live-widget/
+```
+
+Six shipped scenarios under `examples/widget/` (restaurant, dental, salon,
+ecommerce, medspa, home-services). Each `live` block tunes the widget per
+business: orb gradient, `branding.{mainLabel,startCall}` → widget `text-contents`,
+`linkHosts` → `markdown-link-allowed-hosts`, and `clientTools[]` declares
+browser-side tools (name, description, params, canned `result`). The page
+registers the canned handlers via the `elevenlabs-convai:call` event; the real
+agent's LLM decides to call a tool, it runs in-page with **no backend, no side
+effects**, returns the canned result, and the agent speaks it as rich markdown
+(a bold heading + bulleted detail list + a clickable confirmation link). Live
+recordings are choreographed for motion — a zoom punch anchored at the widget's
+bottom-right corner held while the reply streams, then a pull-back.
+
+`live.workspaceToolIds: string[]` attaches existing ElevenLabs workspace tools
+by id (e.g. the native cal.com `book_demo` webhook). **These take real actions**
+when invoked — real Cal.com bookings, real SMS. `tune-agents.mjs` merges them
+onto the agent's `prompt.tool_ids` (the API rejects sending inline `tools` +
+`tool_ids` together). The medspa scenario ships with the real Cal.com `book_demo`
+attached; re-recording it may create a real booking if the conversation reaches
+that tool.
+
 ## Animated SVG export (README hero)
 
 `ui-demo-runner svg` samples frames from an existing MP4 and emits a single
