@@ -90,7 +90,28 @@ async function tune(key, scenario) {
     promptBody.tools = tools;
   }
 
-  const body = {conversation_config: {agent: {prompt: promptBody}}};
+  // Per-business widget branding (agent-level platform_settings.widget.text_contents).
+  // The in-chat header is `chatting_status` — the widget-tag `text-contents` attribute
+  // does NOT override it; this server-side path does. A focused subset keeps the
+  // default UX everywhere else.
+  const ag = scenario.agent;
+  const biz = scenario.business;
+  const branding = scenario.live.branding ?? {};
+  const widgetText = {
+    main_label: branding.mainLabel ?? biz.name,
+    start_call: branding.startCall ?? `Talk to ${ag.name}`,
+    start_chat: `Chat with ${ag.name}`,
+    chatting_status: `Chatting with ${ag.name}`,
+    listening_status: 'Listening…',
+    speaking_status: `${ag.name} is replying…`,
+    connecting_status: `Connecting to ${ag.name}…`,
+    input_placeholder: `Message ${ag.name}…`,
+  };
+
+  const body = {
+    conversation_config: {agent: {prompt: promptBody}},
+    platform_settings: {widget: {text_contents: widgetText}},
+  };
 
   const patchRes = await fetch(`${API}/${agentId}`, {
     method: 'PATCH',
