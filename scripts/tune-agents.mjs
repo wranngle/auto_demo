@@ -72,18 +72,25 @@ async function tune(key, scenario) {
   const prompt = cur.conversation_config?.agent?.prompt ?? {};
   const base = String(prompt.prompt ?? '').split(MARKER)[0].trimEnd();
   const tools = (scenario.live.clientTools ?? []).map(toClientTool);
-
-  const body = {
-    conversation_config: {
-      agent: {
-        prompt: {
-          prompt: base + buildAddendum(scenario),
-          llm: prompt.llm ?? 'gemini-2.5-flash',
-          ...(tools.length > 0 ? {tools} : {}),
-        },
-      },
-    },
+  const workspaceIds = scenario.live.workspaceToolIds ?? [];
+  // The ConvAI API rejects sending both `tools` (inline) and `tool_ids` in one
+  // PATCH ("both_tools_and_tool_ids_provided"). Inline client-tool PATCHes
+  // auto-promote to standalone tools whose ids appear in prompt.tool_ids on the
+  // next GET. So when workspace tool_ids are added, we merge with whatever the
+  // agent already has and send tool_ids ONLY (preserving the earlier client
+  // tools by id); otherwise send the inline `tools` to create/replace them.
+  const promptBody = {
+    prompt: base + buildAddendum(scenario),
+    llm: prompt.llm ?? 'gemini-2.5-flash',
   };
+  if (workspaceIds.length > 0) {
+    const existing = Array.isArray(prompt.tool_ids) ? prompt.tool_ids : [];
+    promptBody.tool_ids = Array.from(new Set([...existing, ...workspaceIds]));
+  } else if (tools.length > 0) {
+    promptBody.tools = tools;
+  }
+
+  const body = {conversation_config: {agent: {prompt: promptBody}}};
 
   const patchRes = await fetch(`${API}/${agentId}`, {
     method: 'PATCH',
@@ -91,7 +98,13 @@ async function tune(key, scenario) {
     body: JSON.stringify(body),
   });
   if (!patchRes.ok) throw new Error(`patch ${scenario.name} failed: ${patchRes.status} ${await patchRes.text()}`);
-  return `tuned ${scenario.name.padEnd(24)} markdown${tools.length ? ` + ${tools.length} client tools (${tools.map(t => t.name).join(', ')})` : ''}`;
+  const toolsNote = workspaceIds.length === 0 && tools.length > 0
+    ? ` + ${tools.length} inline client tools (${tools.map(t => t.name).join(', ')})`
+    : '';
+  const wsNote = workspaceIds.length > 0
+    ? ` + tool_ids merged with ${workspaceIds.length} workspace tool(s) [${workspaceIds.join(', ')}]`
+    : '';
+  return `tuned ${scenario.name.padEnd(24)} markdown${toolsNote}${wsNote}`;
 }
 
 async function main() {

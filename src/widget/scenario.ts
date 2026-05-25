@@ -123,6 +123,14 @@ function optionalLive(value: unknown, label: string): ScenarioLiveWidget | undef
       .map((tool, index) => parseClientTool(tool, `${label}.clientTools[${index}]`));
   }
 
+  if (record.workspaceToolIds !== undefined) {
+    if (!Array.isArray(record.workspaceToolIds) || !record.workspaceToolIds.every(id => typeof id === 'string' && id.length > 0)) {
+      throw new TypeError(`Invalid ${label}.workspaceToolIds: expected non-empty string[]`);
+    }
+
+    live.workspaceToolIds = record.workspaceToolIds;
+  }
+
   return live;
 }
 

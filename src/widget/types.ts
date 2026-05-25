@@ -69,6 +69,10 @@ export type ScenarioLiveWidget = {
   branding?: ScenarioBranding;
   linkHosts?: string[];
   clientTools?: ScenarioClientTool[];
+  // Existing ElevenLabs workspace tool ids to attach via prompt.tool_ids (e.g. the
+  // native cal.com `book_demo` webhook). These take REAL actions when invoked —
+  // real Cal.com bookings, real SMS — so attach only where that's the intent.
+  workspaceToolIds?: string[];
 };
 
 export type WidgetScenario = {

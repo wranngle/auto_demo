@@ -16,6 +16,7 @@
     "orb1": "#2dd4bf", "orb2": "#0b4f49",
     "branding": {"mainLabel": "Lumen Aesthetics", "startCall": "Talk to Vera"},
     "linkHosts": ["lumenaesthetics.example.com"],
+    "workspaceToolIds": ["tool_4001kqxjgwp4ft2rwq21ze8fdpkp"],
     "clientTools": [
       {
         "name": "get_pricing",
