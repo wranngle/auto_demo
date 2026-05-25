@@ -1,11 +1,11 @@
-# auto_demo CI integration: re-record your golden demo on every deploy.
+# ui-demo-runner CI integration: re-record your golden demo on every deploy.
 #
 # Copy this file to `.github/workflows/auto-demo-on-deploy.yml` and edit the
-# placeholders marked CONSUMER:. The workflow installs auto_demo via npx,
-# replays the named .demo.json flow, and uploads the MP4 + NDJSON artifacts
+# placeholders marked CONSUMER:. The workflow installs ui-demo-runner via npx,
+# replays the named .demo.json flow, and uploads the webm + manifest artifacts
 # alongside the run so reviewers can scrub the demo without a local checkout.
 
-name: auto_demo on deploy
+name: ui-demo-runner on deploy
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
           # CONSUMER: provide ANTHROPIC_API_KEY only if your flow uses `capture` mode.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          npx --yes auto_demo run \
+          npx --yes ui-demo-runner run \
             flows/golden.demo.json \
             --output .auto_demo/ci
 
@@ -45,7 +45,7 @@ jobs:
         with:
           name: auto-demo-${{ github.sha }}
           path: |
-            .auto_demo/ci/recording.mp4
-            .auto_demo/**/*.ndjson
+            .auto_demo/ci/recording.webm
+            .auto_demo/**/manifest.json
           if-no-files-found: error
           retention-days: 30

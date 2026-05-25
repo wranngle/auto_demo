@@ -24,8 +24,8 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw).toMatch(/uses:\s*actions\/upload-artifact@v4\b/u);
   });
 
-  test('runs the auto_demo CLI in a recording step', () => {
-    expect(raw).toMatch(/auto_demo\s+run\b/u);
+  test('runs the ui-demo-runner CLI in a recording step', () => {
+    expect(raw).toMatch(/ui-demo-runner\s+run\b/u);
   });
 
   test('contains no hardcoded credential literals', () => {
