@@ -113,7 +113,7 @@ not yet wired — it currently falls back to the same mock tone.
 ```bash
 node dist/cli.js narrate \
   --script fixtures/short-script.txt \
-  --in output/console-overview/recording.mp4 \
+  --in output/console-overview/recording.webm \
   --out output/console-overview/narrated.mp4 \
   --voice mock
 ```
@@ -133,7 +133,7 @@ on top separately if needed).
 
 ```bash
 node dist/cli.js vertical \
-  --in output/console-overview/recording.mp4 \
+  --in output/console-overview/recording.webm \
   --out output/console-overview/short.mp4 \
   --aspect 9:16 \
   --fit crop
