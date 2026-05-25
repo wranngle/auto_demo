@@ -174,6 +174,16 @@ describe('scenario validation', () => {
     expect(parsed.live?.clientTools?.[0]?.name).toBe('lookup');
     expect(parsed.live?.branding?.mainLabel).toBe('Acme');
   });
+
+  test('accepts workspaceToolIds (existing-tool attachment, e.g. cal.com book_demo)', () => {
+    const parsed = validateScenario({...base, live: {agentId: 'agent_x', workspaceToolIds: ['tool_abc123', 'tool_def456']}});
+    expect(parsed.live?.workspaceToolIds).toEqual(['tool_abc123', 'tool_def456']);
+  });
+
+  test('rejects an empty string in workspaceToolIds', () => {
+    expect(() => validateScenario({...base, live: {agentId: 'agent_x', workspaceToolIds: ['tool_a', '']}}))
+      .toThrow(/workspaceToolIds/v);
+  });
 });
 
 // Drift coupling: the mock must expose the EXACT text-mode selectors of the real
@@ -248,5 +258,13 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(agents).toHaveLength(6);
     expect(new Set(agents.map(a => a.agentId)).size).toBe(6);
     expect(agents.every(a => a.agentId.startsWith('agent_'))).toBe(true);
+  });
+
+  // Drift coupling: medspa is the documented cal.com demonstration host (per
+  // README). Its scenario must keep the real workspace `book_demo` tool id
+  // attached — losing it silently breaks the cal.com integration story.
+  test('medspa scenario attaches the real Cal.com book_demo workspace tool', async () => {
+    const {scenario: medspa} = await loadScenario(resolve(repoRoot, 'examples/widget/medspa-consult.scenario.json'));
+    expect(medspa.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
   });
 });
