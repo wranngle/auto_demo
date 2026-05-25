@@ -85,6 +85,11 @@ node_modules/
 dist/
 .work/
 coverage/
+.auto_demo/
+*.webm
+
+# Private operator docs — never publish (candid feedback, real agent IDs, home paths)
+docs/wranngle-hero-demo/
 
 # git_good runtime (per dotfiles doctrine)
 .artifacts/

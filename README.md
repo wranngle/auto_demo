@@ -107,8 +107,8 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 
 `ui-demo-runner narrate` muxes a voiceover track onto an existing recording.
 The default `--voice mock` synthesizes a deterministic sine tone per line so
-tests never hit the network; pass `--voice elevenlabs` with the
-`ELEVENLABS_API_KEY` env var to swap in real speech.
+tests never hit the network. `--voice elevenlabs` is reserved for real TTS but is
+not yet wired — it currently falls back to the same mock tone.
 
 ```bash
 node dist/cli.js narrate \
@@ -218,7 +218,7 @@ fresh demo MP4 + NDJSON event log as a workflow artifact:
 
 ```bash
 mkdir -p .github/workflows
-cp "$(npm root -g)/auto_demo/templates/auto-demo-on-deploy.yml.template" \
+cp "$(npm root -g)/ui-demo-runner/templates/auto-demo-on-deploy.yml.template" \
    .github/workflows/auto-demo-on-deploy.yml
 git add .github/workflows/auto-demo-on-deploy.yml
 ```

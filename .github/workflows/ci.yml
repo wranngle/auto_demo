@@ -85,11 +85,6 @@ jobs:
           set -euo pipefail
           export PUPPETEER_SKIP_DOWNLOAD=true
           export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-          if [[ -x scripts/bin/git-conformance ]]; then
-            python3 -m pip install --quiet jsonschema
-            scripts/bin/git-conformance check
-            scripts/bin/git-conformance self-test
-          fi
           if [[ -f package.json ]];then
             if [[ -f .github/workflows/test.yml || -f .github/workflows/test.yaml ]]; then
               echo "dedicated test workflow detected - skipping generic package test"

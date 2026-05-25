@@ -2,7 +2,7 @@
 
 Report vulnerabilities privately through GitHub Private Vulnerability Reporting:
 
-https://example.com/REPO_URL_NOT_DETECTED/security/advisories/new
+https://github.com/wranngle/auto_demo/security/advisories/new
 
 If that link is unavailable, email cody@wranngle.com.
 
