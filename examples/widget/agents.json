@@ -1,0 +1,50 @@
+[
+  {
+    "id": "trattoria",
+    "brand": "Bella Vista Trattoria",
+    "agentId": "agent_1201ksb6296reyc97dxn9ngfkx79",
+    "orb1": "#c08a2e",
+    "orb2": "#7c1d1d",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL"
+  },
+  {
+    "id": "dental",
+    "brand": "Tidewater Family Dental",
+    "agentId": "agent_1401ksb62bc8fa189cnstym17dma",
+    "orb1": "#3fd0dd",
+    "orb2": "#0a5b66",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku"
+  },
+  {
+    "id": "salon",
+    "brand": "Atlas Hair Co.",
+    "agentId": "agent_1501ksb62c8xevxvswp451hj7ykz",
+    "orb1": "#ff5fae",
+    "orb2": "#8a0f4d",
+    "voiceId": "XB0fDUnXU5powFXDhCwa"
+  },
+  {
+    "id": "ecommerce",
+    "brand": "Northwind Supply",
+    "agentId": "agent_2201kseyczpyf8k81f0csq2jg5st",
+    "orb1": "#a78bfa",
+    "orb2": "#4c1d95",
+    "voiceId": "cjVigY5qzO86Huf0OWal"
+  },
+  {
+    "id": "medspa",
+    "brand": "Lumen Aesthetics",
+    "agentId": "agent_6401kseyd0v2f29bvs8vnehvj878",
+    "orb1": "#2dd4bf",
+    "orb2": "#0b4f49",
+    "voiceId": "cgSgspJ2msm6clMCkdW9"
+  },
+  {
+    "id": "hvac",
+    "brand": "Cardinal Heating & Air",
+    "agentId": "agent_6501kseyd1wnfajtf8qzxqcwt2h3",
+    "orb1": "#fb923c",
+    "orb2": "#7c2d12",
+    "voiceId": "bIHbv24MWmeRgasZH58o"
+  }
+]

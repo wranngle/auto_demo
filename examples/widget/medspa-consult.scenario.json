@@ -1,0 +1,69 @@
+{
+  "name": "lumen-aesthetics",
+  "business": {
+    "name": "Lumen Aesthetics",
+    "tagline": "Aesthetics, done quietly well",
+    "accent": "#14b8a6",
+    "vertical": "medspa"
+  },
+  "agent": {
+    "name": "Vera",
+    "subtitle": "Concierge · Lumen",
+    "greeting": "Welcome to Lumen Aesthetics, this is Vera. Booking a consult, or following up on a treatment?"
+  },
+  "live": {
+    "agentId": "agent_6401kseyd0v2f29bvs8vnehvj878",
+    "orb1": "#2dd4bf", "orb2": "#0b4f49",
+    "branding": {"mainLabel": "Lumen Aesthetics", "startCall": "Talk to Vera"},
+    "linkHosts": ["lumenaesthetics.example.com"],
+    "clientTools": [
+      {
+        "name": "get_pricing",
+        "description": "Look up package and membership pricing for a treatment. Call when the client asks about cost.",
+        "params": [{"name": "treatment", "description": "e.g. Botox"}],
+        "result": {"first_visit_from": "$325", "membership": "$99/mo", "membership_perk": "20% off treatments"}
+      },
+      {
+        "name": "book_consult",
+        "description": "Book a consult once the client picks a time.",
+        "params": [{"name": "treatment", "description": "treatment"}, {"name": "day", "description": "day"}, {"name": "time", "description": "time"}],
+        "result": {"consult_id": "LM-2204", "provider": "Nurse Adaeze", "day": "Thursday", "time": "3:30 PM", "status": "confirmed"}
+      }
+    ]
+  },
+  "capability": "consult booking + package & membership pricing + reschedule",
+  "intro": "A med-spa concierge that books, quotes, and protects the brand.",
+  "outro": "Consult booked and priced — front desk never picked up.",
+  "turns": [
+    {
+      "caption": "A first-timer asks for a consult — the agent finds a slot.",
+      "user": "I'd like to book a Botox consult — anything this week?",
+      "reply": [
+        {"say": "Let me check the consult calendar."},
+        {"tool": "find_consult_slot", "args": {"treatment": "Botox", "window": "this week"}, "result": "Thu 3:30 PM and Fri 11 AM open"},
+        {"say": "I have Thursday at 3:30 or Friday at 11 with our nurse injector. Which suits you?"},
+        {"do": {"type": "summary", "text": "Consult options held · Thu 3:30 / Fri 11"}}
+      ]
+    },
+    {
+      "caption": "It quotes package and membership pricing transparently.",
+      "user": "What does a first-time package usually run, and is there a membership?",
+      "reply": [
+        {"say": "Pulling current pricing."},
+        {"tool": "get_pricing", "args": {"item": "first-visit package + membership"}, "result": "First visit from $325 · membership $99/mo (20% off)"},
+        {"say": "First visits start at $325; our membership is $99 a month and takes 20% off treatments. No pressure to join."},
+        {"do": {"type": "summary", "text": "Quoted: from $325 · membership $99/mo"}}
+      ]
+    },
+    {
+      "caption": "And it books the consult cleanly.",
+      "user": "Let's do Thursday at 3:30.",
+      "reply": [
+        {"say": "Booking your consult now."},
+        {"tool": "book_consult", "args": {"day": "Thursday", "time": "3:30 PM"}, "result": "Booked · Thu 3:30 PM with Nurse Adaeze"},
+        {"say": "You're set for Thursday at 3:30 with Adaeze. I'll text intake forms and parking info. See you then!"},
+        {"do": {"type": "toast", "text": "Consult booked · Thu 3:30 PM"}}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "cardinal-heating-air",
+  "business": {
+    "name": "Cardinal Heating & Air",
+    "tagline": "Comfort restored, fast",
+    "accent": "#ea580c",
+    "vertical": "home-services"
+  },
+  "agent": {
+    "name": "Sam",
+    "subtitle": "Dispatch · Cardinal",
+    "greeting": "Cardinal Heating and Air, this is Sam. Is this a no-heat or no-cool emergency, or scheduling maintenance?"
+  },
+  "live": {
+    "agentId": "agent_6501kseyd1wnfajtf8qzxqcwt2h3",
+    "orb1": "#fb923c", "orb2": "#7c2d12",
+    "branding": {"mainLabel": "Cardinal Heating & Air", "startCall": "Talk to Sam"},
+    "linkHosts": ["cardinalhvac.example.com"],
+    "clientTools": [
+      {
+        "name": "find_technician",
+        "description": "Find the next available technician for an issue and priority. Call for no-heat or no-cool emergencies.",
+        "params": [{"name": "issue", "description": "e.g. no heat"}, {"name": "priority", "description": "emergency or routine"}],
+        "result": {"available_window": "4-6 PM today", "technician": "Marcus", "diagnostic_fee": "$89 (waived on repair)"}
+      },
+      {
+        "name": "dispatch_technician",
+        "description": "Dispatch the technician once the customer agrees to the window.",
+        "params": [{"name": "window", "description": "arrival window"}, {"name": "issue", "description": "issue"}],
+        "result": {"dispatch_id": "CH-9981", "technician": "Marcus", "window": "4-6 PM today", "eta_text": "30-min heads-up text enabled", "status": "dispatched"}
+      }
+    ]
+  },
+  "capability": "emergency dispatch + arrival window + ballpark pricing",
+  "intro": "A dispatcher that triages emergencies and books the truck.",
+  "outro": "No-heat call triaged, priced, and dispatched in one conversation.",
+  "turns": [
+    {
+      "caption": "A freezing no-heat call — the agent triages it as urgent.",
+      "user": "My furnace died and it's 38 degrees in here. Can someone come today?",
+      "reply": [
+        {"say": "That's an emergency — let me find the next truck."},
+        {"tool": "find_technician", "args": {"issue": "no heat", "priority": "emergency"}, "result": "Tech available 4–6 PM today"},
+        {"say": "I can get a technician to you between 4 and 6 today. Want me to lock that window?"},
+        {"do": {"type": "summary", "text": "Emergency triaged · no-heat · today"}}
+      ]
+    },
+    {
+      "caption": "It gives an honest ballpark before dispatching.",
+      "user": "Roughly what's a service call going to cost?",
+      "reply": [
+        {"say": "Checking current rates."},
+        {"tool": "get_quote", "args": {"job": "emergency diagnostic"}, "result": "$89 diagnostic · waived if you approve the repair"},
+        {"say": "The diagnostic is $89, and we waive it if you approve the repair. You'll get the repair price before any work starts."},
+        {"do": {"type": "summary", "text": "Quoted: $89 diagnostic (waived on repair)"}}
+      ]
+    },
+    {
+      "caption": "Then it dispatches the technician.",
+      "user": "Okay, send the tech.",
+      "reply": [
+        {"say": "Dispatching now."},
+        {"tool": "dispatch_technician", "args": {"window": "4-6 PM", "issue": "no heat"}, "result": "Dispatched · Marcus, 4–6 PM, ETA texted"},
+        {"say": "Done — Marcus is routed for 4 to 6 today. You'll get a text when he's 30 minutes out. Stay warm!"},
+        {"do": {"type": "toast", "text": "Technician dispatched · 4–6 PM today"}}
+      ]
+    }
+  ]
+}

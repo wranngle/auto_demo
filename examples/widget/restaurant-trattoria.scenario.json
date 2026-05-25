@@ -1,0 +1,69 @@
+{
+  "name": "bella-vista-trattoria",
+  "business": {
+    "name": "Bella Vista Trattoria",
+    "tagline": "Coastal Italian on the waterfront",
+    "accent": "#c8962f",
+    "vertical": "restaurant"
+  },
+  "agent": {
+    "name": "Gia",
+    "subtitle": "Front desk · Bella Vista",
+    "greeting": "Buonasera, thanks for calling Bella Vista Trattoria. I'm Gia — would you like to book a table?"
+  },
+  "live": {
+    "agentId": "agent_1201ksb6296reyc97dxn9ngfkx79",
+    "orb1": "#c08a2e", "orb2": "#7c1d1d",
+    "branding": {"mainLabel": "Reserve at Bella Vista", "startCall": "Talk to Gia"},
+    "linkHosts": ["bellavista.example.com"],
+    "clientTools": [
+      {
+        "name": "check_availability",
+        "description": "Check table availability for a date, time, party size and area (patio or dining room). Call this before offering a table.",
+        "params": [{"name": "date", "description": "e.g. Saturday"}, {"name": "time", "description": "e.g. 7 PM"}, {"name": "party_size", "description": "number of guests"}, {"name": "area", "description": "patio or dining room"}],
+        "result": {"available": true, "area": "patio", "time": "7:00 PM", "tables_left": 2}
+      },
+      {
+        "name": "book_table",
+        "description": "Book the reservation once the guest confirms the details. Call this to actually reserve the table.",
+        "params": [{"name": "date", "description": "date"}, {"name": "time", "description": "time"}, {"name": "party_size", "description": "guests"}, {"name": "notes", "description": "dietary or seating notes"}],
+        "result": {"reservation_id": "BV-7841", "date": "Saturday", "time": "7:00 PM", "party_size": 6, "area": "patio", "notes": "1 gluten-free", "status": "confirmed"}
+      }
+    ]
+  },
+  "capability": "scheduling + booking modification + dietary note + SMS confirmation",
+  "intro": "A real ElevenLabs agent, live on the restaurant's own site.",
+  "outro": "Booked, resized, dietary-flagged, and confirmed — no host on the phone.",
+  "turns": [
+    {
+      "caption": "A guest asks for a patio table — the agent checks the floor in real time.",
+      "user": "Table for four this Saturday at 7 on the patio?",
+      "reply": [
+        {"say": "Let me check the patio for Saturday at 7."},
+        {"tool": "check_availability", "args": {"date": "Sat", "time": "7:00 PM", "party": 4, "area": "patio"}, "result": "2 patio tables open at 7:00 PM"},
+        {"say": "Good news — I can seat four on the patio Saturday at 7. Want me to lock it in?"},
+        {"do": {"type": "summary", "text": "Held: patio table for 4 · Sat 7:00 PM"}}
+      ]
+    },
+    {
+      "caption": "Mid-conversation it resizes the party and logs a dietary note.",
+      "user": "Yes, but make it six people, and one is gluten-free.",
+      "reply": [
+        {"say": "Updating your party to six and flagging a gluten-free guest for the kitchen."},
+        {"tool": "update_reservation", "args": {"party": 6, "notes": "1 gluten-free"}, "result": "Party updated to 6, GF note routed to kitchen"},
+        {"say": "Done — six on the patio Saturday at 7, with the gluten-free note on the ticket."},
+        {"do": {"type": "summary", "text": "Updated: party of 6 + gluten-free note"}}
+      ]
+    },
+    {
+      "caption": "Finally it confirms and fires off the text.",
+      "user": "Perfect. Can you text me the confirmation?",
+      "reply": [
+        {"say": "Sending it now to the number on file."},
+        {"tool": "send_confirmation", "args": {"channel": "sms"}, "result": "Confirmation SMS sent to •••• 4821"},
+        {"say": "Sent! You'll get a reminder the morning of. See you Saturday — buon appetito!"},
+        {"do": {"type": "toast", "text": "Reservation confirmed · text sent"}}
+      ]
+    }
+  ]
+}

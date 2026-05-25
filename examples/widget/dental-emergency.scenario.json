@@ -1,0 +1,69 @@
+{
+  "name": "tidewater-family-dental",
+  "business": {
+    "name": "Tidewater Family Dental",
+    "tagline": "Dental care that fits your day",
+    "accent": "#0ea5e9",
+    "vertical": "dental"
+  },
+  "agent": {
+    "name": "Maya",
+    "subtitle": "Patient coordinator",
+    "greeting": "Thank you for calling Tidewater Family Dental, this is Maya. Are you booking a visit or is this an emergency?"
+  },
+  "live": {
+    "agentId": "agent_1401ksb62bc8fa189cnstym17dma",
+    "orb1": "#3fd0dd", "orb2": "#0a5b66",
+    "branding": {"mainLabel": "Tidewater Family Dental", "startCall": "Talk to Maya"},
+    "linkHosts": ["tidewaterdental.example.com"],
+    "clientTools": [
+      {
+        "name": "triage_symptom",
+        "description": "Classify how urgent a dental symptom is. Call this whenever a patient describes pain, swelling, or damage.",
+        "params": [{"name": "symptom", "description": "what is wrong"}, {"name": "pain_level", "description": "low, medium, or high"}],
+        "result": {"urgency": "urgent", "recommendation": "same-day evaluation", "reason": "cracked filling with pain"}
+      },
+      {
+        "name": "book_visit",
+        "description": "Book an appointment slot once the patient agrees to a time.",
+        "params": [{"name": "type", "description": "emergency exam, cleaning, etc."}, {"name": "time", "description": "requested time"}],
+        "result": {"appointment_id": "TD-3392", "provider": "Dr. Nguyen", "time": "Today 2:40 PM", "type": "emergency exam", "copay_estimate": "$25", "status": "confirmed"}
+      }
+    ]
+  },
+  "capability": "emergency triage + insurance verification + same-day booking",
+  "intro": "The same agent pattern, tuned for a dental front desk.",
+  "outro": "Urgent patient triaged, covered, and booked the moment they reached out.",
+  "turns": [
+    {
+      "caption": "An after-hours emergency — the agent triages it as urgent.",
+      "user": "My filling cracked over the weekend and it really hurts.",
+      "reply": [
+        {"say": "That sounds painful — let me triage this as urgent."},
+        {"tool": "triage_symptom", "args": {"symptom": "cracked filling", "pain": "high"}, "result": "Classified urgent → same-day eval recommended"},
+        {"say": "This needs to be seen today. Before I book, can I check your coverage so there are no surprises?"},
+        {"do": {"type": "summary", "text": "Triaged: cracked filling → urgent (same-day)"}}
+      ]
+    },
+    {
+      "caption": "It verifies coverage and estimates the copay before booking.",
+      "user": "Sure, I'm on Delta Dental, member 5582.",
+      "reply": [
+        {"say": "Pulling your plan now."},
+        {"tool": "verify_insurance", "args": {"carrier": "Delta Dental", "member": "5582"}, "result": "Active · emergency exam covered · ~$25 copay"},
+        {"say": "You're covered — an emergency exam is in-network with about a $25 copay. I have a 2:40 PM today. Take it?"},
+        {"do": {"type": "summary", "text": "Verified: Delta Dental active · ~$25 copay"}}
+      ]
+    },
+    {
+      "caption": "Then it locks the same-day slot and sends intake forms.",
+      "user": "Yes please, 2:40 works.",
+      "reply": [
+        {"say": "Booking your same-day emergency slot."},
+        {"tool": "book_appointment", "args": {"time": "2:40 PM", "type": "emergency exam"}, "result": "Booked · today 2:40 PM with Dr. Nguyen"},
+        {"say": "You're set for 2:40 PM today with Dr. Nguyen. I'll text directions and intake forms now."},
+        {"do": {"type": "toast", "text": "Same-day emergency booked · 2:40 PM"}}
+      ]
+    }
+  ]
+}

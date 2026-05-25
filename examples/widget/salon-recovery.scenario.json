@@ -1,0 +1,69 @@
+{
+  "name": "atlas-hair-co",
+  "business": {
+    "name": "Atlas Hair Co.",
+    "tagline": "Color studio in the Arts District",
+    "accent": "#ec4899",
+    "vertical": "salon"
+  },
+  "agent": {
+    "name": "Robin",
+    "subtitle": "Guest services",
+    "greeting": "Hey, you've reached Atlas Hair Co., this is Robin! Looking to book, reschedule, or check on color?"
+  },
+  "live": {
+    "agentId": "agent_1501ksb62c8xevxvswp451hj7ykz",
+    "orb1": "#ff5fae", "orb2": "#8a0f4d",
+    "branding": {"mainLabel": "Atlas Hair Co.", "startCall": "Talk to Robin"},
+    "linkHosts": ["atlashair.example.com"],
+    "clientTools": [
+      {
+        "name": "get_color_formula",
+        "description": "Look up the client's color formula on file. Call when a returning guest wants the same color as last time.",
+        "params": [{"name": "service", "description": "e.g. balayage"}],
+        "result": {"formula": "6N + 20 vol", "technique": "balayage map on file", "last_visit": "13 days ago", "stylist": "Sarah"}
+      },
+      {
+        "name": "book_appointment",
+        "description": "Book or rebook an appointment, including no-charge corrections under the color guarantee.",
+        "params": [{"name": "stylist", "description": "requested stylist"}, {"name": "day", "description": "requested day"}, {"name": "service", "description": "service"}],
+        "result": {"appointment_id": "AH-5120", "stylist": "Sarah", "day": "Thursday", "time": "2:15 PM", "charge": "$0 (correction)", "status": "confirmed"}
+      }
+    ]
+  },
+  "capability": "service recovery / credit + color-formula lookup + rebooking",
+  "intro": "Service recovery: a guarantee, the formula on file, and a free rebook.",
+  "outro": "Recovered, color-matched, and rebooked — the front desk was never paged.",
+  "turns": [
+    {
+      "caption": "A faded-color complaint — the agent checks the guarantee window.",
+      "user": "My balayage faded after only two weeks. Can I get a redo or a refund?",
+      "reply": [
+        {"say": "I'm sorry it faded so fast — let me look at your last visit."},
+        {"tool": "lookup_visit", "args": {"service": "balayage"}, "result": "Last visit 13 days ago with Sarah"},
+        {"say": "You're well inside our 30-day guarantee, so I can do a complimentary correction or a credit. Most guests prefer the redo — want that?"},
+        {"do": {"type": "summary", "text": "Eligible: 30-day color guarantee"}}
+      ]
+    },
+    {
+      "caption": "It pulls the exact color formula so nothing is guessed.",
+      "user": "A redo, yes — same formula as last time please.",
+      "reply": [
+        {"say": "Pulling the exact formula on file so the redo matches."},
+        {"tool": "get_color_formula", "args": {"client": "on file"}, "result": "6N + 20 vol · balayage map saved"},
+        {"say": "Got it — 6N at 20 volume with your balayage map. I'll add a no-charge correction. When works?"},
+        {"do": {"type": "summary", "text": "Formula loaded: 6N · 20 vol"}}
+      ]
+    },
+    {
+      "caption": "And it rebooks the right stylist at no charge.",
+      "user": "Thursday afternoon with Sarah.",
+      "reply": [
+        {"say": "Booking it now."},
+        {"tool": "book_appointment", "args": {"stylist": "Sarah", "day": "Thursday", "charge": 0}, "result": "Booked Thu 2:15 PM · $0 correction"},
+        {"say": "Done — Thursday at 2:15 with Sarah, no charge. We'll text a reminder. Sorry again, and see you then!"},
+        {"do": {"type": "toast", "text": "Correction rebooked · no charge"}}
+      ]
+    }
+  ]
+}

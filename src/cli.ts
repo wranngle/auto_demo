@@ -11,6 +11,7 @@ import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 import {generateScriptFromUrl} from './from-url/index.js';
+import {buildWidgetScenario} from './widget/index.js';
 import {watchOnce} from './watch/index.js';
 import {writeStoryboard} from './storyboard/index.js';
 import {renderAnimatedSvg} from './svg/index.js';
@@ -214,6 +215,56 @@ program
       await mkdir(dirname(outPath), {recursive: true});
       await writeFile(outPath, `${serialized}\n`, 'utf8');
       console.log(`Wrote ${script.steps.length} steps to ${outPath}`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('widget')
+  .description('Compile an ElevenLabs widget chat scenario into a landing page + flow (live real agent or deterministic mock); --run records it.')
+  .argument('<scenario>', 'Path to a *.scenario.json widget scenario file')
+  .option('-d, --out-dir <dir>', 'Directory for the generated <name>.html + <name>.demo.json', 'output/widget')
+  .option('--run', 'Record the scenario immediately after generating it')
+  .option('-o, --output <dir>', 'Recording output dir (implies --run; defaults under --out-dir)')
+  .option('--speed <factor>', 'Playback speed override for the recording run', parseSpeed, 1)
+  .option('--headed', 'Show the browser while recording')
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (scenarioPath: string, options: {
+    outDir: string;
+    run?: boolean;
+    output?: string;
+    speed: number;
+    headed?: boolean;
+    json: boolean;
+  }) => {
+    try {
+      const result = await buildWidgetScenario({
+        scenarioPath: resolve(scenarioPath),
+        outDir: options.outDir,
+        run: options.run === true || options.output !== undefined,
+        speed: options.speed,
+        headed: options.headed ?? false,
+        ...(options.output === undefined ? {} : {output: resolve(options.output)}),
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      console.log(`Widget page: ${result.htmlPath} (${result.mode === 'live' ? 'real ElevenLabs agent' : 'deterministic mock'})`);
+      console.log(`Demo flow:   ${result.flowPath}`);
+      console.log(`Scenario:    ${result.turnCount} turns, ${result.toolCount} tool calls`);
+      if (result.recording === undefined) {
+        console.log(`Record it:   node dist/cli.js run ${result.flowPath} --output output/${result.name}`);
+      } else {
+        console.log(`Manifest:    ${result.recording.manifestPath}`);
+        if (result.recording.videoPath !== undefined) {
+          console.log(`Video:       ${result.recording.videoPath}`);
+        }
+      }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

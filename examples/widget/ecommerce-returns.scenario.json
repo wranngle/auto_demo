@@ -1,0 +1,69 @@
+{
+  "name": "northwind-supply",
+  "business": {
+    "name": "Northwind Supply",
+    "tagline": "Gear that shows up when you need it",
+    "accent": "#7c3aed",
+    "vertical": "ecommerce"
+  },
+  "agent": {
+    "name": "Nova",
+    "subtitle": "Support · Northwind",
+    "greeting": "Hi, you've reached Northwind Supply support — this is Nova. Tracking an order, or starting a return?"
+  },
+  "live": {
+    "agentId": "agent_2201kseyczpyf8k81f0csq2jg5st",
+    "orb1": "#a78bfa", "orb2": "#4c1d95",
+    "branding": {"mainLabel": "Northwind Supply support", "startCall": "Talk to Nova"},
+    "linkHosts": ["northwind.example.com"],
+    "clientTools": [
+      {
+        "name": "lookup_order",
+        "description": "Look up the live shipping status of a customer order by its order number. Call this whenever a customer asks where their order is.",
+        "params": [{"name": "order_id", "description": "The order number, e.g. NW-40192.", "required": true}],
+        "result": {"order_id": "NW-40192", "status": "In transit — delayed in Memphis", "eta": "Tomorrow by 5 PM", "carrier": "UPS"}
+      },
+      {
+        "name": "start_refund",
+        "description": "Start a refund or store credit for an order within policy. Call this once the customer chooses to return or be refunded.",
+        "params": [{"name": "order_id", "description": "The order number."}, {"name": "method", "description": "Either card or store_credit."}],
+        "result": {"refund_id": "RMA-44218", "amount": "$84.00", "method": "card", "status": "approved", "eta": "3–5 business days"}
+      }
+    ]
+  },
+  "capability": "order tracking + self-serve returns + refunds",
+  "intro": "Same agent pattern for an online store's support.",
+  "outro": "Tracked, returned, and refunded in one chat — zero tickets.",
+  "turns": [
+    {
+      "caption": "A late order — the agent checks live shipping status.",
+      "user": "Where's my order? It was supposed to arrive yesterday. #NW-40192.",
+      "reply": [
+        {"say": "Let me pull up NW-40192."},
+        {"tool": "lookup_order", "args": {"order": "NW-40192"}, "result": "In transit · delayed in Memphis · ETA tomorrow 5 PM"},
+        {"say": "It's in transit but got held up in Memphis — new ETA is tomorrow by 5 PM. I'm sorry for the delay. Want to keep it or start a return?"},
+        {"do": {"type": "summary", "text": "Order NW-40192 · ETA tomorrow 5 PM"}}
+      ]
+    },
+    {
+      "caption": "It starts a self-serve return with a prepaid label, no agent needed.",
+      "user": "Honestly just return it, I bought another one.",
+      "reply": [
+        {"say": "No problem — generating a prepaid return label."},
+        {"tool": "create_return_label", "args": {"order": "NW-40192"}, "result": "Prepaid label emailed · drop at any UPS"},
+        {"say": "Done. The label's in your inbox — drop it at any UPS, no printer needed. Should I refund to your card or as store credit?"},
+        {"do": {"type": "summary", "text": "Return started · prepaid label emailed"}}
+      ]
+    },
+    {
+      "caption": "Finally it issues the refund within policy.",
+      "user": "Refund to my card, thanks.",
+      "reply": [
+        {"say": "Issuing the refund to your original card."},
+        {"tool": "issue_refund", "args": {"amount": "$84.00", "to": "card"}, "result": "Refund $84.00 approved · 3–5 business days"},
+        {"say": "All set — $84.00 is on its way back to your card in 3–5 business days. Thanks for your patience!"},
+        {"do": {"type": "toast", "text": "Refund issued · $84.00 to card"}}
+      ]
+    }
+  ]
+}
