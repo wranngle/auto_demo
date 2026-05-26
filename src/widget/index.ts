@@ -1,6 +1,8 @@
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {createServer, type Server} from 'node:http';
-import {extname, join, normalize, resolve} from 'node:path';
+import {
+  extname, join, normalize, resolve,
+} from 'node:path';
 import {runFlow} from '../runner.js';
 import {loadScenario} from './scenario.js';
 import {buildDemoFlow, countTools, renderWidgetPage} from './render.js';
@@ -113,7 +115,9 @@ function slugify(value: string): string {
     .slice(0, 80) || 'widget-scenario';
 }
 
-export {buildDemoFlow, renderWidgetPage, countTools, lastSay} from './render.js';
+export {
+  buildDemoFlow, renderWidgetPage, countTools, lastSay,
+} from './render.js';
 export {loadScenario, validateScenario} from './scenario.js';
 export {WIDGET_SELECTORS} from './selectors.js';
 export type {WidgetScenario, WidgetBuildResult} from './types.js';

@@ -146,10 +146,10 @@ function parseClientTool(value: UnknownRecord, label: string): ScenarioClientToo
   }
 
   if (value.params !== undefined) {
-    tool.params = requireRecordArray(value.params, `${label}.params`).map((param, index) => {
-      const name = nonEmpty(requireString(param.name, `${label}.params[${index}].name`), `${label}.params[${index}].name`);
-      const description = nonEmpty(requireString(param.description, `${label}.params[${index}].description`), `${label}.params[${index}].description`);
-      return param.required === undefined ? {name, description} : {name, description, required: Boolean(param.required)};
+    tool.params = requireRecordArray(value.params, `${label}.params`).map((parameter, index) => {
+      const name = nonEmpty(requireString(parameter.name, `${label}.params[${index}].name`), `${label}.params[${index}].name`);
+      const description = nonEmpty(requireString(parameter.description, `${label}.params[${index}].description`), `${label}.params[${index}].description`);
+      return parameter.required === undefined ? {name, description} : {name, description, required: Boolean(parameter.required)};
     });
   }
 
@@ -309,7 +309,7 @@ function requireAccent(value: unknown, label: string): string {
   return accent;
 }
 
-function assignOptionalString<T extends object>(target: T, key: keyof T, value: unknown, label: string): void {
+function assignOptionalString<T extends Record<string, unknown>>(target: T, key: keyof T, value: unknown, label: string): void {
   if (value === undefined) {
     return;
   }
