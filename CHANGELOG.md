@@ -56,6 +56,12 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - NDJSON event-log sidecar — append-only ECS-shaped `events.jsonl` next
   to `manifest.json`, grep/jq/DuckDB-readable across runs. (#19, pending)
 
+### Changed — install requirements
+- **ffmpeg + ffprobe are now a documented dependency.** They were already
+  required for `narrate`, `vertical`, `split`, and `svg`; the new runner-side
+  retime adds them to the base recording path too. README install section
+  spells this out, plus the no-op-on-missing fallback. (#33)
+
 ### Changed
 - Renamed user-visible `auto_demo` labels to the published package name
   `ui-demo-runner` — `metadata.source` in every generated flow + the
@@ -77,6 +83,13 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   Audit verdict: zero secrets in any tracked file.
 
 ### Fixed
+- **Real-time playback (kills the 3–5× slow-motion bug).** Playwright tags webms
+  at 25 fps while capturing ~75 fps of real frames, so every recording in the
+  repo was stretching to 3–5× its real wall-clock duration (smoke demo: 2.7 s →
+  15.3 s container; widget demos: 34 s → 101 s). `runFlow` now invokes
+  `src/retime.ts` after writing the manifest, comparing wall-clock to container
+  duration and re-encoding with `ffmpeg setpts` when the video is stretched
+  >10 %. Caught only by viewing the actual playback, not by step counts. (#30, #32)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was
@@ -84,6 +97,22 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `if-no-files-found: error`).
 - Drift-detection test on `--voice elevenlabs` now documents the stub
   fallback honestly instead of claiming real speech.
+
+### Tests + CI hardening
+- Bats shell-integration suite (33 cases across 7 files: from-url, narrate,
+  storyboard, svg, vertical, watch, widget) now runs in CI under the existing
+  `test` job — installs bats + ffmpeg on the ubuntu-latest runner. Closes the
+  doctrine gap "wire to CI before claiming done". (#25)
+- `tests/runner-events.test.ts` — ECS-shaped NDJSON sidecar format. (#19)
+- `tests/narrate.test.ts` — `start | duration | text` parser contract. (#26)
+- `tests/url-resolver.test.ts` — relative/baseUrl/file:// branches of
+  `resolveTarget`. (#27)
+- `tests/retime.test.ts` — `computeRetimeRatio` boundary + degenerate-input
+  contract; guards the real-time fix from silent regression. (#31)
+- `tests/widget.test.ts` — `data-client-tools` payload-shape contract
+  (name → exact result, no metadata leakage) + a `wranngle-scheduling`
+  load/render/flow guard. (#24, #29)
+- Widget source `xo --fix` for 33 stylistic lint errors (formatting-only). (#28)
 
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
