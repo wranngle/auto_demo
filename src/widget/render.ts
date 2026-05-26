@@ -273,8 +273,8 @@ function baseFlow(scenario: WidgetScenario, htmlFileName: string, build: FlowBui
     },
     metadata: {
       source: build.mode === 'live'
-        ? 'auto_demo widget (real ElevenLabs agent)'
-        : 'auto_demo widget (deterministic ElevenLabs mock)',
+        ? 'ui-demo-runner widget (real ElevenLabs agent)'
+        : 'ui-demo-runner widget (deterministic ElevenLabs mock)',
       mode: build.mode,
       rootSelector: WIDGET_SELECTORS.root,
       ...(build.agentId === undefined ? {} : {agentId: build.agentId}),

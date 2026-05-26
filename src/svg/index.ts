@@ -133,7 +133,7 @@ function buildSvg({frames, width, height, frameDurationMs, totalDurationMs}: Bui
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" `,
-    `width="${width}" height="${height}" role="img" aria-label="auto_demo animated preview" `,
+    `width="${width}" height="${height}" role="img" aria-label="ui-demo-runner animated preview" `,
     `data-frame-duration-ms="${frameDurationMs}">`,
     layers,
     '</svg>',
