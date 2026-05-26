@@ -102,9 +102,3 @@ export type WidgetBuildResult = {
 
 export const isSayBeat = (beat: ReplyBeat): beat is {say: string} =>
   Object.hasOwn(beat, 'say');
-
-export const isToolBeat = (beat: ReplyBeat): beat is ToolBeat =>
-  Object.hasOwn(beat, 'tool');
-
-export const isActionBeat = (beat: ReplyBeat): beat is {do: ActionBeat} =>
-  Object.hasOwn(beat, 'do');
