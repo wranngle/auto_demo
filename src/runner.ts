@@ -1,4 +1,4 @@
-import {mkdir, copyFile, writeFile} from 'node:fs/promises';
+import {mkdir, copyFile, writeFile, appendFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {
   chromium,
@@ -38,6 +38,10 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   const screenshotDir = join(outputDir, 'screenshots');
   const rawVideoDir = join(outputDir, 'raw-video');
   const events: StepEvent[] = [];
+  // Normalize once so the NDJSON sidecar and manifest agree on the flow name
+  // (raw flow.name is undefined for unnamed flows, which would drop the field).
+  const flowName = flow.name ?? 'unnamed-flow';
+  const eventsPath = join(outputDir, 'events.jsonl');
   const recordVideo = options.recordVideo && (flow.record?.enabled ?? true);
   const viewport = options.quality?.viewport ?? flow.viewport ?? defaultViewport;
   const timing = normalizeTiming(flow, options);
@@ -97,11 +101,17 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
       videoPath = join(outputDir, 'recording.webm');
       await copyFile(sourceVideoPath, videoPath);
     }
+
+    // Emit the NDJSON sidecar even when a step threw — failed runs are exactly
+    // what this forensic log must capture. Runs in finally so a selector
+    // timeout (which aborts before the manifest write below) still records the
+    // partial event stream.
+    await writeEventsNdjson(eventsPath, flowName, events).catch(ignoreCleanupError);
   }
 
   const manifestPath = join(outputDir, 'manifest.json');
   const result: RunResult = {
-    flowName: flow.name ?? 'unnamed-flow',
+    flowName,
     outputDir,
     manifestPath,
     events,
@@ -122,6 +132,45 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
 
   await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
   return result;
+}
+
+// Append-only NDJSON sidecar to manifest.json — one ECS-shaped line per step
+// event, grep/jq/DuckDB-readable across many recordings without a custom
+// parser. The manifest stays the per-run snapshot; this is for cross-run
+// forensics. Format aligns with the git_good NDJSON ledger doctrine
+// (events.<yyyy-mm-dd>.jsonl). Concept salvaged from the archived
+// auto-demo-merger exploration (archive/auto-demo-merger-2026-05-25 sha
+// 71bd6da), reimplemented against the current architecture.
+export function formatEventNdjson(flowName: string | undefined, events: StepEvent[]): string {
+  if (events.length === 0) {
+    return '';
+  }
+
+  const lines = events.map(event => JSON.stringify({
+    '@timestamp': event.startedAt,
+    service: {name: 'ui-demo-runner'},
+    event: {
+      action: `step.${event.action}`,
+      outcome: event.status === 'ok' ? 'success' : 'failure',
+      ...(event.endedAt === undefined ? {} : {end: event.endedAt}),
+    },
+    log: {level: event.status === 'ok' ? 'info' : 'error'},
+    flow: {name: flowName, step_index: event.index},
+    ...(event.label === undefined ? {} : {message: event.label}),
+    ...(event.artifact === undefined ? {} : {artifact: event.artifact}),
+    ...(event.error === undefined ? {} : {error: {message: event.error}}),
+  }));
+  return `${lines.join('\n')}\n`;
+}
+
+async function writeEventsNdjson(path: string, flowName: string, events: StepEvent[]): Promise<void> {
+  // appendFile (not writeFile) keeps the log genuinely append-only: rerunning
+  // into the same output dir accumulates across runs for cross-run analysis
+  // rather than truncating prior lines.
+  const body = formatEventNdjson(flowName, events);
+  if (body.length > 0) {
+    await appendFile(path, body);
+  }
 }
 
 async function writeCaptionTracks(

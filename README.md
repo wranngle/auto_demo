@@ -42,7 +42,8 @@ npm run demo:smoke
 The run writes:
 
 - `.work/smoke-demo/recording.webm`
-- `.work/smoke-demo/manifest.json`
+- `.work/smoke-demo/manifest.json` — per-run snapshot
+- `.work/smoke-demo/events.jsonl` — ECS-shaped NDJSON event log (one line per step, grep/jq/DuckDB-readable across runs)
 - `.work/smoke-demo/screenshots/opportunity-review.png`
 
 ## Record another repo
