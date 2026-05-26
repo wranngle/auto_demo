@@ -21,6 +21,7 @@ import type {
   DemoFlow, DemoPolish, DemoStep, DemoTiming, RunOptions, RunResult, StepEvent,
 } from './types.js';
 import {resolveTarget} from './url-resolver.js';
+import {retimeRecordingToRealTime} from './retime.js';
 import {
   buildCaptionCues,
   renderSrt,
@@ -131,6 +132,14 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   }
 
   await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
+  // Playwright tags webms at 25 fps while capturing ~75 fps of real frames, so
+  // every recording plays back stretched ~3-5x (smoke demo: 2.7s wall / 15.3s
+  // container; widget demos: 34s / 101s). Compress to real-time playback in
+  // place; no-op when ffmpeg is missing or the video is already real-time.
+  if (videoPath !== undefined) {
+    await retimeRecordingToRealTime(videoPath, events);
+  }
+
   return result;
 }
 

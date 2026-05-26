@@ -5,7 +5,7 @@
 // retime fails CI instead of shipping slow-motion recordings again.
 
 import {describe, expect, test} from 'vitest';
-import {computeRetimeRatio} from '../src/widget/index.js';
+import {computeRetimeRatio} from '../src/retime.js';
 import type {StepEvent} from '../src/types.js';
 
 function events(wallClockSec: number): StepEvent[] {
