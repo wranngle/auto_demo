@@ -33,6 +33,14 @@ npx playwright install chromium
 npm run build
 ```
 
+You also need `ffmpeg` + `ffprobe` on `PATH` (`apt install ffmpeg` / `brew install
+ffmpeg`). The recorder calls them to (a) re-time every webm to real-time
+playback — Playwright tags recordings at 25 fps while capturing ~75 fps of real
+frames, so without this step recordings play back 3–5× slow — and (b) power
+`narrate`, `vertical`, `split`, and `svg`. If ffmpeg is missing the recording
+still succeeds and the manifest still ships; only the post-processing steps
+no-op.
+
 ## Run the smoke demo
 
 ```bash
