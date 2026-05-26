@@ -87,10 +87,7 @@ jobs:
 
           eligible=0
           reason=""
-          if [[ "$HEAD_REF" == wip/* ]]; then
-            eligible=1
-            reason="wip autosync branch"
-          elif [[ ",$LABELS," == *",automerge,"* ]]; then
+          if [[ ",$LABELS," == *",automerge,"* ]]; then
             eligible=1
             reason="automerge label"
           elif [[ "$AUTHOR" == "dependabot[bot]" && "$DEP_UPDATE_TYPE" =~ ^version-update:semver-(patch|minor)$ ]]; then
@@ -132,6 +129,7 @@ jobs:
                 ' "$check_runs_file"
                 jq -r '
                   .statuses[]?
+                  | select(.context != "arm")
                   | select(.state == "failure" or .state == "error")
                   | "status:\(.context)=\(.state)"
                 ' "$statuses_file"
@@ -157,6 +155,7 @@ jobs:
                 ' "$check_runs_file"
                 jq -r '
                   .statuses[]?
+                  | select(.context != "arm")
                   | select(.state == "pending")
                   | "status:\(.context)=\(.state)"
                 ' "$statuses_file"

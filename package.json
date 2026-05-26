@@ -1,7 +1,7 @@
 {
   "name": "ui-demo-runner",
   "version": "0.1.0",
-  "description": "Deterministic CLI runner for recording browser UI demos from flow files.",
+  "description": "Deterministic CLI recorder for browser UI demos — flow files, plus an ElevenLabs ConvAI widget mode (live agent or mock).",
   "type": "module",
   "bin": {
     "ui-demo-runner": "./dist/cli.js"
@@ -27,7 +27,13 @@
     "demo-recording",
     "playwright",
     "screen-recording",
-    "ui-automation"
+    "ui-automation",
+    "elevenlabs",
+    "convai",
+    "elevenlabs-widget",
+    "chat-widget",
+    "ai-agent",
+    "voice-agent"
   ],
   "author": "Cody Arnold",
   "license": "MIT",
