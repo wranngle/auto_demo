@@ -88,7 +88,7 @@ ${widgetBlock}
 }
 
 function mockWidgetBlock(scenario: WidgetScenario): string {
-  const scenarioJson = JSON.stringify(scenario).replaceAll('<', '\\u003c');
+  const scenarioJson = JSON.stringify(scenario).replaceAll('<', String.raw`\u003c`);
   return `<elevenlabs-convai agent-id="mock-${esc(scenario.name)}"></elevenlabs-convai>
 <script type="application/json" id="convai-scenario">${scenarioJson}</script>
 <script>${WIDGET_RUNTIME}</script>`;
@@ -161,31 +161,41 @@ function buildMockFlow(scenario: WidgetScenario, htmlFileName: string): DemoFlow
   const send = widgetSelector('send');
   const steps: DemoStep[] = [
     {action: 'waitForText', text: scenario.business.tagline, label: 'Landing page ready'},
-    {action: 'waitForSelector', selector: input, timeoutMs: 15_000, label: 'Widget mounted (text mode)'},
+    {
+      action: 'waitForSelector', selector: input, timeoutMs: 15_000, label: 'Widget mounted (text mode)',
+    },
   ];
 
   if (scenario.intro !== undefined) {
-    steps.push({action: 'caption', text: scenario.intro, ms: 1400, label: 'Intro beat'});
+    steps.push({
+      action: 'caption', text: scenario.intro, ms: 1400, label: 'Intro beat',
+    });
   }
 
   steps.push({action: 'pause', ms: 900, label: 'Agent greeting renders'});
 
-  scenario.turns.forEach((turn, index) => {
+  for (const [index, turn] of scenario.turns.entries()) {
     const n = index + 1;
     if (turn.caption !== undefined) {
-      steps.push({action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`});
+      steps.push({
+        action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`,
+      });
     }
 
     steps.push(
       {action: 'click', selector: input, label: `Focus chat (turn ${n})`},
-      {action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`},
+      {
+        action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`,
+      },
       {action: 'click', selector: send, label: `Send turn ${n}`},
-      {action: 'waitForText', text: lastSay(turn), timeoutMs: 22_000, label: `Agent reply ${n}`},
+      {
+        action: 'waitForText', text: lastSay(turn), timeoutMs: 22_000, label: `Agent reply ${n}`,
+      },
       widgetZoom(scenario, 1.18, 280, `Zoom to answer ${n}`),
       {action: 'pause', ms: 650, label: `Hold on answer ${n}`},
       {action: 'resetZoom', label: `Pull back ${n}`},
     );
-  });
+  }
 
   appendOutro(steps, scenario);
   // Mock is deterministic and syncs on waitForText, so global speed-up is free.
@@ -205,42 +215,54 @@ function buildLiveFlow(scenario: WidgetScenario, htmlFileName: string, live: Non
   const watchHoldMs = Math.max(1600, replyWaitMs - leadMs - 300);
   const steps: DemoStep[] = [
     {action: 'waitForText', text: scenario.business.tagline, label: 'Landing page ready'},
-    {action: 'waitForSelector', selector: input, timeoutMs: 25_000, label: 'Widget mounted (text mode)'},
+    {
+      action: 'waitForSelector', selector: input, timeoutMs: 25_000, label: 'Widget mounted (text mode)',
+    },
   ];
 
   if (scenario.intro !== undefined) {
-    steps.push({action: 'caption', text: scenario.intro, ms: 1500, label: 'Intro beat'});
+    steps.push({
+      action: 'caption', text: scenario.intro, ms: 1500, label: 'Intro beat',
+    });
   }
 
   steps.push({action: 'pause', ms: 1800, label: 'Agent greeting renders'});
 
-  scenario.turns.forEach((turn, index) => {
+  for (const [index, turn] of scenario.turns.entries()) {
     const n = index + 1;
     if (turn.caption !== undefined) {
-      steps.push({action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`});
+      steps.push({
+        action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`,
+      });
     }
 
     steps.push(
       {action: 'click', selector: input, label: `Focus chat (turn ${n})`},
-      {action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`},
+      {
+        action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`,
+      },
       {action: 'click', selector: send, label: `Send turn ${n}`},
       {action: 'pause', ms: leadMs, label: `Live agent reply ${n}`},
       widgetZoom(scenario, 1.18, 300, `Zoom to answer ${n}`),
       {action: 'pause', ms: watchHoldMs, label: `Hold on answer ${n}`},
       {action: 'resetZoom', label: `Pull back ${n}`},
     );
-  });
+  }
 
   appendOutro(steps, scenario);
   // Live runs at real-time speed (1.0): the runner divides every wait by speed,
   // and the reply windows must stay wall-clock so the real agent can answer.
   // Snappiness comes from short caption/cursor times + the zoom motion, not speed.
-  return baseFlow(scenario, htmlFileName, {mode: 'live', agentId: live.agentId, speed: 1, steps});
+  return baseFlow(scenario, htmlFileName, {
+    mode: 'live', agentId: live.agentId, speed: 1, steps,
+  });
 }
 
 function appendOutro(steps: DemoStep[], scenario: WidgetScenario): void {
   if (scenario.outro !== undefined) {
-    steps.push({action: 'caption', text: scenario.outro, ms: 1800, label: 'Outro beat'});
+    steps.push({
+      action: 'caption', text: scenario.outro, ms: 1800, label: 'Outro beat',
+    });
   }
 
   steps.push(
@@ -264,7 +286,9 @@ function baseFlow(scenario: WidgetScenario, htmlFileName: string, build: FlowBui
     startUrl: `./${htmlFileName}`,
     viewport,
     record: {enabled: true, size: viewport},
-    timing: {speed: build.speed, moveMs: 170, clickPauseMs: 150, fillPauseMs: 25, zoomMs: 320},
+    timing: {
+      speed: build.speed, moveMs: 170, clickPauseMs: 150, fillPauseMs: 25, zoomMs: 320,
+    },
     polish: {
       cursor: {style: 'modern', accentColor: scenario.business.accent},
       actionRail: {enabled: false},
