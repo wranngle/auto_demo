@@ -12,7 +12,8 @@ updates:
       semver-patch-days: 3
     open-pull-requests-limit: 3
     labels:
-      - "dependencies"
+      - "t.chore"
+      - "a/ci"
     commit-message:
       prefix: "ci"
       include: "scope"
