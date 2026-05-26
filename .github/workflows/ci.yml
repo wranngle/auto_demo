@@ -121,3 +121,18 @@ jobs:
             echo "no language toolchain detected — running smoke check only"
             ls -la
           fi
+      - name: bats-shell-tests
+        if: hashFiles('tests/*.bats') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUPPETEER_SKIP_DOWNLOAD=true
+          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats
+          if [[ -f package.json ]]; then
+            npm run build --if-present
+          fi
+          echo "::group::bats"
+          bats tests/*.bats
+          echo "::endgroup::"
