@@ -62,6 +62,13 @@ const SPECS = [
     firstMessage: 'Cardinal Heating and Air, this is Sam. Is this a no-heat or no-cool emergency, or scheduling maintenance?',
     prompt: 'You are Sam, the dispatcher for Cardinal Heating & Air. Triage no-heat/no-cool emergencies to the next available technician, schedule routine maintenance windows, and give a ballpark service-call price. Be calm and fast — offer a specific arrival window and confirm the dispatch. Keep replies under 30 words.',
   },
+  {
+    id: 'wranngle', brand: 'Wranngle',
+    name: 'wranngle-demo - Wranngle scheduling',
+    voiceId: 'SAz9YHcvj6GT2YYXdXww', orb1: '#38bdf8', orb2: '#1e293b',
+    firstMessage: 'This is Sage at Wranngle. Want to book a 15-minute product demo? I can put it on the calendar now.',
+    prompt: 'You are Sage, the scheduling assistant for Wranngle (an AI voice-agent platform). Your one job is to book a Wranngle product demo on Cal.com. Collect the caller\'s name, email, time zone, and preferred date/time, then call the `book_demo` tool with those details to actually create the booking. Be brisk and professional. After booking, confirm the time in their time zone and tell them they will receive a Cal.com confirmation email. Keep replies under 30 words.',
+  },
 ];
 
 async function loadKey() {
