@@ -256,11 +256,12 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(new Set(replyTexts).size).toBe(replyTexts.length);
   });
 
-  test('agents.json snapshot covers six verticals with distinct real agents', async () => {
+  test('agents.json snapshot covers seven distinct real agents (six verticals + wranngle scheduling)', async () => {
     const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{id: string; agentId: string}>;
-    expect(agents).toHaveLength(6);
-    expect(new Set(agents.map(a => a.agentId)).size).toBe(6);
+    expect(agents).toHaveLength(7);
+    expect(new Set(agents.map(a => a.agentId)).size).toBe(7);
     expect(agents.every(a => a.agentId.startsWith('agent_'))).toBe(true);
+    expect(agents.map(a => a.id)).toContain('wranngle');
   });
 
   // Drift coupling: two scenarios in the suite are the documented Cal.com
