@@ -1,12 +1,17 @@
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {mkdir, readFile, rename, rm, writeFile} from 'node:fs/promises';
 import {createServer, type Server} from 'node:http';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {
   extname, join, normalize, resolve,
 } from 'node:path';
 import {runFlow} from '../runner.js';
+import type {RunResult} from '../types.js';
 import {loadScenario} from './scenario.js';
 import {buildDemoFlow, countTools, renderWidgetPage} from './render.js';
 import type {WidgetBuildResult} from './types.js';
+
+const execFileAsync = promisify(execFile);
 
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html',
@@ -66,6 +71,10 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
         ...(server === undefined ? {} : {baseUrl: `http://127.0.0.1:${server.port}/`}),
       });
 
+      if (runResult.videoPath !== undefined) {
+        await retimeToRealTime(runResult.videoPath, runResult.events);
+      }
+
       result.recording = {
         manifestPath: runResult.manifestPath,
         ...(runResult.videoPath === undefined ? {} : {videoPath: runResult.videoPath}),
@@ -76,6 +85,58 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
   }
 
   return result;
+}
+
+// Playwright captures ~75 fps of real frames over the session but tags the webm
+// stream as 25 fps, so players stretch playback ~3x — every action looks slow.
+// Re-time the video so its duration matches the real wall-clock of the run
+// (first step start → last step end), using ffmpeg setpts. No-op if ffmpeg is
+// missing or the ratio is already ~1 (nothing to correct).
+async function retimeToRealTime(videoPath: string, events: RunResult['events']): Promise<void> {
+  if (events.length < 2) {
+    return;
+  }
+
+  const start = Date.parse(events[0]!.startedAt);
+  const endStamp = events.at(-1)!.endedAt ?? events.at(-1)!.startedAt;
+  const wallClockSec = (Date.parse(endStamp) - start) / 1000;
+  if (!Number.isFinite(wallClockSec) || wallClockSec <= 0) {
+    return;
+  }
+
+  const containerSec = await probeDurationSec(videoPath);
+  if (containerSec === undefined || containerSec <= 0) {
+    return;
+  }
+
+  const ratio = wallClockSec / containerSec;
+  if (ratio > 0.9) {
+    return; // already ~real-time; nothing to correct
+  }
+
+  const tmp = `${videoPath}.retime.webm`;
+  try {
+    await execFileAsync('ffmpeg', [
+      '-y', '-i', videoPath,
+      '-filter:v', `setpts=${ratio.toFixed(6)}*PTS`,
+      '-an', tmp,
+    ]);
+    await rename(tmp, videoPath);
+  } catch {
+    await rm(tmp, {force: true}).catch(() => undefined);
+  }
+}
+
+async function probeDurationSec(videoPath: string): Promise<number | undefined> {
+  try {
+    const {stdout} = await execFileAsync('ffprobe', [
+      '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', videoPath,
+    ]);
+    const value = Number.parseFloat(stdout.trim());
+    return Number.isFinite(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {

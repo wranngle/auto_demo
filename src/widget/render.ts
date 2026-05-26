@@ -226,7 +226,13 @@ function buildLiveFlow(scenario: WidgetScenario, htmlFileName: string, live: Non
     });
   }
 
-  steps.push({action: 'pause', ms: 1800, label: 'Agent greeting renders'});
+  // The ElevenLabs widget in text-only mode lazy-connects: it does NOT render
+  // the agent's first_message as visible transcript on mount — the WebSocket
+  // opens when the first user message is sent, so the header reads "Connecting…"
+  // during turn 1 and that is expected, not a bug. (An earlier attempt to gate
+  // on greeting text always timed out and broke recording.) Hold a brief beat
+  // so the widget finishes mounting before we type.
+  steps.push({action: 'pause', ms: 1800, label: 'Widget settles before first turn'});
 
   for (const [index, turn] of scenario.turns.entries()) {
     const n = index + 1;
