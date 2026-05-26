@@ -1,17 +1,12 @@
-import {mkdir, readFile, rename, rm, writeFile} from 'node:fs/promises';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {createServer, type Server} from 'node:http';
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
 import {
   extname, join, normalize, resolve,
 } from 'node:path';
 import {runFlow} from '../runner.js';
-import type {RunResult} from '../types.js';
 import {loadScenario} from './scenario.js';
 import {buildDemoFlow, countTools, renderWidgetPage} from './render.js';
 import type {WidgetBuildResult} from './types.js';
-
-const execFileAsync = promisify(execFile);
 
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html',
@@ -71,9 +66,9 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
         ...(server === undefined ? {} : {baseUrl: `http://127.0.0.1:${server.port}/`}),
       });
 
-      if (runResult.videoPath !== undefined) {
-        await retimeToRealTime(runResult.videoPath, runResult.events);
-      }
+      // Real-time playback correction is now done inside runFlow itself
+      // (src/retime.ts) so the generic `run` CLI gets it too — no widget-side
+      // duplication.
 
       result.recording = {
         manifestPath: runResult.manifestPath,
@@ -85,66 +80,6 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
   }
 
   return result;
-}
-
-// Playwright captures ~75 fps of real frames over the session but tags the webm
-// stream as 25 fps, so players stretch playback ~3x — every action looks slow.
-// Re-time the video so its duration matches the real wall-clock of the run
-// (first step start → last step end), using ffmpeg setpts. No-op if ffmpeg is
-// missing or the ratio is already ~1 (nothing to correct).
-// Pure: decides whether/how to re-time, given a run's events + the recorded
-// video's container duration. Returns the setpts factor (wall-clock/container)
-// when the video is stretched enough to bother correcting, or undefined to
-// skip (already real-time, or not enough info to decide). Split out so the
-// regression that originally shipped — silent stretched playback — is now
-// unit-guarded without spinning up ffmpeg or chromium.
-export function computeRetimeRatio(events: RunResult['events'], containerSec: number | undefined): number | undefined {
-  if (events.length < 2 || containerSec === undefined || !Number.isFinite(containerSec) || containerSec <= 0) {
-    return undefined;
-  }
-
-  const start = Date.parse(events[0]!.startedAt);
-  const endStamp = events.at(-1)!.endedAt ?? events.at(-1)!.startedAt;
-  const wallClockSec = (Date.parse(endStamp) - start) / 1000;
-  if (!Number.isFinite(wallClockSec) || wallClockSec <= 0) {
-    return undefined;
-  }
-
-  const ratio = wallClockSec / containerSec;
-  // >0.9 means within 10% of real-time — not worth a lossy re-encode.
-  return ratio > 0.9 ? undefined : ratio;
-}
-
-async function retimeToRealTime(videoPath: string, events: RunResult['events']): Promise<void> {
-  const containerSec = await probeDurationSec(videoPath);
-  const ratio = computeRetimeRatio(events, containerSec);
-  if (ratio === undefined) {
-    return;
-  }
-
-  const tmp = `${videoPath}.retime.webm`;
-  try {
-    await execFileAsync('ffmpeg', [
-      '-y', '-i', videoPath,
-      '-filter:v', `setpts=${ratio.toFixed(6)}*PTS`,
-      '-an', tmp,
-    ]);
-    await rename(tmp, videoPath);
-  } catch {
-    await rm(tmp, {force: true}).catch(() => undefined);
-  }
-}
-
-async function probeDurationSec(videoPath: string): Promise<number | undefined> {
-  try {
-    const {stdout} = await execFileAsync('ffprobe', [
-      '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', videoPath,
-    ]);
-    const value = Number.parseFloat(stdout.trim());
-    return Number.isFinite(value) ? value : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {
