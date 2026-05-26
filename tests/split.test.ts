@@ -31,7 +31,7 @@ let recordingPath = '';
 
 beforeAll(async () => {
   if (!ffmpegAvailable) return;
-  workRoot = await mkdtemp(join(tmpdir(), 'auto_demo-split-test-'));
+  workRoot = await mkdtemp(join(tmpdir(), 'ui-demo-split-test-'));
   flowPath = join(workRoot, 'flow.demo.json');
   recordingPath = join(workRoot, 'recording.mp4');
 
