@@ -324,6 +324,28 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(loaded.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
   });
 
+  // wranngle-scheduling is structurally distinct from the six vertical demos
+  // (real workspace tool, no canned clientTools, fewer turns), so it can't ride
+  // the vertical test.each above. This guards its own load/render/flow contract
+  // so a malformed edit to the dedicated Cal.com scenario fails loudly.
+  test('wranngle-scheduling loads, renders a valid live widget, and yields a schema-valid flow', async () => {
+    const {scenario: loaded} = await loadScenario(resolve(repoRoot, 'examples/widget/wranngle-scheduling.scenario.json'));
+    expect(loaded.live?.agentId).toMatch(/^agent_/v);
+
+    const liveHtml = renderWidgetPage(loaded);
+    expect(liveHtml).toContain('@elevenlabs/convai-widget-embed@0.12.2');
+    expect(liveHtml).toContain(`data-agent-id="${loaded.live!.agentId}"`);
+    // Real-backend scenario: it uses workspaceToolIds, NOT canned clientTools,
+    // so the page must NOT stamp a data-client-tools payload.
+    expect(loaded.live?.clientTools ?? []).toHaveLength(0);
+    expect(liveHtml).not.toContain('data-client-tools=');
+
+    const flow = buildDemoFlow(loaded, 'wranngle-scheduling.html');
+    expect(() => validateFlow(flow, 'wranngle-scheduling')).not.toThrow();
+    expect(flow.metadata?.mode).toBe('live');
+    expect(flow.metadata?.agentId).toBe(loaded.live!.agentId);
+  });
+
   test('the six vertical demos carry NO workspace tool ids (real-action boundary)', async () => {
     const verticals = ['restaurant-trattoria', 'dental-emergency', 'salon-recovery', 'ecommerce-returns', 'medspa-consult', 'hvac-dispatch'];
     for (const name of verticals) {
