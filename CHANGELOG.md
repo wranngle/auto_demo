@@ -97,6 +97,10 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `if-no-files-found: error`).
 - Drift-detection test on `--voice elevenlabs` now documents the stub
   fallback honestly instead of claiming real speech.
+- README widget section drift: `scripts/provision-agents.mjs` / `record-live-demos.mjs`
+  comment claimed "6 demo agents" and the closing paragraph attributed the real Cal.com
+  `book_demo` webhook to the medspa scenario — both stale after the 7th scenario
+  (`wranngle-scheduling`) became the single real-action host. (#38)
 
 ### Tests + CI hardening
 - Bats shell-integration suite (33 cases across 7 files: from-url, narrate,
@@ -113,6 +117,20 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   (name → exact result, no metadata leakage) + a `wranngle-scheduling`
   load/render/flow guard. (#24, #29)
 - Widget source `xo --fix` for 33 stylistic lint errors (formatting-only). (#28)
+- `tests/widget.test.ts` — agents.json must contain every `scenario.live.agentId`
+  (catches a deleted agent or renamed snapshot without removing the referring
+  scenario). (#35)
+- `tests/widget.test.ts` — doctrine-drift coupling between `agents.json` length,
+  the on-disk `*.scenario.json` count, and the digit-count phrases in `README.md`
+  (closes the "constant in 2+ files" doctrine gap that surfaced in #38). (#40)
+
+### Removed (cleanup)
+- `src/widget/types.ts`: unused `isToolBeat` / `isActionBeat` type guards
+  (only `isSayBeat` is consumed by `render.ts`). (#36)
+- `examples/portfolio/ui-demo-runner.tape`: duplicate of the load-bearing
+  `demo/cassette.tape` that powers the README hero GIF. (#37)
+- Three legacy `auto_demo-*` `mktemp` prefixes in the test suite renamed to
+  `ui-demo-*` — closing the brand-rename sweep started in #18. (#39)
 
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
