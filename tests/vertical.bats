@@ -7,7 +7,7 @@
 setup_file() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   export REPO_ROOT
-  WORK_DIR="$(mktemp -d -t auto_demo-vertical-bats.XXXXXX)"
+  WORK_DIR="$(mktemp -d -t ui-demo-vertical-bats.XXXXXX)"
   export WORK_DIR
   export INPUT_VIDEO="$WORK_DIR/landscape.mp4"
   export OUTPUT_VIDEO="$WORK_DIR/vertical.mp4"
