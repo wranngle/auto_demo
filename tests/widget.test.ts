@@ -1,5 +1,5 @@
 import {existsSync} from 'node:fs';
-import {readFile} from 'node:fs/promises';
+import {readdir, readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
@@ -312,6 +312,27 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(new Set(agents.map(a => a.agentId)).size).toBe(7);
     expect(agents.every(a => a.agentId.startsWith('agent_'))).toBe(true);
     expect(agents.map(a => a.id)).toContain('wranngle');
+  });
+
+  // Drift coupling: every scenario file's `live.agentId` must be a real entry in
+  // agents.json. Catches the silent regression where someone adds a scenario
+  // pointing at a bogus/typo'd agent id, or removes an agent from the snapshot
+  // without removing the scenario that referenced it. The snapshot is the
+  // source of truth (provision-agents.mjs writes it from the live ElevenLabs
+  // account); scenarios are downstream.
+  test('every scenario.live.agentId is present in agents.json', async () => {
+    const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{agentId: string}>;
+    const known = new Set(agents.map(a => a.agentId));
+    const dir = resolve(repoRoot, 'examples/widget');
+    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    expect(files.length).toBeGreaterThanOrEqual(7);
+    for (const name of files) {
+      // eslint-disable-next-line no-await-in-loop
+      const {scenario} = await loadScenario(resolve(dir, name));
+      if (scenario.live?.agentId !== undefined) {
+        expect(known, `${name} references agent ${scenario.live.agentId} which is not in agents.json`).toContain(scenario.live.agentId);
+      }
+    }
   });
 
   // Drift coupling: wranngle-scheduling is the SINGLE canonical Cal.com
