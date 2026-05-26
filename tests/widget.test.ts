@@ -264,16 +264,22 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(agents.map(a => a.id)).toContain('wranngle');
   });
 
-  // Drift coupling: two scenarios in the suite are the documented Cal.com
-  // demonstration hosts — losing the real `book_demo` workspace tool id from
-  // either silently breaks the integration story. The wranngle-scheduling
-  // scenario is the DEDICATED real-booking demo (its persona Sage exists for
-  // exactly this); medspa carries it as a secondary demonstration.
-  test.each([
-    ['medspa-consult.scenario.json'],
-    ['wranngle-scheduling.scenario.json'],
-  ])('%s attaches the real Cal.com book_demo workspace tool', async file => {
-    const {scenario: loaded} = await loadScenario(resolve(repoRoot, `examples/widget/${file}`));
+  // Drift coupling: wranngle-scheduling is the SINGLE canonical Cal.com
+  // demonstration host (persona Sage exists for exactly this). The other six
+  // scenarios stay on canned client tools so their recordings never create
+  // real bookings — that boundary is part of the demo contract. Losing the
+  // real workspace tool id from wranngle silently breaks the integration story.
+  test('wranngle-scheduling attaches the real Cal.com book_demo workspace tool', async () => {
+    const {scenario: loaded} = await loadScenario(resolve(repoRoot, 'examples/widget/wranngle-scheduling.scenario.json'));
     expect(loaded.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
+  });
+
+  test('the six vertical demos carry NO workspace tool ids (real-action boundary)', async () => {
+    const verticals = ['restaurant-trattoria', 'dental-emergency', 'salon-recovery', 'ecommerce-returns', 'medspa-consult', 'hvac-dispatch'];
+    for (const name of verticals) {
+      // eslint-disable-next-line no-await-in-loop
+      const {scenario: loaded} = await loadScenario(resolve(repoRoot, `examples/widget/${name}.scenario.json`));
+      expect(loaded.live?.workspaceToolIds ?? [], `${name} must not attach a workspace tool`).toEqual([]);
+    }
   });
 });
