@@ -187,6 +187,56 @@ describe('scenario validation', () => {
   });
 });
 
+// The live runtime registers each client tool as `() => canned[name]`
+// (widget-asset.ts), so the page's `data-client-tools` payload MUST be a map of
+// tool name → that tool's exact canned `result`. If render.ts ever emitted the
+// whole tool object (or keyed it wrong), the real agent would invoke the tool
+// and receive garbage back. This pins the name→result contract.
+describe('live data-client-tools payload shape', () => {
+  function clientToolsPayload(html: string): Record<string, unknown> {
+    const match = /data-client-tools="([^"]*)"/v.exec(html);
+    expect(match).not.toBeNull();
+    // Decode &amp; LAST so an escaped entity like \`&amp;lt;\` (the encoding of
+    // literal text "&lt;") survives as "&lt;" rather than collapsing to "<".
+    const decoded = match![1]!.replaceAll('&quot;', '"').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+    return JSON.parse(decoded) as Record<string, unknown>;
+  }
+
+  test('maps each tool name to its exact canned result, with no metadata leakage', () => {
+    const scenario = validateScenario({
+      name: 'acme', business: {name: 'Acme', tagline: 'On time', accent: '#ff5f00'},
+      agent: {name: 'Ada', greeting: 'hi'},
+      live: {
+        agentId: 'agent_x',
+        clientTools: [
+          {name: 'lookup_order', description: 'look up an order', params: [{name: 'id', description: 'order id', required: true}], result: {status: 'shipped', eta: 'tomorrow'}},
+          {name: 'issue_refund', description: 'refund it', result: {refund_id: 'RMA-1', amount: '$10'}},
+        ],
+      },
+      turns: [{user: 'where is my order?', reply: [{say: 'let me check'}]}],
+    });
+
+    const payload = clientToolsPayload(renderWidgetPage(scenario));
+    expect(Object.keys(payload).sort()).toEqual(['issue_refund', 'lookup_order']);
+    expect(payload.lookup_order).toEqual({status: 'shipped', eta: 'tomorrow'});
+    expect(payload.issue_refund).toEqual({refund_id: 'RMA-1', amount: '$10'});
+    // The result is the WHOLE payload for that tool — no description/params/name leaked in.
+    expect(payload.lookup_order).not.toHaveProperty('description');
+    expect(payload.lookup_order).not.toHaveProperty('params');
+    expect(payload.lookup_order).not.toHaveProperty('name');
+  });
+
+  test('omits data-client-tools entirely when a live scenario declares none', () => {
+    const scenario = validateScenario({
+      name: 'acme', business: {name: 'Acme', tagline: 'On time', accent: '#ff5f00'},
+      agent: {name: 'Ada', greeting: 'hi'},
+      live: {agentId: 'agent_x'},
+      turns: [{user: 'hi', reply: [{say: 'hello'}]}],
+    });
+    expect(renderWidgetPage(scenario)).not.toContain('data-client-tools=');
+  });
+});
+
 // Drift coupling: the mock must expose the EXACT text-mode selectors of the real
 // @elevenlabs/convai-widget-embed. The shipped hero flow-specs under
 // docs/wranngle-hero-demo/flow-specs/ are gitignored (contain real agent IDs +
