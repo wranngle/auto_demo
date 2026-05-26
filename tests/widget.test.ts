@@ -263,11 +263,16 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(agents.every(a => a.agentId.startsWith('agent_'))).toBe(true);
   });
 
-  // Drift coupling: medspa is the documented cal.com demonstration host (per
-  // README). Its scenario must keep the real workspace `book_demo` tool id
-  // attached — losing it silently breaks the cal.com integration story.
-  test('medspa scenario attaches the real Cal.com book_demo workspace tool', async () => {
-    const {scenario: medspa} = await loadScenario(resolve(repoRoot, 'examples/widget/medspa-consult.scenario.json'));
-    expect(medspa.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
+  // Drift coupling: two scenarios in the suite are the documented Cal.com
+  // demonstration hosts — losing the real `book_demo` workspace tool id from
+  // either silently breaks the integration story. The wranngle-scheduling
+  // scenario is the DEDICATED real-booking demo (its persona Sage exists for
+  // exactly this); medspa carries it as a secondary demonstration.
+  test.each([
+    ['medspa-consult.scenario.json'],
+    ['wranngle-scheduling.scenario.json'],
+  ])('%s attaches the real Cal.com book_demo workspace tool', async file => {
+    const {scenario: loaded} = await loadScenario(resolve(repoRoot, `examples/widget/${file}`));
+    expect(loaded.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
   });
 });
