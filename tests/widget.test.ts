@@ -196,7 +196,9 @@ describe('live data-client-tools payload shape', () => {
   function clientToolsPayload(html: string): Record<string, unknown> {
     const match = /data-client-tools="([^"]*)"/v.exec(html);
     expect(match).not.toBeNull();
-    const decoded = match![1]!.replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
+    // Decode &amp; LAST so an escaped entity like \`&amp;lt;\` (the encoding of
+    // literal text "&lt;") survives as "&lt;" rather than collapsing to "<".
+    const decoded = match![1]!.replaceAll('&quot;', '"').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
     return JSON.parse(decoded) as Record<string, unknown>;
   }
 
