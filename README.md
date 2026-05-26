@@ -250,7 +250,7 @@ it competes with the product UI.
 ## CI integration — re-record on every deploy
 
 Drop in the shipped GitHub Action template so every push to `main` produces a
-fresh demo MP4 + NDJSON event log as a workflow artifact:
+fresh `recording.webm` + `manifest.json` as a workflow artifact:
 
 ```bash
 mkdir -p .github/workflows
