@@ -169,8 +169,11 @@ node scripts/tune-agents.mjs             # PATCH each agent: markdown reply + cl
 node scripts/record-live-demos.mjs       # record all 6 → output/live-widget/
 ```
 
-Six shipped scenarios under `examples/widget/` (restaurant, dental, salon,
-ecommerce, medspa, home-services). Each `live` block tunes the widget per
+Seven shipped scenarios under `examples/widget/` — six vertical demos (restaurant,
+dental, salon, ecommerce, medspa, home-services) plus a dedicated SaaS
+**wranngle-scheduling** scenario that exercises the real Cal.com `book_demo`
+webhook end-to-end (the only scenario whose recording creates a real Cal.com
+entry). Each `live` block tunes the widget per
 business: orb gradient, `branding.{mainLabel,startCall}` → widget `text-contents`,
 `linkHosts` → `markdown-link-allowed-hosts`, and `clientTools[]` declares
 browser-side tools (name, description, params, canned `result`). The page
@@ -247,7 +250,7 @@ it competes with the product UI.
 ## CI integration — re-record on every deploy
 
 Drop in the shipped GitHub Action template so every push to `main` produces a
-fresh demo MP4 + NDJSON event log as a workflow artifact:
+fresh `recording.webm` + `manifest.json` as a workflow artifact:
 
 ```bash
 mkdir -p .github/workflows

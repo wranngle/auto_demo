@@ -256,18 +256,30 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(new Set(replyTexts).size).toBe(replyTexts.length);
   });
 
-  test('agents.json snapshot covers six verticals with distinct real agents', async () => {
+  test('agents.json snapshot covers seven distinct real agents (six verticals + wranngle scheduling)', async () => {
     const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{id: string; agentId: string}>;
-    expect(agents).toHaveLength(6);
-    expect(new Set(agents.map(a => a.agentId)).size).toBe(6);
+    expect(agents).toHaveLength(7);
+    expect(new Set(agents.map(a => a.agentId)).size).toBe(7);
     expect(agents.every(a => a.agentId.startsWith('agent_'))).toBe(true);
+    expect(agents.map(a => a.id)).toContain('wranngle');
   });
 
-  // Drift coupling: medspa is the documented cal.com demonstration host (per
-  // README). Its scenario must keep the real workspace `book_demo` tool id
-  // attached — losing it silently breaks the cal.com integration story.
-  test('medspa scenario attaches the real Cal.com book_demo workspace tool', async () => {
-    const {scenario: medspa} = await loadScenario(resolve(repoRoot, 'examples/widget/medspa-consult.scenario.json'));
-    expect(medspa.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
+  // Drift coupling: wranngle-scheduling is the SINGLE canonical Cal.com
+  // demonstration host (persona Sage exists for exactly this). The other six
+  // scenarios stay on canned client tools so their recordings never create
+  // real bookings — that boundary is part of the demo contract. Losing the
+  // real workspace tool id from wranngle silently breaks the integration story.
+  test('wranngle-scheduling attaches the real Cal.com book_demo workspace tool', async () => {
+    const {scenario: loaded} = await loadScenario(resolve(repoRoot, 'examples/widget/wranngle-scheduling.scenario.json'));
+    expect(loaded.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
+  });
+
+  test('the six vertical demos carry NO workspace tool ids (real-action boundary)', async () => {
+    const verticals = ['restaurant-trattoria', 'dental-emergency', 'salon-recovery', 'ecommerce-returns', 'medspa-consult', 'hvac-dispatch'];
+    for (const name of verticals) {
+      // eslint-disable-next-line no-await-in-loop
+      const {scenario: loaded} = await loadScenario(resolve(repoRoot, `examples/widget/${name}.scenario.json`));
+      expect(loaded.live?.workspaceToolIds ?? [], `${name} must not attach a workspace tool`).toEqual([]);
+    }
   });
 });

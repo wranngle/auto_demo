@@ -1,0 +1,43 @@
+{
+  "name": "wranngle-scheduling",
+  "business": {
+    "name": "Wranngle",
+    "tagline": "Voice AI agents that close, book, and follow up",
+    "accent": "#38bdf8",
+    "vertical": "saas"
+  },
+  "agent": {
+    "name": "Sage",
+    "subtitle": "Scheduling · Wranngle",
+    "greeting": "This is Sage at Wranngle. Want to book a 15-minute product demo? I can put it on the calendar now."
+  },
+  "live": {
+    "agentId": "agent_8001ksgs9866ffc8xy6afxm70v53",
+    "orb1": "#38bdf8", "orb2": "#1e293b",
+    "branding": {"mainLabel": "Book a Wranngle demo", "startCall": "Talk to Sage"},
+    "linkHosts": ["wranngle.com", "cal.com"],
+    "workspaceToolIds": ["tool_4001kqxjgwp4ft2rwq21ze8fdpkp"],
+    "replyWaitMs": 14000
+  },
+  "capability": "real Cal.com booking via the workspace book_demo webhook",
+  "intro": "Live Cal.com booking: the agent collects details and books a real slot.",
+  "outro": "Booked on Cal.com — confirmation lands in the inbox.",
+  "turns": [
+    {
+      "caption": "A prospect asks for a demo — Sage offers a slot.",
+      "user": "I'd like to book a Wranngle demo for sometime next week.",
+      "reply": [
+        {"say": "Happy to set that up. What's your name and email, and which time zone are you in?"}
+      ]
+    },
+    {
+      "caption": "She collects the details to pass into Cal.com.",
+      "user": "Demo Tester, demo@wranngle.com, America/Los_Angeles, Wednesday May 28th at 11:00 AM Pacific.",
+      "reply": [
+        {"say": "Booking that now."},
+        {"tool": "book_demo", "args": {"name": "Demo Tester", "email": "demo@wranngle.com", "tz": "America/Los_Angeles", "start": "Tuesday 11:00 AM PT"}, "result": "Booked"},
+        {"say": "**Booked!**\n- **When:** Tuesday 11:00 AM Pacific\n- **Where:** Cal.com (confirmation in your inbox)\n- **Length:** 15 min\n\nSee you then!"}
+      ]
+    }
+  ]
+}
