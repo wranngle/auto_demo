@@ -28,6 +28,18 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw).toMatch(/ui-demo-runner\s+run\b/u);
   });
 
+  // Doctrine drift: the per-run artifact set (recording.webm + manifest.json +
+  // events.jsonl) is the consumer-facing contract. Each file lives in three
+  // truth sources — runner output (src/runner.ts), README, and this template.
+  // PR #19 shipped events.jsonl without updating the template, so consumers
+  // copying the template lost the NDJSON ledger. Pin all three so the next
+  // artifact addition fails CI until the template catches up.
+  test('uploads every documented per-run artifact (recording.webm, manifest.json, events.jsonl)', () => {
+    for (const filename of ['recording.webm', 'manifest.json', 'events.jsonl']) {
+      expect(raw, `template upload step must include ${filename}`).toContain(filename);
+    }
+  });
+
   test('contains no hardcoded credential literals', () => {
     const lines = raw.split('\n');
     const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w-]{16,}/iu;

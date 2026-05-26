@@ -47,5 +47,6 @@ jobs:
           path: |
             .auto_demo/ci/recording.webm
             .auto_demo/**/manifest.json
+            .auto_demo/**/events.jsonl
           if-no-files-found: error
           retention-days: 30
