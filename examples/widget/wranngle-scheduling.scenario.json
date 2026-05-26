@@ -17,7 +17,7 @@
     "branding": {"mainLabel": "Book a Wranngle demo", "startCall": "Talk to Sage"},
     "linkHosts": ["wranngle.com", "cal.com"],
     "workspaceToolIds": ["tool_4001kqxjgwp4ft2rwq21ze8fdpkp"],
-    "replyWaitMs": 9000
+    "replyWaitMs": 14000
   },
   "capability": "real Cal.com booking via the workspace book_demo webhook",
   "intro": "Live Cal.com booking: the agent collects details and books a real slot.",
@@ -32,7 +32,7 @@
     },
     {
       "caption": "She collects the details to pass into Cal.com.",
-      "user": "Demo Tester, demo@wranngle.com, Pacific time. Tuesday at 11am works.",
+      "user": "Demo Tester, demo@wranngle.com, America/Los_Angeles, Wednesday May 28th at 11:00 AM Pacific.",
       "reply": [
         {"say": "Booking that now."},
         {"tool": "book_demo", "args": {"name": "Demo Tester", "email": "demo@wranngle.com", "tz": "America/Los_Angeles", "start": "Tuesday 11:00 AM PT"}, "result": "Booked"},
