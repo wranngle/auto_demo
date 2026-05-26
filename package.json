@@ -17,6 +17,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "test:bats": "bats tests/*.bats",
     "lint": "xo src tests",
     "package:smoke": "npm run build && npm pack --dry-run",
     "prepare": "npm run build",
