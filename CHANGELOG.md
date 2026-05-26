@@ -54,7 +54,7 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - Drop-in `auto-demo-on-deploy.yml.template` GitHub Action for
   consumer-repo CI re-recording. (#3)
 - NDJSON event-log sidecar — append-only ECS-shaped `events.jsonl` next
-  to `manifest.json`, grep/jq/DuckDB-readable across runs. (#19, pending)
+  to `manifest.json`, grep/jq/DuckDB-readable across runs. (#19)
 
 ### Changed — install requirements
 - **ffmpeg + ffprobe are now a documented dependency.** They were already
