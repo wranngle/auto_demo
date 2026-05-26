@@ -129,7 +129,8 @@ jobs:
           export PUPPETEER_SKIP_DOWNLOAD=true
           export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
           sudo apt-get update -qq
-          sudo apt-get install -y -qq bats
+          # ffmpeg is NOT preinstalled on ubuntu-latest; narrate/svg/vertical bats need it.
+          sudo apt-get install -y -qq bats ffmpeg
           if [[ -f package.json ]]; then
             npm run build --if-present
           fi
