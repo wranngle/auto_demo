@@ -121,7 +121,41 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
   }
 
   await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
+  await writeEventsNdjson(join(outputDir, 'events.jsonl'), flow.name, events);
   return result;
+}
+
+// Append-only NDJSON sidecar to manifest.json — one ECS-shaped line per step
+// event, grep/jq/DuckDB-readable across many recordings without a custom
+// parser. The manifest stays the per-run snapshot; this is for cross-run
+// forensics. Format aligns with the git_good NDJSON ledger doctrine
+// (events.<yyyy-mm-dd>.jsonl). Concept salvaged from the archived
+// auto-demo-merger exploration (archive/auto-demo-merger-2026-05-25 sha
+// 71bd6da), reimplemented against the current architecture.
+export function formatEventNdjson(flowName: string | undefined, events: StepEvent[]): string {
+  if (events.length === 0) {
+    return '';
+  }
+
+  const lines = events.map(event => JSON.stringify({
+    '@timestamp': event.startedAt,
+    service: {name: 'ui-demo-runner'},
+    event: {
+      action: `step.${event.action}`,
+      outcome: event.status === 'ok' ? 'success' : 'failure',
+      ...(event.endedAt === undefined ? {} : {end: event.endedAt}),
+    },
+    log: {level: event.status === 'ok' ? 'info' : 'error'},
+    flow: {name: flowName, step_index: event.index},
+    ...(event.label === undefined ? {} : {message: event.label}),
+    ...(event.artifact === undefined ? {} : {artifact: event.artifact}),
+    ...(event.error === undefined ? {} : {error: {message: event.error}}),
+  }));
+  return `${lines.join('\n')}\n`;
+}
+
+async function writeEventsNdjson(path: string, flowName: string | undefined, events: StepEvent[]): Promise<void> {
+  await writeFile(path, formatEventNdjson(flowName, events));
 }
 
 async function writeCaptionTracks(
