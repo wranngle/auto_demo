@@ -173,9 +173,9 @@ One scenario, two modes (`live` block present = real agent; absent = mock), both
 driven through the real widget's text-mode selectors.
 
 ```bash
-node scripts/provision-agents.mjs        # idempotent — create/reuse 6 demo agents
-node scripts/tune-agents.mjs             # PATCH each agent: markdown reply + client tools
-node scripts/record-live-demos.mjs       # record all 6 → output/live-widget/
+node scripts/provision-agents.mjs        # idempotent — create/reuse 7 demo agents
+node scripts/tune-agents.mjs             # PATCH each agent: markdown reply + client tools + branded text-contents
+node scripts/record-live-demos.mjs       # record all 7 → output/live-widget/
 ```
 
 Seven shipped scenarios under `examples/widget/` — six vertical demos (restaurant,
@@ -197,9 +197,10 @@ bottom-right corner held while the reply streams, then a pull-back.
 by id (e.g. the native cal.com `book_demo` webhook). **These take real actions**
 when invoked — real Cal.com bookings, real SMS. `tune-agents.mjs` merges them
 onto the agent's `prompt.tool_ids` (the API rejects sending inline `tools` +
-`tool_ids` together). The medspa scenario ships with the real Cal.com `book_demo`
-attached; re-recording it may create a real booking if the conversation reaches
-that tool.
+`tool_ids` together). Only the **wranngle-scheduling** scenario ships with the
+real Cal.com `book_demo` attached; re-recording it may create a real booking if
+the conversation reaches that tool. The six vertical scenarios use client-tool
+mocks exclusively — recording them is side-effect-free.
 
 ## Animated SVG export (README hero)
 
