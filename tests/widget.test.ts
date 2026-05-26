@@ -375,4 +375,25 @@ describe('shipped example scenarios (live + dual-mode)', () => {
       expect(loaded.live?.workspaceToolIds ?? [], `${name} must not attach a workspace tool`).toEqual([]);
     }
   });
+
+  // Doctrine drift: the scenario count lives in three places — *.scenario.json
+  // files on disk, agents.json, and digit-count phrases in README.md. PR #38
+  // had to fix "6 demo agents" / "all 6" after a 7th was added; this couples
+  // them so the next renumber fails CI instead of shipping stale prose.
+  test('doctrine drift: README digit-counts and agents.json mirror the on-disk scenario count', async () => {
+    const dir = resolve(repoRoot, 'examples/widget');
+    const scenarios = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const agents = JSON.parse(await readFile(resolve(dir, 'agents.json'), 'utf8')) as unknown[];
+    const count = scenarios.length;
+
+    expect(agents, 'agents.json must mirror the scenarios-on-disk count').toHaveLength(count);
+
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+    const patterns = [/(\d+)\s+demo agents/g, /record all\s+(\d+)/g];
+    for (const pattern of patterns) {
+      for (const match of readme.matchAll(pattern)) {
+        expect(Number(match[1]), `README phrase "${match[0]}" must match scenario count ${count}`).toBe(count);
+      }
+    }
+  });
 });
