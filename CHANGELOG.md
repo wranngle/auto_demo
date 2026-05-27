@@ -152,6 +152,28 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   bats-suite count phrase ("`N cases across M files`") and the on-disk
   `tests/*.bats` reality. Adding a `.bats` file or a `@test` without updating
   CHANGELOG now fails CI. (#48)
+- Mock-LLM client (`createMockLlmClient`) now has a real `fixturePath`
+  override test that actually exercises the override branch instead of
+  asserting default behavior. (#50)
+- `tests/widget.test.ts` — reverse drift coupling: every `agents.json` entry
+  must be referenced by some `scenario.live.agentId` (catches a deleted
+  scenario that left a ghost agent in the snapshot, consuming ElevenLabs
+  quota). Pairs with the forward direction from #35. (#53)
+- Scenario validator (`src/widget/scenario.ts`) reject paths now have full
+  contract coverage: `optionalViewport` width/height bounds (#54),
+  `linkHosts` non-array + non-string-element branches (#55), and
+  `loadScenario` malformed-JSON error path (#56).
+- Flow schema validator (`src/flow-schema.ts`) reject paths now have full
+  contract coverage: zero-steps no-op guard (#57), unknown-action enum
+  guard (#58), nine per-action required-field guards swept in one batch
+  (#59), `loadFlow` malformed-JSON error path (#60).
+- Mock-LLM fixture validator (`src/from-url/mock-llm.ts`) reject paths
+  swept in one batch: malformed root, missing steps, non-object step,
+  missing selector, unknown action, missing narration. (#61)
+- `tests/flow-schema.test.ts` — drift coupling that walks
+  `examples/**/*.demo.json` recursively and asserts every shipped example
+  validates against the production schema (twin of widget-side guard at
+  #35). (#62)
 
 ### Removed (cleanup)
 - `src/widget/types.ts`: unused `isToolBeat` / `isActionBeat` type guards
@@ -167,6 +189,10 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - Two dead `PUPPETEER_SKIP_*` env-var exports in `scripts/hero.sh` — the
   script renders `demo/cassette.tape` via Docker'd VHS + ffmpeg; no puppeteer
   invocation, no npm install, nothing that would honor those vars. (#47)
+- Banned-pattern usage-smoke bats tests deleted per CLAUDE.md doctrine: one
+  in `narrate.bats` (#51), three more in `from-url.bats` + `watch.bats` (#52).
+  These verified commander's required-flag handling — testing the dependency,
+  not this project's behavior.
 
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
