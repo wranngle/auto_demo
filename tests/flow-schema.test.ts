@@ -1,8 +1,11 @@
-import {mkdtemp, writeFile} from 'node:fs/promises';
+import {mkdtemp, readdir, readFile, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {dirname, join, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 import {loadFlow, validateFlow} from '../src/flow-schema.js';
+
+const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
 
 describe('validateFlow', () => {
   test('accepts a minimal useful demo flow', () => {
@@ -181,5 +184,29 @@ describe('validateFlow', () => {
     await writeFile(path, '{ "startUrl": "./x.html", steps:');
 
     await expect(loadFlow(path)).rejects.toThrow(/Invalid JSON in.*broken\.demo\.json/v);
+  });
+
+  // Doctrine drift coupling: every *.demo.json shipped in examples/ MUST
+  // validate against the production schema. The widget scenarios get the
+  // analogous guard in tests/widget.test.ts; this is its flow-side twin.
+  // A consumer who edits an example by hand (or a refactor that tightens
+  // schema rules without updating the examples) now fails CI loudly.
+  test('every shipped examples/**/*.demo.json validates against the production schema', async () => {
+    const examplesDir = join(repoRoot, 'examples');
+    const candidates: string[] = [];
+    for (const entry of await readdir(examplesDir, {withFileTypes: true, recursive: true})) {
+      if (entry.isFile() && entry.name.endsWith('.demo.json')) {
+        candidates.push(join(entry.parentPath ?? examplesDir, entry.name));
+      }
+    }
+
+    expect(candidates.length, 'expected at least one *.demo.json under examples/').toBeGreaterThan(0);
+
+    for (const path of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const raw = await readFile(path, 'utf8');
+      const flow = JSON.parse(raw) as unknown;
+      expect(() => validateFlow(flow, path), `${path} must pass production validation`).not.toThrow();
+    }
   });
 });
