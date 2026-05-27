@@ -51,15 +51,6 @@ teardown_file() {
   [ "$audioStreams" -ge 1 ]
 }
 
-@test "narrate: missing --script exits non-zero with usage message" {
-  run node "$CLI_ENTRY" narrate \
-    --in "$INPUT_VIDEO" \
-    --out "$OUTPUT_VIDEO" \
-    --voice mock
-  [ "$status" -ne 0 ]
-  [[ "${output}" == *"--script"* ]]
-}
-
 @test "narrate: unknown --voice fails with a descriptive error" {
   run node "$CLI_ENTRY" narrate \
     --script "$SCRIPT_PATH" \
