@@ -103,6 +103,24 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   comment claimed "6 demo agents" and the closing paragraph attributed the real Cal.com
   `book_demo` webhook to the medspa scenario — both stale after the 7th scenario
   (`wranngle-scheduling`) became the single real-action host. (#38)
+- Consumer CI template (`templates/auto-demo-on-deploy.yml.template`) now
+  uploads `events.jsonl` alongside `recording.webm` + `manifest.json`. PR #19
+  added the NDJSON sidecar to runner output but the template was never updated
+  — consumers copy-pasting the template after #19 lost the event ledger. (#43)
+- CHANGELOG stale-marker fix: "`#19, pending`" → "`#19`" (PR #19 merged
+  17h before the marker was dropped). (#42)
+- CHANGELOG honesty fix: `regress` is a library helper (`writeRegressArtifacts`),
+  not a CLI "mode". PR #8 only shipped `src/modes/regress.ts` + tests; no
+  `src/cli.ts` wiring exists. The prior phrasing matched the neighboring CLI
+  subcommand entries and would have led readers to expect `ui-demo-runner
+  regress …`. (#46)
+
+### Changed
+- Dependabot config (`.github/dependabot.yml`) now labels its PRs with the
+  canonical taxonomy (`t.chore` + `a/ci`) instead of the nonexistent
+  `dependencies` label. Without this, every action-bump PR dropped the label
+  silently or made GitHub auto-create a non-canonical one that escaped
+  `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
 - Bats shell-integration suite (33 cases across 7 files: from-url, narrate,
@@ -125,6 +143,15 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - `tests/widget.test.ts` — doctrine-drift coupling between `agents.json` length,
   the on-disk `*.scenario.json` count, and the digit-count phrases in `README.md`
   (closes the "constant in 2+ files" doctrine gap that surfaced in #38). (#40)
+- `tests/template-action.test.ts` — drift-coupling assertion that the consumer
+  CI template references every documented per-run artifact name
+  (`recording.webm`, `manifest.json`, `events.jsonl`). The filenames now live
+  in three truth sources (runner source, README, template); the next artifact
+  addition fails CI until the template catches up. (#43)
+- `tests/widget.test.ts` — doctrine-drift coupling between the CHANGELOG
+  bats-suite count phrase ("`N cases across M files`") and the on-disk
+  `tests/*.bats` reality. Adding a `.bats` file or a `@test` without updating
+  CHANGELOG now fails CI. (#48)
 
 ### Removed (cleanup)
 - `src/widget/types.ts`: unused `isToolBeat` / `isActionBeat` type guards
@@ -133,6 +160,13 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `demo/cassette.tape` that powers the README hero GIF. (#37)
 - Three legacy `auto_demo-*` `mktemp` prefixes in the test suite renamed to
   `ui-demo-*` — closing the brand-rename sweep started in #18. (#39)
+- `examples/portfolio/voice-evals.tape` + `examples/portfolio/comfybulk.tape`:
+  VHS recipes for two CLIs in separate repos. Incidentally included in PR #16
+  and shipped in the published npm package (`files: ["examples", ...]`) but
+  never referenced by README/scripts/tests. Same pattern as #37's audit. (#45)
+- Two dead `PUPPETEER_SKIP_*` env-var exports in `scripts/hero.sh` — the
+  script renders `demo/cassette.tape` via Docker'd VHS + ffmpeg; no puppeteer
+  invocation, no npm install, nothing that would honor those vars. (#47)
 
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
