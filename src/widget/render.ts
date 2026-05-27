@@ -361,6 +361,18 @@ function heroCopy(vertical: string | undefined): string {
       return 'Track orders, start returns, and resolve refunds in one conversation — no ticket queue.';
     }
 
+    case 'medspa': {
+      return 'Book consults, quote treatment packages, and reschedule with care — discreet, polished, and on the clock 24/7.';
+    }
+
+    case 'home-services': {
+      return 'Dispatch no-heat and no-cool emergencies, schedule maintenance, and quote service calls without a callback queue.';
+    }
+
+    case 'saas': {
+      return 'Book qualified demos straight to your calendar — no forms, no back-and-forth, no SDR triage tax.';
+    }
+
     default: {
       return 'A conversational AI front desk that books, looks things up, and gets work done on your behalf.';
     }
@@ -398,6 +410,30 @@ function featureCards(vertical: string | undefined): FeatureCard[] {
         {title: 'Order tracking', body: 'Looks up live shipping status from the order number.'},
         {title: 'Self-serve returns', body: 'Generates a prepaid label and starts the return instantly.'},
         {title: 'Instant refunds', body: 'Issues store credit or refunds within policy, no escalation.'},
+      ];
+    }
+
+    case 'medspa': {
+      return [
+        {title: 'Discreet booking', body: 'Schedules consults and treatments with a polished, on-brand voice.'},
+        {title: 'Package pricing', body: 'Quotes memberships and treatment packages from current pricing.'},
+        {title: 'Safe handoff', body: 'Never gives medical advice — escalates clinical questions to a provider.'},
+      ];
+    }
+
+    case 'home-services': {
+      return [
+        {title: 'Emergency dispatch', body: 'Routes no-heat / no-cool calls to the next available technician on the spot.'},
+        {title: 'Live arrival windows', body: 'Confirms a specific dispatch window before ending the call.'},
+        {title: 'Service-call quotes', body: 'Gives a ballpark price up front so callers know what to expect.'},
+      ];
+    }
+
+    case 'saas': {
+      return [
+        {title: 'Direct-to-calendar', body: 'Books a demo on Cal.com the moment the caller has time, email, and time zone.'},
+        {title: 'No-form qualification', body: 'Captures intent in conversation — no marketing form, no SDR queue.'},
+        {title: 'Confirmation in inbox', body: 'Cal.com sends the calendar invite the second the booking confirms.'},
       ];
     }
 
