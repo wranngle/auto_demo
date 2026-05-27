@@ -32,11 +32,11 @@
     },
     {
       "caption": "She collects the details to pass into Cal.com.",
-      "user": "Demo Tester, demo@wranngle.com, America/Los_Angeles, Wednesday May 28th at 11:00 AM Pacific.",
+      "user": "Demo Tester, demo@wranngle.com, America/Los_Angeles, next Wednesday at 11:00 AM Pacific.",
       "reply": [
         {"say": "Booking that now."},
-        {"tool": "book_demo", "args": {"name": "Demo Tester", "email": "demo@wranngle.com", "tz": "America/Los_Angeles", "start": "Tuesday 11:00 AM PT"}, "result": "Booked"},
-        {"say": "**Booked!**\n- **When:** Tuesday 11:00 AM Pacific\n- **Where:** Cal.com (confirmation in your inbox)\n- **Length:** 15 min\n\nSee you then!"}
+        {"tool": "book_demo", "args": {"name": "Demo Tester", "email": "demo@wranngle.com", "tz": "America/Los_Angeles", "start": "Wednesday 11:00 AM PT"}, "result": "Booked"},
+        {"say": "**Booked!**\n- **When:** Wednesday 11:00 AM Pacific\n- **Where:** Cal.com (confirmation in your inbox)\n- **Length:** 15 min\n\nSee you then!"}
       ]
     }
   ]
