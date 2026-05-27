@@ -9,11 +9,10 @@
  *   node scripts/provision-agents.mjs
  * Requires ELEVENLABS_API_KEY (env, or auto-loaded from ~/.agents/.env).
  */
-import {readFile, writeFile} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
+import {writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
-import {homedir} from 'node:os';
+import {loadElevenLabsKey} from './_lib/load-elevenlabs-key.mjs';
 
 const API = 'https://api.elevenlabs.io/v1/convai/agents';
 const here = dirname(fileURLToPath(import.meta.url));
@@ -71,16 +70,6 @@ const SPECS = [
   },
 ];
 
-async function loadKey() {
-  if (process.env.ELEVENLABS_API_KEY) return process.env.ELEVENLABS_API_KEY;
-  const envPath = join(homedir(), '.agents', '.env');
-  if (existsSync(envPath)) {
-    const line = (await readFile(envPath, 'utf8')).split('\n').find(l => l.startsWith('ELEVENLABS_API_KEY='));
-    if (line) return line.slice('ELEVENLABS_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
-  }
-  throw new Error('ELEVENLABS_API_KEY not set (env or ~/.agents/.env)');
-}
-
 async function listExisting(key) {
   const res = await fetch(`${API}?page_size=100`, {headers: {'xi-api-key': key}});
   if (!res.ok) throw new Error(`list agents failed: ${res.status}`);
@@ -112,7 +101,7 @@ async function createAgent(key, spec) {
 }
 
 async function main() {
-  const key = await loadKey();
+  const key = await loadElevenLabsKey();
   const existing = await listExisting(key);
   const out = [];
   for (const spec of SPECS) {

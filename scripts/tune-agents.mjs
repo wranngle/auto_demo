@@ -9,25 +9,14 @@
  * Requires ELEVENLABS_API_KEY (env or ~/.agents/.env).
  */
 import {readdir, readFile} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
-import {homedir} from 'node:os';
+import {loadElevenLabsKey} from './_lib/load-elevenlabs-key.mjs';
 
 const API = 'https://api.elevenlabs.io/v1/convai/agents';
 const MARKER = '\n\n[[demo-format]]';
 const here = dirname(fileURLToPath(import.meta.url));
 const scenarioDir = join(here, '..', 'examples', 'widget');
-
-async function loadKey() {
-  if (process.env.ELEVENLABS_API_KEY) return process.env.ELEVENLABS_API_KEY;
-  const envPath = join(homedir(), '.agents', '.env');
-  if (existsSync(envPath)) {
-    const line = (await readFile(envPath, 'utf8')).split('\n').find(l => l.startsWith('ELEVENLABS_API_KEY='));
-    if (line) return line.slice('ELEVENLABS_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
-  }
-  throw new Error('ELEVENLABS_API_KEY not set (env or ~/.agents/.env)');
-}
 
 function hostSlug(value) {
   return value.toLowerCase().replace(/[^a-z\d]+/g, '') || 'demo';
@@ -129,7 +118,7 @@ async function tune(key, scenario) {
 }
 
 async function main() {
-  const key = await loadKey();
+  const key = await loadElevenLabsKey();
   const only = process.argv.slice(2);
   const files = (await readdir(scenarioDir)).filter(f => f.endsWith('.scenario.json')).sort();
   for (const file of files) {
