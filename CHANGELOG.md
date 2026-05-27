@@ -123,7 +123,7 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (33 cases across 7 files: from-url, narrate,
+- Bats shell-integration suite (32 cases across 7 files: from-url, narrate,
   storyboard, svg, vertical, watch, widget) now runs in CI under the existing
   `test` job — installs bats + ffmpeg on the ubuntu-latest runner. Closes the
   doctrine gap "wire to CI before claiming done". (#25)
