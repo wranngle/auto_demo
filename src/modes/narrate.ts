@@ -1,5 +1,5 @@
 import {execFile} from 'node:child_process';
-import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
+import {mkdir, readFile, rm} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {promisify} from 'node:util';
