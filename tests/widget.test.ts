@@ -133,6 +133,31 @@ describe('widget scenario → page + flow (central promise)', () => {
     const liveFlow = buildDemoFlow(scenario({live: {agentId: 'agent_test'}}), 'x.html');
     expect(liveFlow.metadata?.source).toBe('ui-demo-runner widget (real ElevenLabs agent)');
   });
+
+  // src/widget/render.ts:310-312 conditionally spreads `capability` and
+  // `vertical` into metadata: present in the scenario → field included,
+  // absent → field omitted (not just `undefined`). A refactor that flips
+  // to unconditional spread or `null`-filling would change the wire shape
+  // for consumers parsing the metadata; lock both branches.
+  test('metadata.capability and metadata.vertical follow the conditional-spread contract', () => {
+    // Has vertical (from scenario fixture), no capability.
+    const baseFlow = buildDemoFlow(scenario(), 'x.html');
+    expect(baseFlow.metadata).not.toHaveProperty('capability');
+    expect(baseFlow.metadata?.vertical).toBe('ecommerce');
+
+    // Both present.
+    const fullFlow = buildDemoFlow(scenario({
+      capability: 'booking + reschedule',
+      business: {name: 'B', tagline: 't', accent: '#aa3344', vertical: 'salon'},
+    }), 'x.html');
+    expect(fullFlow.metadata?.capability).toBe('booking + reschedule');
+    expect(fullFlow.metadata?.vertical).toBe('salon');
+
+    // Both absent (business has no vertical, scenario has no capability).
+    const bareFlow = buildDemoFlow(scenario({business: {name: 'B', tagline: 't', accent: '#aa3344'}}), 'x.html');
+    expect(bareFlow.metadata).not.toHaveProperty('capability');
+    expect(bareFlow.metadata).not.toHaveProperty('vertical');
+  });
 });
 
 describe('scenario validation', () => {
