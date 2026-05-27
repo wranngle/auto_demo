@@ -141,4 +141,28 @@ describe('validateFlow', () => {
       steps: [{action: 'klick', selector: '#nav'}],
     })).toThrow(/action must be one of/v);
   });
+
+  // Per-action required-field guards (src/flow-schema.ts:157-186). Each
+  // covers a different "user authored an incomplete step" failure mode.
+  // The pre-existing tests covered `click requires selector` + `zoom
+  // requires scale`. This block locks the remaining six in one sweep:
+  // fill/value, goto/url, press/key, waitForText/text, caption/text,
+  // pause/ms — plus the non-click branches of the shared selector guard
+  // (focus, hover, waitForSelector).
+  test.each([
+    ['fill missing value', {action: 'fill', selector: '#email'}, /fill requires value/v],
+    ['goto missing url', {action: 'goto'}, /goto requires url/v],
+    ['press missing key', {action: 'press'}, /press requires key/v],
+    ['waitForText missing text', {action: 'waitForText'}, /waitForText requires text/v],
+    ['caption missing text', {action: 'caption'}, /caption requires text/v],
+    ['pause missing ms', {action: 'pause'}, /pause requires ms/v],
+    ['focus missing selector', {action: 'focus'}, /focus requires selector/v],
+    ['hover missing selector', {action: 'hover'}, /hover requires selector/v],
+    ['waitForSelector missing selector', {action: 'waitForSelector'}, /waitForSelector requires selector/v],
+  ])('rejects step: %s', (_label, step, expected) => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      steps: [step],
+    })).toThrow(expected);
+  });
 });
