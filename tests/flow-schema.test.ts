@@ -189,6 +189,23 @@ describe('validateFlow', () => {
     })).toThrow(/timing\.speed/v);
   });
 
+  // optionalZoom enforces polish.zoom.defaultScale > 0 and <= 2
+  // (src/flow-schema.ts:383-386). Below 0 is nonsense; above 2x the
+  // viewport's content overflows the visible frame. Same pattern as the
+  // speed bound test above.
+  test('rejects polish.zoom.defaultScale outside (0, 2]', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      polish: {zoom: {defaultScale: 0}},
+      steps: [{action: 'pause', ms: 1}],
+    })).toThrow(/zoom\.defaultScale/v);
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      polish: {zoom: {defaultScale: 3}},
+      steps: [{action: 'pause', ms: 1}],
+    })).toThrow(/zoom\.defaultScale/v);
+  });
+
   // loadFlow() is the file-IO entry point (src/flow-schema.ts:51-69). When
   // JSON.parse fails on the file contents, it wraps the cause with a helpful
   // error naming the absolute source path. Mirrors the loadScenario malformed-
