@@ -189,6 +189,18 @@ describe('validateFlow', () => {
     })).toThrow(/timing\.speed/v);
   });
 
+  // optionalCaptions enforces polish.captions.position is "top" or "bottom"
+  // (src/flow-schema.ts:370 via assertChoice). The "rejects unsupported
+  // cursor styles" test above covers the cursor.style branch of the same
+  // assertChoice helper; this covers the captions.position branch.
+  test('rejects polish.captions.position outside top|bottom', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      polish: {captions: {enabled: true, position: 'middle'}},
+      steps: [{action: 'pause', ms: 1}],
+    })).toThrow(/captions\.position/v);
+  });
+
   // optionalZoom enforces polish.zoom.defaultScale > 0 and <= 2
   // (src/flow-schema.ts:383-386). Below 0 is nonsense; above 2x the
   // viewport's content overflows the visible frame. Same pattern as the
