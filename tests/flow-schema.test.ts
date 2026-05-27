@@ -130,4 +130,15 @@ describe('validateFlow', () => {
       steps: [],
     })).toThrow(/steps must contain at least one action/v);
   });
+
+  // The action-enum guard (src/flow-schema.ts:137-139) catches the most
+  // common authoring typo class — a misspelled action name. The error names
+  // every valid action so the user knows what to pick. Locks the enum so
+  // adding a new action without updating isDemoAction fails CI.
+  test('rejects a step with an unknown action name', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      steps: [{action: 'klick', selector: '#nav'}],
+    })).toThrow(/action must be one of/v);
+  });
 });
