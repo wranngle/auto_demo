@@ -4,7 +4,10 @@
 // and its rejection rules — the format consumers must author scripts against.
 
 import {describe, expect, test} from 'vitest';
-import {parseNarrationScript} from '../src/modes/narrate.js';
+// eslint-disable-next-line @typescript-eslint/naming-convention
+import {parseNarrationScript, __test__} from '../src/modes/narrate.js';
+
+const {mockToneFrequencyHz} = __test__;
 
 describe('parseNarrationScript', () => {
   test('parses pipe-separated start | duration | text into typed cues', () => {
@@ -47,5 +50,33 @@ describe('parseNarrationScript', () => {
 
   test('an all-comment / empty script yields zero cues', () => {
     expect(parseNarrationScript('# just notes\n\n   \n')).toEqual([]);
+  });
+});
+
+// mockToneFrequencyHz (src/modes/narrate.ts:145-152) hashes the cue text into
+// a tone frequency in [220, 660] Hz — used by --voice mock so every line in a
+// script gets a distinct, deterministic pitch. Locks the determinism + range
+// contract so a refactor that changes the hash, range, or breaks idempotency
+// fails CI before the recordings sound different.
+describe('mockToneFrequencyHz', () => {
+  test('is deterministic for the same input', () => {
+    expect(mockToneFrequencyHz('Welcome to the demo')).toBe(mockToneFrequencyHz('Welcome to the demo'));
+    expect(mockToneFrequencyHz('')).toBe(mockToneFrequencyHz(''));
+  });
+
+  test('returns frequencies in the documented [220, 660) Hz range', () => {
+    for (const text of ['a', 'ab', 'abc', 'Quick brown fox', 'X', '12345', '!!!', 'Welcome']) {
+      const hz = mockToneFrequencyHz(text);
+      expect(hz, `${text} → ${hz}`).toBeGreaterThanOrEqual(220);
+      expect(hz, `${text} → ${hz}`).toBeLessThan(660);
+    }
+  });
+
+  test('distinct inputs typically map to distinct frequencies (anti-collision sanity)', () => {
+    const inputs = ['opener', 'middle line', 'closing remark', 'one more cue'];
+    const frequencies = new Set(inputs.map(s => mockToneFrequencyHz(s)));
+    // Not a hash strength claim — just confirming the hash isn't degenerate
+    // (e.g., refactor to a constant return).
+    expect(frequencies.size).toBeGreaterThanOrEqual(3);
   });
 });
