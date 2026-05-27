@@ -335,6 +335,28 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     }
   });
 
+  // Reverse direction of the test above: every agents.json entry must be
+  // referenced by exactly one scenario. Catches the silent regression where
+  // someone deletes a *.scenario.json but forgets to remove the agent from the
+  // snapshot, leaving a ghost agent that consumes ElevenLabs quota and confuses
+  // future readers.
+  test('agents.json has no orphans: every entry is referenced by some scenario.live.agentId', async () => {
+    const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{agentId: string}>;
+    const dir = resolve(repoRoot, 'examples/widget');
+    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const referenced = new Set<string>();
+    for (const name of files) {
+      // eslint-disable-next-line no-await-in-loop
+      const {scenario} = await loadScenario(resolve(dir, name));
+      if (scenario.live?.agentId !== undefined) {
+        referenced.add(scenario.live.agentId);
+      }
+    }
+
+    const orphans = agents.filter(a => !referenced.has(a.agentId));
+    expect(orphans, `agents.json carries ${orphans.length} unreferenced entries: ${orphans.map(a => a.agentId).join(', ')}`).toEqual([]);
+  });
+
   // Drift coupling: wranngle-scheduling is the SINGLE canonical Cal.com
   // demonstration host (persona Sage exists for exactly this). The other six
   // scenarios stay on canned client tools so their recordings never create
