@@ -119,4 +119,15 @@ describe('validateFlow', () => {
       ],
     })).toThrow(/cursor\.style/v);
   });
+
+  // Central-promise contract: a flow with zero steps is a no-op. The runner
+  // would still spin up Playwright, navigate to startUrl, and write a
+  // manifest — burning seconds for nothing. The validator rejects it before
+  // any side effects. (src/flow-schema.ts:90-92)
+  test('rejects a flow with zero steps', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      steps: [],
+    })).toThrow(/steps must contain at least one action/v);
+  });
 });
