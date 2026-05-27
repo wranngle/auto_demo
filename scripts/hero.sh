@@ -3,8 +3,6 @@
 # stdout: nothing meaningful. stderr: ECS jsonl events.
 # Env: DOTFILES_BOOTSTRAP_RUN_ID (inherited if invoked via dotfiles.sh).
 set -euo pipefail
-          export PUPPETEER_SKIP_DOWNLOAD=true
-          export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 HEROSH_RUN_ID=${DOTFILES_BOOTSTRAP_RUN_ID:-$(uuidgen 2>/dev/null||printf '%s-%s' "$(date +%s%N)" "$RANDOM")}
 HEROSH_SERVICE_NAME=hero-renderer
 HEROSH_EVENT_SEQUENCE=0
