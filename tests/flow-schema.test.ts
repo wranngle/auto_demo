@@ -189,6 +189,18 @@ describe('validateFlow', () => {
     })).toThrow(/timing\.speed/v);
   });
 
+  // Top-level arktype reject (src/flow-schema.ts:74-76). When the input
+  // doesn't match the type shape — non-object root, missing startUrl, or
+  // missing steps — the validator throws a TypeError prefixed with
+  // `Invalid <label>:`. This is the catch-all that runs before any of the
+  // per-field validators below; without it a malformed flow would crash
+  // deeper code paths with confusing errors. Locks two distinct ways to
+  // miss the shape (non-object, missing required field).
+  test('rejects non-object inputs at the arktype layer', () => {
+    expect(() => validateFlow('not an object')).toThrow(/Invalid flow/v);
+    expect(() => validateFlow({steps: [{action: 'pause', ms: 1}]})).toThrow(/Invalid flow/v);
+  });
+
   // optionalCaptions enforces polish.captions.position is "top" or "bottom"
   // (src/flow-schema.ts:370 via assertChoice). The "rejects unsupported
   // cursor styles" test above covers the cursor.style branch of the same
