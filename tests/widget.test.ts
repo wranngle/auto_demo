@@ -185,6 +185,20 @@ describe('scenario validation', () => {
     expect(() => validateScenario({...base, live: {agentId: 'agent_x', workspaceToolIds: ['tool_a', '']}}))
       .toThrow(/workspaceToolIds/v);
   });
+
+  // optionalViewport enforces width >= 320 and height >= 240 — a sane lower
+  // bound for recordings (anything smaller and the cursor overlay + caption
+  // strip stop being readable). Locks those thresholds so a refactor that
+  // drops the bound or flips it to a non-integer check fails CI.
+  test('rejects a viewport narrower than 320px', () => {
+    expect(() => validateScenario({...base, viewport: {width: 100, height: 240}}))
+      .toThrow(/viewport\.width/v);
+  });
+
+  test('rejects a viewport shorter than 240px', () => {
+    expect(() => validateScenario({...base, viewport: {width: 320, height: 100}}))
+      .toThrow(/viewport\.height/v);
+  });
 });
 
 // The live runtime registers each client tool as `() => canned[name]`
