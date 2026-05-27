@@ -119,6 +119,20 @@ describe('widget scenario → page + flow (central promise)', () => {
     expect(JSON.stringify(buildDemoFlow(scenario(), 'x.html')))
       .toBe(JSON.stringify(buildDemoFlow(scenario(), 'x.html')));
   });
+
+  // Brand-rename drift coupling (PR #18 swept auto_demo → ui-demo-runner
+  // across user-visible surfaces, including metadata.source on every widget
+  // flow). The render.ts:305-307 strings ship in every generated
+  // .demo.json file — a regression here would publish auto_demo-tagged
+  // flows to consumers. svg.test.ts has the parallel guard on the
+  // animated-SVG aria-label.
+  test('metadata.source carries the ui-demo-runner brand per mode (mock + live)', () => {
+    const mockFlow = buildDemoFlow(scenario(), 'x.html');
+    expect(mockFlow.metadata?.source).toBe('ui-demo-runner widget (deterministic ElevenLabs mock)');
+
+    const liveFlow = buildDemoFlow(scenario({live: {agentId: 'agent_test'}}), 'x.html');
+    expect(liveFlow.metadata?.source).toBe('ui-demo-runner widget (real ElevenLabs agent)');
+  });
 });
 
 describe('scenario validation', () => {
