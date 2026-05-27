@@ -172,6 +172,23 @@ describe('validateFlow', () => {
     })).toThrow(expected);
   });
 
+  // optionalTiming enforces playback speed > 0 and <= 8 (src/flow-schema.ts:267-269).
+  // Below 0 is nonsensical; above 8x the recording is unwatchable. Locks both
+  // bound branches so a refactor that flips the operator or drops the range
+  // fails CI.
+  test('rejects timing.speed outside (0, 8]', () => {
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      timing: {speed: 0},
+      steps: [{action: 'pause', ms: 1}],
+    })).toThrow(/timing\.speed/v);
+    expect(() => validateFlow({
+      startUrl: './fixtures/smoke.html',
+      timing: {speed: 9},
+      steps: [{action: 'pause', ms: 1}],
+    })).toThrow(/timing\.speed/v);
+  });
+
   // loadFlow() is the file-IO entry point (src/flow-schema.ts:51-69). When
   // JSON.parse fails on the file contents, it wraps the cause with a helpful
   // error naming the absolute source path. Mirrors the loadScenario malformed-
