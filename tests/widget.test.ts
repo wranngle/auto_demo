@@ -448,6 +448,29 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(loaded.live?.workspaceToolIds ?? []).toContain('tool_4001kqxjgwp4ft2rwq21ze8fdpkp');
   });
 
+  // Internal-consistency drift inside wranngle-scheduling: the user-supplied
+  // booking time, the tool args.start, and the confirmation reply must all
+  // name the same day-of-week. The pre-fix scenario had user="Wednesday May
+  // 28th" with tool/reply="Tuesday" — a silent UX regression in the recording
+  // because the confirmation contradicts the user's request. Lock the
+  // coupling so a future copy-edit that touches one without the others fails.
+  test('wranngle-scheduling: user, tool args.start, and confirmation reply all reference the same day-of-week', async () => {
+    const {scenario: loaded} = await loadScenario(resolve(repoRoot, 'examples/widget/wranngle-scheduling.scenario.json'));
+    const dayPattern = /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/v;
+    const bookingTurn = loaded.turns.find(turn => turn.reply.some(beat => 'tool' in beat && beat.tool === 'book_demo'));
+    expect(bookingTurn, 'expected a turn with a book_demo tool call').toBeDefined();
+
+    const userDay = dayPattern.exec(bookingTurn!.user)?.[1];
+    const toolBeat = bookingTurn!.reply.find(beat => 'tool' in beat && beat.tool === 'book_demo') as {args?: {start?: string}};
+    const toolDay = dayPattern.exec(String(toolBeat?.args?.start ?? ''))?.[1];
+    const confirmBeat = [...bookingTurn!.reply].reverse().find(beat => 'say' in beat) as {say: string};
+    const confirmDay = dayPattern.exec(confirmBeat.say)?.[1];
+
+    expect(userDay, 'user message must name a day-of-week').toBeDefined();
+    expect(toolDay, `book_demo args.start must name the same day as the user (${userDay})`).toBe(userDay);
+    expect(confirmDay, `confirmation reply must name the same day as the user (${userDay})`).toBe(userDay);
+  });
+
   // wranngle-scheduling is structurally distinct from the six vertical demos
   // (real workspace tool, no canned clientTools, fewer turns), so it can't ride
   // the vertical test.each above. This guards its own load/render/flow contract
