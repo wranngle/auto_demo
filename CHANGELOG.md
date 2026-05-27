@@ -47,7 +47,9 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   manifest (keyframe per screenshot with timestamp + narration). (#13)
 - `svg` — sample frames from an MP4 fixture into a single self-contained
   animated SVG for README embeds, with a 200 KB ceiling. (#14)
-- `regress` mode emits a markdown diff summary between DOM snapshots. (#8)
+- `writeRegressArtifacts()` library helper (`src/modes/regress.ts`) writes
+  `regression.json` + `regression-summary.md` from a per-flow pass-rate report.
+  Library API only — not wired as a CLI subcommand. (#8)
 - `--quality 720p | 1080p | 4k` preset for `run` (viewport + bitrate). (#6)
 - `--captions-lang en,es,pt,fr` multilingual SRT export. (#5)
 - `split` subcommand — 1920×1080 split-screen of flow + recording. (#4)
