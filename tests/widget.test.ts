@@ -1,7 +1,8 @@
 import {existsSync} from 'node:fs';
-import {readdir, readFile} from 'node:fs/promises';
+import {mkdtemp, readdir, readFile, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
-import {resolve} from 'node:path';
+import {join, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 import {validateFlow} from '../src/flow-schema.js';
 import {
@@ -213,6 +214,18 @@ describe('scenario validation', () => {
   test('rejects a viewport shorter than 240px', () => {
     expect(() => validateScenario({...base, viewport: {width: 320, height: 100}}))
       .toThrow(/viewport\.height/v);
+  });
+
+  // loadScenario() is the file-IO entry point (scenario.ts:27-39) and wraps a
+  // JSON.parse failure with a helpful error: "Invalid JSON in <abs-path>: ...".
+  // This was the only file-IO throw left untested — a refactor that swallowed
+  // the catch or stripped the cause would slip past CI.
+  test('loadScenario surfaces malformed JSON with the file path in the error message', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ui-demo-scenario-malformed-'));
+    const path = join(dir, 'broken.scenario.json');
+    await writeFile(path, '{ not really json ,,,');
+
+    await expect(loadScenario(path)).rejects.toThrow(/Invalid JSON in.*broken\.scenario\.json/v);
   });
 });
 
