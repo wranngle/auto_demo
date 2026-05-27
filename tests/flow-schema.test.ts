@@ -1,5 +1,8 @@
+import {mkdtemp, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {describe, expect, test} from 'vitest';
-import {validateFlow} from '../src/flow-schema.js';
+import {loadFlow, validateFlow} from '../src/flow-schema.js';
 
 describe('validateFlow', () => {
   test('accepts a minimal useful demo flow', () => {
@@ -164,5 +167,19 @@ describe('validateFlow', () => {
       startUrl: './fixtures/smoke.html',
       steps: [step],
     })).toThrow(expected);
+  });
+
+  // loadFlow() is the file-IO entry point (src/flow-schema.ts:51-69). When
+  // JSON.parse fails on the file contents, it wraps the cause with a helpful
+  // error naming the absolute source path. Mirrors the loadScenario malformed-
+  // JSON test from PR #56 — same pattern, complementary coverage. A refactor
+  // that swallowed the catch, dropped the path, or stripped the cause would
+  // slip past CI.
+  test('loadFlow surfaces malformed JSON with the file path in the error message', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ui-demo-flow-malformed-'));
+    const path = join(dir, 'broken.demo.json');
+    await writeFile(path, '{ "startUrl": "./x.html", steps:');
+
+    await expect(loadFlow(path)).rejects.toThrow(/Invalid JSON in.*broken\.demo\.json/v);
   });
 });
