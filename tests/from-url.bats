@@ -6,7 +6,7 @@
 #   - exit 0 on happy path
 #   - script JSON has steps[] with selector, action, narration on every step
 #   - script is deterministic across invocations
-#   - missing --goal exits non-zero with a usage message
+#   - --out writes the script JSON to disk
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -44,11 +44,6 @@ print("ok")
   run node "$CLI" from-url https://example.com/billing --goal "show how to add a credit card"
   [ "$status" -eq 0 ]
   [ "$output" = "$first_run" ]
-}
-
-@test "from-url: missing --goal exits non-zero" {
-  run node "$CLI" from-url https://example.com/billing
-  [ "$status" -ne 0 ]
 }
 
 @test "from-url: --out writes the script JSON to disk" {

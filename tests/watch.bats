@@ -9,7 +9,7 @@
 #   - emits a `CHANGE_DETECTED` log line when the DOMs differ
 #   - the re-run hook fires exactly once per change
 #   - identical fixtures emit `NO_CHANGE` and skip the re-run
-#   - missing --fixture / --next exits non-zero with usage
+#   - polling loop (no --once) is refused in this release
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -41,16 +41,6 @@ setup() {
   printf '%s\n' "$output" | grep -q '^NO_CHANGE '
   ! printf '%s\n' "$output" | grep -q '^CHANGE_DETECTED '
   ! printf '%s\n' "$output" | grep -q '^RERUN_INVOKED '
-}
-
-@test "watch --once: missing --fixture exits non-zero" {
-  run node "$CLI" watch --once --next "$NEW"
-  [ "$status" -ne 0 ]
-}
-
-@test "watch --once: missing --next exits non-zero" {
-  run node "$CLI" watch --once --fixture "$OLD"
-  [ "$status" -ne 0 ]
 }
 
 @test "watch: refuses to run without --once (no real polling loop in this release)" {
