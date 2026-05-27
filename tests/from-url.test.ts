@@ -61,4 +61,25 @@ describe('generateScriptFromUrl', () => {
     expect(result.steps[0]!.selector).toBe('#override-marker');
     expect(result.steps[0]!.narration).toBe('override step');
   });
+
+  // Mock-LLM fixture validation reject paths (src/from-url/mock-llm.ts:43-89).
+  // Locks the six "malformed fixture" failure modes in one parametric block so
+  // a refactor that loosens type guards (e.g. accepts empty narration, drops
+  // the DemoAction allowlist) fails CI. The mock backs every from-url test
+  // run and any consumer offline tests, so its parser contract matters.
+  test.each([
+    ['root is an array', '["not an object"]', /expected object/v],
+    ['steps is missing', '{"name": "x"}', /steps must be an array/v],
+    ['steps element is not an object', '{"steps": ["bare"]}', /expected object/v],
+    ['step missing selector', '{"steps": [{"action": "click", "narration": "n"}]}', /selector must be a non-empty string/v],
+    ['step has unknown action', '{"steps": [{"selector": "#x", "action": "fart", "narration": "n"}]}', /action must be a DemoAction/v],
+    ['step missing narration', '{"steps": [{"selector": "#x", "action": "click"}]}', /narration must be a non-empty string/v],
+  ])('mock LLM rejects malformed fixture: %s', async (_label, body, expected) => {
+    const dir = await mkdtemp(join(tmpdir(), 'ui-demo-from-url-malformed-'));
+    const fixturePath = join(dir, 'bad.json');
+    await writeFile(fixturePath, body);
+
+    const client = createMockLlmClient({fixturePath});
+    await expect(client.generateScript({url: 'https://example.com', goal: 'g'})).rejects.toThrow(expected);
+  });
 });
