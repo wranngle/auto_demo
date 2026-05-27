@@ -493,6 +493,30 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(flow.metadata?.agentId).toBe(loaded.live!.agentId);
   });
 
+  // Doctrine drift: every shipped scenario's `business.vertical` MUST map to a
+  // non-default branch in render.ts's heroCopy + featureCards switches.
+  // Pre-fix, medspa / home-services / saas all fell through to the generic
+  // "A conversational AI front desk that books, looks things up…" copy —
+  // the recordings for those three businesses showed landing pages that
+  // didn't match what the agent does. This test locks the coupling so any
+  // new vertical added to a scenario fails CI until render.ts is extended.
+  test('doctrine drift: every shipped scenario vertical renders tailored hero copy (no fall-through to default)', async () => {
+    const defaultHero = 'A conversational AI front desk that books, looks things up, and gets work done on your behalf.';
+    const defaultFeatures = ['Answers instantly', 'Uses your tools', 'Hands off cleanly'];
+    const dir = resolve(repoRoot, 'examples/widget');
+    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    for (const name of files) {
+      // eslint-disable-next-line no-await-in-loop
+      const {scenario: loaded} = await loadScenario(resolve(dir, name));
+      if (loaded.business.vertical === undefined) continue;
+      const html = renderWidgetPage(loaded);
+      expect(html, `${name} (vertical=${loaded.business.vertical}) falls through to the generic hero copy`).not.toContain(defaultHero);
+      for (const phrase of defaultFeatures) {
+        expect(html, `${name} (vertical=${loaded.business.vertical}) renders generic feature card "${phrase}"`).not.toContain(`<h3>${phrase}</h3>`);
+      }
+    }
+  });
+
   test('the six vertical demos carry NO workspace tool ids (real-action boundary)', async () => {
     const verticals = ['restaurant-trattoria', 'dental-emergency', 'salon-recovery', 'ecommerce-returns', 'medspa-consult', 'hvac-dispatch'];
     for (const name of verticals) {
