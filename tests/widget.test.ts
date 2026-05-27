@@ -396,4 +396,25 @@ describe('shipped example scenarios (live + dual-mode)', () => {
       }
     }
   });
+
+  // Doctrine drift: the CHANGELOG advertises the bats suite shape — "Bats
+  // shell-integration suite (N cases across M files)". Both numbers drift the
+  // moment someone adds/removes a .bats file or a @test inside one. Couple the
+  // claim to the on-disk reality so a future PR that adds a 34th bats case fails
+  // CI until the CHANGELOG number catches up.
+  test('doctrine drift: CHANGELOG bats-suite count phrase matches tests/*.bats on disk', async () => {
+    const batsFiles = (await readdir(resolve(repoRoot, 'tests'))).filter((name: string) => name.endsWith('.bats')).sort();
+    let cases = 0;
+    for (const f of batsFiles) {
+      // eslint-disable-next-line no-await-in-loop
+      const raw = await readFile(resolve(repoRoot, 'tests', f), 'utf8');
+      cases += (raw.match(/^@test /gmu) ?? []).length;
+    }
+
+    const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
+    const match = /Bats shell-integration suite \((\d+)\s+cases across\s+(\d+)\s+files/u.exec(changelog);
+    expect(match, 'CHANGELOG must contain the "Bats shell-integration suite (N cases across M files)" phrase').not.toBeNull();
+    expect(Number(match![1]), `CHANGELOG claims ${match![1]} bats cases; tests/*.bats has ${cases}`).toBe(cases);
+    expect(Number(match![2]), `CHANGELOG claims ${match![2]} bats files; tests/*.bats has ${batsFiles.length}`).toBe(batsFiles.length);
+  });
 });
