@@ -186,6 +186,21 @@ describe('scenario validation', () => {
       .toThrow(/workspaceToolIds/v);
   });
 
+  // The linkHosts validator (scenario.ts:113-119) has two reject branches:
+  // (a) value is not an array, (b) value is an array but some element is not
+  // a string. linkHosts is a documented user-facing field — see
+  // examples/widget/README.md — so locking the validator keeps the
+  // markdown-link-allowed-hosts contract honest.
+  test('rejects linkHosts when not an array (string instead)', () => {
+    expect(() => validateScenario({...base, live: {agentId: 'agent_x', linkHosts: 'acme.example.com'}}))
+      .toThrow(/linkHosts.*string\[\]/v);
+  });
+
+  test('rejects linkHosts when an element is not a string', () => {
+    expect(() => validateScenario({...base, live: {agentId: 'agent_x', linkHosts: ['acme.example.com', 42]}}))
+      .toThrow(/linkHosts.*string\[\]/v);
+  });
+
   // optionalViewport enforces width >= 320 and height >= 240 — a sane lower
   // bound for recordings (anything smaller and the cursor overlay + caption
   // strip stop being readable). Locks those thresholds so a refactor that
