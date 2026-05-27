@@ -1,0 +1,41 @@
+// Unit contract for the pure SVG builder. tests/svg.bats covers the CLI
+// end-to-end against a real MP4 fixture (round-trip via ffmpeg); this file
+// pins the structural contract of `buildSvg`, the deterministic frames →
+// XML string function. src/svg/index.ts exports `__test__` for exactly this.
+
+import {describe, expect, test} from 'vitest';
+// eslint-disable-next-line @typescript-eslint/naming-convention
+import {__test__} from '../src/svg/index.js';
+
+const {buildSvg, MAX_BYTES} = __test__;
+
+// 1x1 JPEG, base64-encoded — small enough to keep tests fast, well-formed
+// enough that the resulting SVG remains parseable.
+const onePxJpeg = '/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gOTAK/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAAQABAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/aAAwDAQACEQMRAD8A/v8ooooA//9k=';
+
+describe('buildSvg', () => {
+  test('emits well-formed XML preamble + opening svg tag with the documented brand', () => {
+    const svg = buildSvg({frames: [onePxJpeg], width: 320, height: 240, frameDurationMs: 100, totalDurationMs: 100});
+    expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
+    expect(svg).toContain('viewBox="0 0 320 240"');
+    expect(svg).toContain('width="320" height="240"');
+    // Brand-rename drift coupling — PR #18 renamed auto_demo → ui-demo-runner
+    // throughout the user-visible surface, including this aria-label.
+    expect(svg).toContain('aria-label="ui-demo-runner animated preview"');
+  });
+
+  test('emits exactly one <image> + one <animate> per frame', () => {
+    const svg = buildSvg({frames: [onePxJpeg, onePxJpeg, onePxJpeg], width: 100, height: 100, frameDurationMs: 50, totalDurationMs: 150});
+    expect((svg.match(/<image\b/gv) ?? []).length).toBe(3);
+    expect((svg.match(/<animate\b/gv) ?? []).length).toBe(3);
+    expect(svg).toContain('data-frame-duration-ms="50"');
+    expect(svg).toContain('data:image/jpeg;base64,');
+  });
+
+  test('MAX_BYTES is the documented 200 KB README ceiling', () => {
+    // Constant lives in CHANGELOG/README too ("200 KB ceiling"). Locks the
+    // budget so a refactor that bumps it without a CHANGELOG update fails CI.
+    expect(MAX_BYTES).toBe(200 * 1024);
+  });
+});
