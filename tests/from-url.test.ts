@@ -1,3 +1,6 @@
+import {mkdtemp, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {describe, expect, test} from 'vitest';
 import {createMockLlmClient, generateScriptFromUrl} from '../src/from-url/index.js';
 
@@ -36,12 +39,26 @@ describe('generateScriptFromUrl', () => {
     await expect(generateScriptFromUrl({url: 'https://example.com', goal: ''})).rejects.toThrow(/goal/v);
   });
 
+  // Previously this test claimed to exercise the `fixturePath` override but
+  // instantiated the client with no options — proving only that the DEFAULT
+  // fixture loads. Now actually writes a custom fixture and asserts the
+  // override is honored end-to-end.
   test('mock LLM client honors an override fixture path', async () => {
-    const client = createMockLlmClient();
+    const dir = await mkdtemp(join(tmpdir(), 'ui-demo-from-url-fixture-'));
+    const fixturePath = join(dir, 'custom.json');
+    await writeFile(fixturePath, JSON.stringify({
+      name: 'override-marker-script',
+      steps: [
+        {selector: '#override-marker', action: 'click', narration: 'override step'},
+      ],
+    }));
+
+    const client = createMockLlmClient({fixturePath});
     const result = await client.generateScript({url: 'https://example.com', goal: 'g'});
-    expect(result.steps).toHaveLength(5);
-    const firstStep = result.steps[0];
-    expect(firstStep).toBeDefined();
-    expect(firstStep!.selector).toContain('nav-billing');
+
+    expect(result.name).toBe('override-marker-script');
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0]!.selector).toBe('#override-marker');
+    expect(result.steps[0]!.narration).toBe('override step');
   });
 });
