@@ -52,6 +52,29 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
   });
 
+  // Doctrine drift: the consumer template installs Node via
+  // `actions/setup-node@v4` with a fixed `node-version: '<N>'`.
+  // package.json declares `"engines": {"node": ">=<M>"}`. The template's
+  // major must be >= the engines floor — otherwise a consumer running
+  // the template installs a Node version that the package itself rejects
+  // at install time (npm refuses incompatible engines).
+  test('doctrine drift: template node-version satisfies package.json engines.node floor', () => {
+    const pkg = JSON.parse(readFileSync(resolve(here, '..', 'package.json'), 'utf8')) as {
+      engines?: {node?: string};
+    };
+    const engines = pkg.engines?.node;
+    expect(engines, 'package.json must declare engines.node').toBeDefined();
+    const engineFloor = /^>=\s*(\d+)/u.exec(engines!);
+    expect(engineFloor, `package.json engines.node "${engines}" must look like ">=<N>"`).not.toBeNull();
+
+    const templateNode = /node-version:\s*'(\d+)'/u.exec(raw);
+    expect(templateNode, 'template must set `node-version: \'<N>\'`').not.toBeNull();
+
+    const floor = Number(engineFloor![1]);
+    const tplMajor = Number(templateNode![1]);
+    expect(tplMajor, `template node-version (${tplMajor}) must be >= package.json engines floor (${floor})`).toBeGreaterThanOrEqual(floor);
+  });
+
   // Doctrine drift: the consumer template installs Playwright at the
   // pinned version (`npx --yes playwright@<X.Y.Z>`); package.json depends
   // on Playwright via `^X.Y.Z`. The template's pin and package.json's
