@@ -177,6 +177,32 @@ describe('scenario validation', () => {
       .toThrow(/say.*beat is required/v);
   });
 
+  // scenario.ts:186 enforces a non-empty reply array — both forms (omitted and
+  // empty []) hit the same throw. A turn with no beats would produce a flow
+  // with a Send step but no waitForText, freezing the recorder; lock the error
+  // path so a refactor that loosens the check fails CI before publishing a
+  // broken scenario contract.
+  test('rejects a turn with an empty reply array', () => {
+    expect(() => validateScenario({...base, turns: [{user: 'u', reply: []}]}))
+      .toThrow(/reply.*non-empty array of beats/v);
+  });
+
+  test('rejects a turn that omits the reply field entirely', () => {
+    expect(() => validateScenario({...base, turns: [{user: 'u'}]}))
+      .toThrow(/reply.*non-empty array of beats/v);
+  });
+
+  // scenario.ts:205-206: a {say: ''} beat passes the string-type check but
+  // fails the `nonEmpty` guard. Authors who paste an unfilled template (empty
+  // string placeholder) get a clear error instead of a silent zero-length
+  // waitForText that would hang the recorder.
+  test('rejects a say beat whose text is empty / whitespace', () => {
+    expect(() => validateScenario({...base, turns: [{user: 'u', reply: [{say: ''}]}]}))
+      .toThrow(/say.*non-empty string/v);
+    expect(() => validateScenario({...base, turns: [{user: 'u', reply: [{say: '   '}]}]}))
+      .toThrow(/say.*non-empty string/v);
+  });
+
   test('rejects a beat that is none of say/tool/do', () => {
     expect(() => validateScenario({...base, turns: [{user: 'u', reply: [{say: 'ok'}, {foo: 1}]}]}))
       .toThrow(/"say", "tool", or "do"/v);
