@@ -7,7 +7,12 @@ import {promisify} from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const SAMPLE_RATE = 44_100;
-const KNOWN_VOICES = new Set(['mock', 'elevenlabs']);
+
+// Supported `--voice` ids. The CLI option help and README enumerate these
+// — adding a new id requires updating both surfaces (locked by
+// tests/narrate.test.ts).
+export const SUPPORTED_VOICES = ['mock', 'elevenlabs'] as const;
+const KNOWN_VOICES: ReadonlySet<string> = new Set(SUPPORTED_VOICES);
 
 export type NarrateOptions = {
   scriptPath: string;

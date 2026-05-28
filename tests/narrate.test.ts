@@ -3,11 +3,15 @@
 // `#` comments and blank lines ignored, `|` OR tab separators, decimal seconds)
 // and its rejection rules — the format consumers must author scripts against.
 
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {dirname, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 // eslint-disable-next-line @typescript-eslint/naming-convention
-import {parseNarrationScript, __test__} from '../src/modes/narrate.js';
+import {parseNarrationScript, SUPPORTED_VOICES, __test__} from '../src/modes/narrate.js';
 
 const {mockToneFrequencyHz} = __test__;
+const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
 
 describe('parseNarrationScript', () => {
   test('parses pipe-separated start | duration | text into typed cues', () => {
@@ -78,5 +82,30 @@ describe('mockToneFrequencyHz', () => {
     // Not a hash strength claim — just confirming the hash isn't degenerate
     // (e.g., refactor to a constant return).
     expect(frequencies.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Doctrine drift: the `--voice <id>` enum (`mock`, `elevenlabs`) lives in
+// `SUPPORTED_VOICES` (source of truth, src/modes/narrate.ts) plus two
+// doc surfaces — the CLI option help text in src/cli.ts and the README
+// narration prose. Adding a new voice (e.g. `openai`) would expose it via
+// the runtime but leave both surfaces still claiming the two-voice list.
+describe('doctrine drift: --voice enum across narrate.ts ↔ CLI help ↔ README', () => {
+  test('CLI option help + README narration prose enumerate exactly SUPPORTED_VOICES', async () => {
+    const sourceTruth = new Set<string>(SUPPORTED_VOICES);
+
+    // CLI: `--voice <id>` help text reads `Voice id: "mock" (...) or "elevenlabs"`.
+    const cli = await readFile(resolve(repoRoot, 'src', 'cli.ts'), 'utf8');
+    const cliMatch = /--voice[^)]*'\s*Voice id:\s*([^']+)'/u.exec(cli);
+    expect(cliMatch, 'src/cli.ts must contain `--voice <id>` with `Voice id: ...` help text').not.toBeNull();
+    const cliVoices = new Set([...cliMatch![1]!.matchAll(/"([\w-]+)"/gu)].map(m => m[1]!));
+    expect(cliVoices, `CLI help "${cliMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
+
+    // README narrate section: enumerates `--voice mock` and `--voice elevenlabs`
+    // as separate phrases. Pull every `--voice <name>` mention and dedupe.
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+    const readmeVoices = new Set([...readme.matchAll(/--voice\s+([\w-]+)/gu)].map(m => m[1]!));
+    expect(readmeVoices, `README enumerates ${[...readmeVoices].join(', ')}; SUPPORTED_VOICES is ${[...sourceTruth].join(', ')}`)
+      .toEqual(sourceTruth);
   });
 });
