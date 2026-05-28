@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 // eslint-disable-next-line @typescript-eslint/naming-convention
-import {__test__} from '../src/modes/vertical.js';
+import {FIT_MODES, __test__} from '../src/modes/vertical.js';
 
 const {buildCropFilter, buildPadFilter, ASPECT_PRESETS} = __test__;
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
@@ -56,5 +56,32 @@ describe('buildPadFilter', () => {
     expect(filter).toContain('scale=w=');
     // Center-pad with black background matters for the "fit pad" preset.
     expect(filter).toContain('pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
+  });
+});
+
+// Doctrine drift: the `--fit <mode>` enum (`crop`, `pad`) lives in
+// `FIT_MODES` (source of truth, src/modes/vertical.ts) + README's
+// "Vertical export" prose (`--fit crop`, `--fit pad`) + CHANGELOG's
+// "--fit crop|pad" mention. src/cli.ts now derives its `.choices(...)`
+// list from FIT_MODES by import (no more duplicate literal), but README
+// and CHANGELOG can still desync if a new mode is added.
+describe('doctrine drift: --fit enum across vertical.ts ↔ README ↔ CHANGELOG', () => {
+  test('README + CHANGELOG enumerate exactly FIT_MODES', async () => {
+    const sourceTruth = new Set<string>(FIT_MODES);
+
+    // README: every `--fit <mode>` mention. The "Vertical export" section
+    // names both `--fit crop` and `--fit pad`.
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+    const readmeModes = new Set([...readme.matchAll(/--fit\s+([\w-]+)/gu)].map(m => m[1]!));
+    expect(readmeModes, `README enumerates ${[...readmeModes].join(', ')}; FIT_MODES is ${[...sourceTruth].join(', ')}`)
+      .toEqual(sourceTruth);
+
+    // CHANGELOG: the pipe-separated list in `--fit crop|pad`.
+    const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
+    const changelogMatch = /--fit\s+([\w|]+)/u.exec(changelog);
+    expect(changelogMatch, 'CHANGELOG must contain a `--fit <a>|<b>|...` reference').not.toBeNull();
+    const changelogModes = new Set(changelogMatch![1]!.split('|').map(s => s.trim()).filter(Boolean));
+    expect(changelogModes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`)
+      .toEqual(sourceTruth);
   });
 });

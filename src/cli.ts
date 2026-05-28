@@ -6,7 +6,7 @@ import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
 import {renderNarration} from './modes/narrate.js';
 import {renderSplit} from './modes/split.js';
-import {renderVertical} from './modes/vertical.js';
+import {FIT_MODES, renderVertical, type FitMode} from './modes/vertical.js';
 import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
@@ -166,13 +166,13 @@ program
   .requiredOption('--in <video>', 'Input MP4 to convert')
   .requiredOption('--out <video>', 'Output MP4 path')
   .option('--aspect <ratio>', 'Target aspect ratio (only 9:16 is supported)', '9:16')
-  .addOption(new Option('--fit <mode>', 'How to fit the source frame').choices(['crop', 'pad']).default('crop'))
+  .addOption(new Option('--fit <mode>', 'How to fit the source frame').choices([...FIT_MODES]).default('crop'))
   .addOption(new Option('--json', 'Print the result as JSON').default(false))
   .action(async (options: {
     in: string;
     out: string;
     aspect: string;
-    fit: 'crop' | 'pad';
+    fit: FitMode;
     json: boolean;
   }) => {
     try {
