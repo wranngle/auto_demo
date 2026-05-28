@@ -10,7 +10,7 @@ import {describe, expect, test} from 'vitest';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import {FIT_MODES, __test__} from '../src/modes/vertical.js';
 
-const {buildCropFilter, buildPadFilter, ASPECT_PRESETS} = __test__;
+const {buildCropFilter, buildPadFilter, ASPECT_PRESETS, FILTER_BUILDERS} = __test__;
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
 describe('ASPECT_PRESETS', () => {
@@ -56,6 +56,26 @@ describe('buildPadFilter', () => {
     expect(filter).toContain('scale=w=');
     // Center-pad with black background matters for the "fit pad" preset.
     expect(filter).toContain('pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
+  });
+});
+
+// Doctrine drift: FIT_MODES (source of truth for the --fit enum) and
+// FILTER_BUILDERS (map of FitMode → ffmpeg filter generator) must stay in
+// lockstep. The Record<FitMode, ...> type already gives a compile-time
+// guarantee, but a runtime test catches the case where someone widens
+// FitMode without updating FILTER_BUILDERS, AND verifies each builder
+// produces a structurally distinct filter (catching a silent
+// crop-pointed-at-pad copy-paste regression).
+describe('FILTER_BUILDERS coverage', () => {
+  test('every FIT_MODE has a matching FILTER_BUILDERS entry that produces a distinct filter', () => {
+    const seen = new Set<string>();
+    for (const mode of FIT_MODES) {
+      const builder = FILTER_BUILDERS[mode];
+      expect(builder, `FIT_MODES includes '${mode}' but FILTER_BUILDERS.${mode} is missing`).toBeInstanceOf(Function);
+      const filter = builder(1080, 1920);
+      expect(seen.has(filter), `FILTER_BUILDERS.${mode} produces a filter identical to a previous mode — likely a copy-paste regression`).toBe(false);
+      seen.add(filter);
+    }
   });
 });
 
