@@ -573,6 +573,31 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     }
   });
 
+  // Doctrine drift: CHANGELOG hardcodes the six vertical names in the
+  // `widget` announcement — "six vertical demos (restaurant, dental, salon,
+  // ecommerce, medspa, home-services)". The seventh scenario
+  // (wranngle-scheduling, vertical=saas) is intentionally called out
+  // separately. Couple the parenthesized list against the actual
+  // business.vertical values on disk so a future PR that adds/renames a
+  // vertical without updating CHANGELOG fails CI.
+  test('doctrine drift: CHANGELOG vertical-names list mirrors scenario business.vertical values', async () => {
+    const dir = resolve(repoRoot, 'examples/widget');
+    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const scenarios = await Promise.all(files.map(async name => loadScenario(resolve(dir, name))));
+    // saas (wranngle-scheduling) is the explicitly-separated seventh; the six
+    // "vertical demos" are everything else with a declared vertical.
+    const sixVerticals = new Set(scenarios
+      .map(({scenario}) => scenario.business.vertical)
+      .filter((v): v is string => typeof v === 'string' && v !== 'saas'));
+
+    const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
+    const match = /six vertical demos\s*\(([^)]+)\)/u.exec(changelog);
+    expect(match, 'CHANGELOG must contain a "six vertical demos (a, b, c, ...)" phrase').not.toBeNull();
+    const claimed = new Set(match![1]!.split(',').map(s => s.trim()));
+
+    expect(claimed, `CHANGELOG claims ${[...claimed].join(', ')}; scenarios on disk have ${[...sixVerticals].join(', ')}`).toEqual(sixVerticals);
+  });
+
   // Doctrine drift: the CHANGELOG advertises the bats suite shape — "Bats
   // shell-integration suite (N cases across M files)". Both numbers drift the
   // moment someone adds/removes a .bats file or a @test inside one. Couple the
