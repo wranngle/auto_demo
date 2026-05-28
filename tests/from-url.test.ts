@@ -92,7 +92,7 @@ describe('generateScriptFromUrl', () => {
     expect(result.steps[0]!.narration).toBe('override step');
   });
 
-  // Mock-LLM fixture validation reject paths (src/from-url/mock-llm.ts:43-89).
+  // Mock-LLM fixture validation reject paths (src/from-url/mock-llm.ts).
   // Locks the six "malformed fixture" failure modes in one parametric block so
   // a refactor that loosens type guards (e.g. accepts empty narration, drops
   // the DemoAction allowlist) fails CI. The mock backs every from-url test

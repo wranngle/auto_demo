@@ -129,7 +129,7 @@ describe('validateFlow', () => {
   // Central-promise contract: a flow with zero steps is a no-op. The runner
   // would still spin up Playwright, navigate to startUrl, and write a
   // manifest — burning seconds for nothing. The validator rejects it before
-  // any side effects. (src/flow-schema.ts:90-92)
+  // any side effects. (src/flow-schema.ts)
   test('rejects a flow with zero steps', () => {
     expect(() => validateFlow({
       startUrl: './fixtures/smoke.html',
@@ -137,7 +137,7 @@ describe('validateFlow', () => {
     })).toThrow(/steps must contain at least one action/v);
   });
 
-  // The action-enum guard (src/flow-schema.ts:137-139) catches the most
+  // The action-enum guard (src/flow-schema.ts) catches the most
   // common authoring typo class — a misspelled action name. The error names
   // every valid action so the user knows what to pick. Locks the enum so
   // adding a new action without updating isDemoAction fails CI.
@@ -148,7 +148,7 @@ describe('validateFlow', () => {
     })).toThrow(/action must be one of/v);
   });
 
-  // Per-action required-field guards (src/flow-schema.ts:157-186). Each
+  // Per-action required-field guards (src/flow-schema.ts). Each
   // covers a different "user authored an incomplete step" failure mode.
   // The pre-existing tests covered `click requires selector` + `zoom
   // requires scale`. This block locks the remaining six in one sweep:
@@ -172,7 +172,7 @@ describe('validateFlow', () => {
     })).toThrow(expected);
   });
 
-  // optionalTiming enforces playback speed > 0 and <= 8 (src/flow-schema.ts:267-269).
+  // optionalTiming enforces playback speed > 0 and <= 8 (src/flow-schema.ts).
   // Below 0 is nonsensical; above 8x the recording is unwatchable. Locks both
   // bound branches so a refactor that flips the operator or drops the range
   // fails CI.
@@ -189,7 +189,7 @@ describe('validateFlow', () => {
     })).toThrow(/timing\.speed/v);
   });
 
-  // Top-level arktype reject (src/flow-schema.ts:74-76). When the input
+  // Top-level arktype reject (src/flow-schema.ts). When the input
   // doesn't match the type shape — non-object root, missing startUrl, or
   // missing steps — the validator throws a TypeError prefixed with
   // `Invalid <label>:`. This is the catch-all that runs before any of the
@@ -202,7 +202,7 @@ describe('validateFlow', () => {
   });
 
   // optionalCaptions enforces polish.captions.position is "top" or "bottom"
-  // (src/flow-schema.ts:370 via assertChoice). The "rejects unsupported
+  // (src/flow-schema.ts via assertChoice). The "rejects unsupported
   // cursor styles" test above covers the cursor.style branch of the same
   // assertChoice helper; this covers the captions.position branch.
   test('rejects polish.captions.position outside top|bottom', () => {
@@ -214,7 +214,7 @@ describe('validateFlow', () => {
   });
 
   // optionalZoom enforces polish.zoom.defaultScale > 0 and <= 2
-  // (src/flow-schema.ts:383-386). Below 0 is nonsense; above 2x the
+  // (src/flow-schema.ts). Below 0 is nonsense; above 2x the
   // viewport's content overflows the visible frame. Same pattern as the
   // speed bound test above.
   test('rejects polish.zoom.defaultScale outside (0, 2]', () => {
@@ -230,7 +230,7 @@ describe('validateFlow', () => {
     })).toThrow(/zoom\.defaultScale/v);
   });
 
-  // loadFlow() is the file-IO entry point (src/flow-schema.ts:51-69). When
+  // loadFlow() is the file-IO entry point (src/flow-schema.ts). When
   // JSON.parse fails on the file contents, it wraps the cause with a helpful
   // error naming the absolute source path. Mirrors the loadScenario malformed-
   // JSON test from PR #56 — same pattern, complementary coverage. A refactor

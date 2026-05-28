@@ -1,6 +1,6 @@
 // Unit contract for the storyboard manifest parser. tests/storyboard.bats
 // covers the CLI end-to-end against a fixture run directory; this file pins
-// the two reject paths in `parseManifest` (src/storyboard/index.ts:73-83):
+// the two reject paths in `parseManifest` (src/storyboard/index.ts):
 // the manifest must be an object that carries an `events` array and a
 // `flowName` string. Without these guards the downstream renderer would
 // crash on `.events.map(...)` or emit a malformed table header.
