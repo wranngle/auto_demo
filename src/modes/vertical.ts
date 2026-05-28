@@ -55,9 +55,7 @@ export async function renderVertical(options: VerticalOptions): Promise<Vertical
   const fit = options.fit ?? 'crop';
   await mkdir(dirname(outputPath), {recursive: true});
 
-  const filter = fit === 'crop'
-    ? buildCropFilter(preset.width, preset.height)
-    : buildPadFilter(preset.width, preset.height);
+  const filter = FILTER_BUILDERS[fit](preset.width, preset.height);
 
   await execFileAsync('ffmpeg', [
     '-y',
@@ -101,6 +99,16 @@ function buildPadFilter(targetWidth: number, targetHeight: number): string {
   ].join(',');
 }
 
+// Eliminates the previous fit === 'crop' ? ... : ... ternary, which silently
+// fell through to buildPadFilter for any non-crop mode. The Record<FitMode,
+// ...> constraint forces TypeScript to error if FIT_MODES gains an entry
+// without a matching builder.
+type FilterBuilder = (targetWidth: number, targetHeight: number) => string;
+const FILTER_BUILDERS: Record<FitMode, FilterBuilder> = {
+  crop: buildCropFilter,
+  pad: buildPadFilter,
+};
+
 async function probeDimensions(mediaPath: string): Promise<{width: number; height: number}> {
   const {stdout} = await execFileAsync('ffprobe', [
     '-v', 'error',
@@ -119,4 +127,4 @@ async function probeDimensions(mediaPath: string): Promise<{width: number; heigh
   return {width, height};
 }
 
-export const __test__ = {buildCropFilter, buildPadFilter, ASPECT_PRESETS};
+export const __test__ = {buildCropFilter, buildPadFilter, ASPECT_PRESETS, FILTER_BUILDERS};
