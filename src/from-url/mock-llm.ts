@@ -1,28 +1,17 @@
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {SUPPORTED_ACTIONS} from '../flow-schema.js';
 import type {DemoAction} from '../types.js';
 import type {FromUrlStep, LlmClient} from './types.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const defaultFixturePath = resolve(here, '../../fixtures/from-url-mock-response.json');
 
-const actionSet: ReadonlySet<DemoAction> = new Set<DemoAction>([
-  'goto',
-  'click',
-  'caption',
-  'fill',
-  'focus',
-  'hover',
-  'press',
-  'resetZoom',
-  'screenshot',
-  'scroll',
-  'pause',
-  'zoom',
-  'waitForSelector',
-  'waitForText',
-]);
+// Reuse the schema allowlist (src/flow-schema.ts) — adding an action there
+// makes it instantly legal in from-url scripts too. Eliminates the previous
+// duplicate literal list that drifted silently when actions were added.
+const actionSet: ReadonlySet<DemoAction> = new Set<DemoAction>(SUPPORTED_ACTIONS);
 
 export type MockLlmOptions = {
   fixturePath?: string;
