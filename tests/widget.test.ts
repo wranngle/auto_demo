@@ -19,6 +19,13 @@ import type {WidgetScenario} from '../src/widget/types.js';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
+// DOM kebab-case ↔ camelCase converters for the body.dataset drift test.
+// `data-agent-id` ↔ `agentId`; `data-orb-1` ↔ `orb1`; `data-text-contents` ↔
+// `textContents`. Numeric digits are kept as the next char without removing the
+// hyphen letter case (matching how the browser actually maps dataset keys).
+const kebabToCamel = (s: string): string => s.replace(/-([a-z0-9])/gu, (_match, c: string) => c.toUpperCase());
+const camelToKebab = (s: string): string => s.replace(/([A-Z0-9])/gu, '-$1').toLowerCase();
+
 function scenario(overrides: Partial<WidgetScenario> = {}): WidgetScenario {
   return validateScenario({
     name: 'acme-co',
@@ -119,6 +126,48 @@ describe('widget scenario → page + flow (central promise)', () => {
     expect(renderWidgetPage(scenario())).toBe(renderWidgetPage(scenario()));
     expect(JSON.stringify(buildDemoFlow(scenario(), 'x.html')))
       .toBe(JSON.stringify(buildDemoFlow(scenario(), 'x.html')));
+  });
+
+  // Doctrine drift: render.ts SETS `data-*` attributes on <body> (e.g.
+  // `data-agent-id`); LIVE_WIDGET_RUNTIME in widget-asset.ts READS them
+  // via `body.dataset.agentId` (DOM auto-converts kebab-case to camel).
+  // If a key silently drifts (`data-agent-id` → `data-agentid`), the
+  // attribute is still set but `body.dataset.agentId` returns undefined,
+  // and the live widget fails to mount with no compile-time signal.
+  // No integration test exercises this in CI (would require a real
+  // browser). Parse both sides of the source and assert every key the
+  // runtime reads is set by the renderer.
+  test('live runtime body.dataset.* reads have matching render.ts data-* writes', async () => {
+    const renderSrc = await readFile(resolve(repoRoot, 'src/widget/render.ts'), 'utf8');
+    const runtimeSrc = await readFile(resolve(repoRoot, 'src/widget/widget-asset.ts'), 'utf8');
+
+    // Pull every `data-<kebab>` attribute name set inside liveBodyAttrs.
+    // Kebab segments may end in digits (e.g. `data-orb-1`).
+    const writes = new Set<string>();
+    for (const match of renderSrc.matchAll(/`data-([a-z0-9-]+)=/gu)) {
+      writes.add(kebabToCamel(match[1]!));
+    }
+
+    // Pull every `body.dataset.<camel>` read inside LIVE_WIDGET_RUNTIME.
+    // Keys may include trailing digits (e.g. `orb1` from `data-orb-1`).
+    const reads = new Set<string>();
+    for (const match of runtimeSrc.matchAll(/body\.dataset\.([a-zA-Z][a-zA-Z0-9]*)/gu)) {
+      reads.add(match[1]!);
+    }
+
+    expect(writes.size, 'render.ts must write at least one `data-*` attribute').toBeGreaterThan(0);
+    expect(reads.size, 'widget-asset.ts runtime must read at least one body.dataset.* key').toBeGreaterThan(0);
+
+    // Every key the runtime reads MUST be written. Extra writes are fine
+    // (they're inert) but a read with no matching write means a silent
+    // mount failure for that feature.
+    for (const key of reads) {
+      // body.dataset.avatarImage is intentionally optional — the renderer
+      // doesn't always write it, and the runtime guards with `if (...)`.
+      // Skip avatarImage from this check.
+      if (key === 'avatarImage') continue;
+      expect(writes, `runtime reads body.dataset.${key} but render.ts never writes data-${camelToKebab(key)}`).toContain(key);
+    }
   });
 
   // Brand-rename drift coupling: the live widget runtime emits a console
