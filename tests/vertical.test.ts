@@ -3,11 +3,15 @@
 // shape of the filter strings + the documented 9:16 preset dimensions.
 // src/modes/vertical.ts exports `__test__` for exactly this.
 
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import {__test__} from '../src/modes/vertical.js';
 
 const {buildCropFilter, buildPadFilter, ASPECT_PRESETS} = __test__;
+const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
 describe('ASPECT_PRESETS', () => {
   test('9:16 preset matches the documented 1080x1920 dimensions', () => {
@@ -15,6 +19,22 @@ describe('ASPECT_PRESETS', () => {
     // shipped contract. Lock the constants so a refactor that bumps them
     // without a docs update fails CI.
     expect(ASPECT_PRESETS['9:16']).toEqual({width: 1080, height: 1920, ratio: 9 / 16});
+  });
+
+  // Doctrine-drift coupling: README's "Vertical export (9:16)" section cites
+  // `(1080x1920)` as the shipped dimensions. The constant test above only
+  // pins the in-code value; this one parses the README prose, so a bump to
+  // ASPECT_PRESETS that forgets to update the README fails CI instead of
+  // silently shipping stale doc dimensions to consumers.
+  test('doctrine drift: README cites the same 9:16 dimensions ASPECT_PRESETS exposes', async () => {
+    const preset = ASPECT_PRESETS['9:16']!;
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+    // Tolerate `1080x1920` or `1080×1920` (ASCII `x` vs Unicode `×`).
+    const dimsPattern = /\((\d+)\s*[x×]\s*(\d+)\)/v;
+    const match = dimsPattern.exec(readme);
+    expect(match, 'README must contain a "(<W>x<H>)" or "(<W>×<H>)" 9:16 dimensions phrase').not.toBeNull();
+    expect(Number(match![1]), `README claims width ${match![1]}; preset is ${preset.width}`).toBe(preset.width);
+    expect(Number(match![2]), `README claims height ${match![2]}; preset is ${preset.height}`).toBe(preset.height);
   });
 });
 
