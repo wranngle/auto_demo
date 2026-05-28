@@ -52,6 +52,35 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
   });
 
+  // Doctrine drift: the consumer template installs Playwright at the
+  // pinned version (`npx --yes playwright@<X.Y.Z>`); package.json depends
+  // on Playwright via `^X.Y.Z`. The template's pin and package.json's
+  // minor floor must agree, or a consumer running the template installs
+  // an older Playwright than the runtime expects (recorder vs. browser
+  // version mismatch surfaces as obscure Playwright errors deep in a
+  // run).
+  test('doctrine drift: template `playwright@<X.Y.Z>` pin agrees with package.json playwright minor floor', () => {
+    const pkg = JSON.parse(readFileSync(resolve(here, '..', 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    const declared = pkg.dependencies.playwright;
+    expect(declared, 'package.json must declare a `playwright` dependency').toBeDefined();
+    const pkgMatch = /^[~^]?(\d+\.\d+\.\d+)$/u.exec(declared!);
+    expect(pkgMatch, `package.json playwright dep "${declared}" must look like ^X.Y.Z`).not.toBeNull();
+    const [pkgMajor, pkgMinor] = pkgMatch![1]!.split('.').map(Number);
+
+    const templateMatch = /playwright@(\d+)\.(\d+)\.(\d+)/u.exec(raw);
+    expect(templateMatch, 'template must contain `playwright@<X.Y.Z>`').not.toBeNull();
+    const [, tplMajor, tplMinor] = templateMatch!.map(Number);
+
+    // For ^X.Y.Z, anything in [X.Y.Z, X+1.0.0) is acceptable. Require the
+    // template's major to match and the template's minor to be >= the
+    // package.json floor — using an older minor would resolve to a
+    // version that's not satisfied by the npm dep.
+    expect(tplMajor, `template playwright major (${tplMajor}) must match package.json (${pkgMajor})`).toBe(pkgMajor);
+    expect(tplMinor, `template playwright minor (${tplMinor}) must be >= package.json floor (${pkgMinor})`).toBeGreaterThanOrEqual(pkgMinor!);
+  });
+
   // Doctrine drift: the consumer template writes outputs into
   // `.ui-demo-runner/ci`, and the local narrate / split modes (src/modes/
   // narrate.ts, src/modes/split.ts) drop `.ui-demo-runner-narrate` and
