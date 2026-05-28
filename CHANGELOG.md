@@ -193,6 +193,98 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   in `narrate.bats` (#51), three more in `from-url.bats` + `watch.bats` (#52).
   These verified commander's required-flag handling — testing the dependency,
   not this project's behavior.
+- `eslint-config-xo-typescript@^7` direct devDep — redundant once `xo@^2`
+  ships its TypeScript ruleset. (#64)
+- Three duplicate `loadElevenLabsKey()` copies across the agent-provisioning
+  scripts (`provision-agents.mjs`, `tune-agents.mjs`, `record-live-demos.mjs`)
+  consolidated into one shared helper at `scripts/_lib/load-elevenlabs-key.mjs`. (#65)
+- Unused `writeFile` import in `src/modes/narrate.ts` (caught after the
+  `noUnusedLocals` flip — see #78). (#77)
+- Stale dist artifacts shipped to npm: `build` script now `rm -rf dist`
+  before `tsc` so removed files don't survive in published tarballs. (#79)
+- Two orphan portfolio output GIFs left behind by the tape-file deletion
+  in #45 (`examples/portfolio/output/{comfybulk,voice-evals}.gif`). (#81)
+
+### Fixed (brand-rename leftovers — final sweep)
+- Three stale `auto-demo` / `auto_demo` user-visible strings missed by the
+  PR #18 rename: live-widget devtools warning prefix (`[auto-demo]` →
+  `[ui-demo-runner]`), narrate scratch-dir default (`.auto_demo-narrate`
+  → `.ui-demo-runner-narrate`), split scratch-dir default. (#91)
+- Consumer CI template body still wrote `.auto_demo/ci` paths and
+  `auto-demo-${{ github.sha }}` artifact names — every consumer who
+  copy-pasted the template would see the pre-rename brand in their
+  filesystem and GitHub Actions UI. (#92)
+- README's `## CI integration` snippet contradicted the template body —
+  told consumers to drop the workflow at `.github/workflows/auto-demo-on-deploy.yml`
+  while the template produced `ui-demo-runner-<sha>` artifacts. (#93)
+- `.gitignore` still listed `.auto_demo/` but nothing in the codebase
+  creates that dir anymore; added `.ui-demo-runner*/` glob to cover the
+  three new directory shapes (narrate, split, template-driven CI). (#94)
+- Wranngle-scheduling scenario had three different day-of-week references
+  in one turn — `user` said "Wednesday May 28th", `book_demo` args said
+  "Tuesday", confirmation reply said "Tuesday Pacific". Normalized to
+  evergreen "next Wednesday" + added internal-consistency coupling test. (#82)
+
+### Added — widget tailoring
+- `render.ts` `heroCopy()` + `featureCards()` now have tailored branches
+  for `medspa`, `home-services`, and `saas` verticals. Three of seven
+  shipped scenarios were falling through to the generic default copy —
+  their recordings showed landing pages that didn't match what the agent
+  actually does. Locked with a doctrine-drift test that walks every
+  shipped scenario and asserts no vertical falls through to defaults. (#83)
+
+### Refactored — single-source constants
+- `ELEVENLABS_WIDGET_VERSION` extracted as the sole bump point for the
+  pinned `@elevenlabs/convai-widget-embed` version (was duplicated as a
+  literal in 4 places: widget-asset.ts source + 2 TS test assertions + 1
+  bats grep). bats now matches on a version pattern; the TS test pins
+  the exact value via import. Future widget bumps = one-file edit. (#89)
+- `SUPPORTED_ACTIONS` hoisted to a proper named export from `flow-schema.ts`.
+  `src/from-url/mock-llm.ts` now derives its `actionSet` from the same
+  constant — was two parallel allowlists that could silently desync if a
+  new action was added to one but not the other. (#90)
+
+### Tests + CI hardening (doctrine-drift batch)
+- `tests/flow-schema.test.ts` — `timing.speed` must be in `(0, 8]` (#66);
+  `polish.zoom.defaultScale` must be in `(0, 2]` (#67); `polish.captions.position`
+  must be `top` or `bottom` (#68); top-level arktype reject paths
+  (non-object, missing fields) (#69).
+- `tests/storyboard.test.ts` — `parseManifest` reject paths (missing
+  `events` array, missing `flowName`) (#70); `renderStoryboardMarkdown`
+  empty-rows + populated-table + pipe-escape branches (#74).
+- `tests/svg.test.ts` — `buildSvg` structural contract (XML preamble,
+  per-frame `<image>` + `<animate>` count, brand drift in aria-label,
+  documented 200 KB ceiling) (#71); turned the existing MAX_BYTES
+  constant test into a real cross-file doctrine-drift check — parses
+  README + CHANGELOG `<N>KB ceiling` strings and asserts they match
+  `MAX_BYTES`. (#85)
+- `tests/widget.test.ts` — `metadata.source` brand-drift coupling on
+  generated flows (mock + live) (#72); `metadata.capability` +
+  `metadata.vertical` conditional-spread contract (both branches) (#73);
+  three missed scenario-validator reject paths (empty `reply: []`,
+  omitted `reply` field, empty `say` beat) (#84); CHANGELOG six-vertical
+  names list (`restaurant, dental, salon, ecommerce, medspa, home-services`)
+  locked against scenarios on disk. (#87)
+- `tests/vertical.test.ts` — `buildCropFilter` + `buildPadFilter` ffmpeg
+  filter shape + `ASPECT_PRESETS['9:16']` dims contract (#75); new
+  cross-file drift check that parses README's `(1080x1920)` claim and
+  asserts width/height match the preset constant. (#86)
+- `tests/narrate.test.ts` — `mockToneFrequencyHz` determinism + documented
+  `[220, 660)` Hz range contract. (#76)
+- `tests/flow-schema.test.ts` — README's `## Modes` bullets parsed and
+  asserted equal to the runtime `SUPPORTED_ACTIONS` allowlist. Adding a
+  new `DemoAction` now fails CI until README is updated. (#88)
+- `tests/template-action.test.ts` — three new coupling assertions: no
+  stale `auto-demo` brand in the template body; README's CI install
+  snippet target filename + artifact-name prefix both match what the
+  template produces; `.gitignore` covers the `.ui-demo-runner*/` directory
+  family runtime defaults create. (#92, #93, #94)
+
+### Changed — tsconfig discipline
+- `noUnusedLocals` + `noUnusedParameters` now enabled in `tsconfig.json`
+  — surfaced #77 as a forward gate. (#78)
+- `npm update` swept in-range dep bumps: `@types/node`, `vitest`,
+  transitive babel. (#80)
 
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
