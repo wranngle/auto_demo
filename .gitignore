@@ -85,6 +85,7 @@ node_modules/
 dist/
 .work/
 coverage/
+.ui-demo-runner*/
 .auto_demo/
 *.webm
 

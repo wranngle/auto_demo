@@ -52,6 +52,19 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
   });
 
+  // Doctrine drift: the consumer template writes outputs into
+  // `.ui-demo-runner/ci`, and the local narrate / split modes (src/modes/
+  // narrate.ts, src/modes/split.ts) drop `.ui-demo-runner-narrate` and
+  // `.ui-demo-runner-split` scratch dirs beside their outputs. The project
+  // .gitignore must cover that whole family or the dotfiles tracker will
+  // start staging recordings/scratch files on every run. Asserts the
+  // brand-aligned glob is present.
+  test('doctrine drift: .gitignore covers the .ui-demo-runner* directory family the runtime defaults create', () => {
+    const gitignore = readFileSync(resolve(here, '..', '.gitignore'), 'utf8');
+    expect(gitignore, '.gitignore must contain `.ui-demo-runner*/` so narrate/split/template outputs stay untracked')
+      .toMatch(/^\.ui-demo-runner\*\/$/mu);
+  });
+
   // Doctrine drift: README's "## CI integration" section embeds a copy-paste
   // install snippet that names (a) the target workflow filename the consumer
   // creates, and (b) the artifact name pattern under which run outputs land.
