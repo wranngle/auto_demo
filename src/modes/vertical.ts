@@ -14,11 +14,18 @@ const ASPECT_PRESETS: Record<AspectRatio, {width: number; height: number; ratio:
 
 const KNOWN_ASPECTS = new Set<string>(Object.keys(ASPECT_PRESETS));
 
+// Supported --fit modes. Imported by src/cli.ts as the choices() list so
+// the runtime allowlist and the TS type union are driven by one source.
+// Adding a mode here makes it instantly legal everywhere; README +
+// CHANGELOG enumeration is locked by tests/vertical.test.ts.
+export const FIT_MODES = ['crop', 'pad'] as const;
+export type FitMode = (typeof FIT_MODES)[number];
+
 export type VerticalOptions = {
   inputPath: string;
   outputPath: string;
   aspect: string;
-  fit?: 'crop' | 'pad';
+  fit?: FitMode;
 };
 
 export type VerticalResult = {
@@ -27,7 +34,7 @@ export type VerticalResult = {
   width: number;
   height: number;
   ratio: number;
-  fit: 'crop' | 'pad';
+  fit: FitMode;
   byteSize: number;
 };
 
