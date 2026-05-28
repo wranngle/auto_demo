@@ -82,12 +82,22 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
   return result;
 }
 
+// Pure resolver split out of serveDir so the path-traversal boundary can be
+// unit-tested without standing up an HTTP server. Returns the normalized
+// relative path the server would read, plus a `safe` flag — false means
+// the request must be rejected with 403 because the URL would resolve
+// outside the served root (e.g. `/../etc/passwd`, `/%2e%2e/foo`).
+export function resolveServePath(rawUrl: string | undefined): {relPath: string; safe: boolean} {
+  const rel = decodeURIComponent((rawUrl ?? '/').split('?')[0] ?? '/');
+  const relPath = normalize(rel.endsWith('/') ? `${rel}index.html` : rel);
+  return {relPath, safe: !relPath.includes('..')};
+}
+
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {
   const server: Server = createServer(async (request, response) => {
     try {
-      const rel = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
-      const relPath = normalize(rel.endsWith('/') ? `${rel}index.html` : rel);
-      if (relPath.includes('..')) {
+      const {relPath, safe} = resolveServePath(request.url);
+      if (!safe) {
         response.writeHead(403);
         response.end('forbidden');
         return;
