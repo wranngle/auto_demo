@@ -86,6 +86,26 @@ describe('parseLanguages', () => {
     const changelogCodes = new Set(changelogMatch![1]!.split(',').map(s => s.trim()).filter(Boolean));
     expect(changelogCodes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
   });
+
+  // Doctrine drift: src/captions/srt.ts:167 defines `phraseBook` with entries
+  // for es, pt, fr — `en` is the no-op identity path. If a new locale is
+  // added to `supportedLanguages` without a matching phraseBook entry,
+  // `translateCaption` silently falls through to "return original English
+  // text" (the `dict === undefined` branch), producing bilingual SRT output
+  // that looks fine at first glance. Test every non-`en` supported language
+  // actually translates a known word — `'open'` is in all three current
+  // dictionaries with a distinct non-English result.
+  test('every non-en supported language has a phraseBook entry that actually translates', () => {
+    for (const lang of supportedLanguages) {
+      if (lang === 'en') {
+        expect(translateCaption('open', lang), `en is the identity path`).toBe('open');
+        continue;
+      }
+
+      const translated = translateCaption('open', lang);
+      expect(translated, `supportedLanguages includes '${lang}' but phraseBook does not translate 'open' — likely a missing dictionary`).not.toBe('open');
+    }
+  });
 });
 
 describe('formatTimestamp', () => {
