@@ -1,8 +1,11 @@
-import {mkdtemp, writeFile} from 'node:fs/promises';
+import {mkdtemp, readFile, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {dirname, join, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 import {createMockLlmClient, generateScriptFromUrl} from '../src/from-url/index.js';
+
+const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
 
 describe('generateScriptFromUrl', () => {
   test('returns a 5-step script with selector, action, narration on every step', async () => {
@@ -22,6 +25,33 @@ describe('generateScriptFromUrl', () => {
       expect(step.action.length).toBeGreaterThan(0);
       expect(typeof step.narration).toBe('string');
       expect(step.narration.length).toBeGreaterThan(0);
+    }
+  });
+
+  // Doctrine drift: the "5-step" claim for the from-url mock fixture lives
+  // in three docs (this test's own name, the README narrative, the
+  // CHANGELOG entry). The actual step count comes from
+  // fixtures/from-url-mock-response.json. If a 6th step is appended to
+  // the fixture, the existing length assertion above catches the test,
+  // but README + CHANGELOG silently say "5-step" until a reader notices.
+  // Couple the fixture's step count to both docs' "N-step" prose.
+  test('doctrine drift: README + CHANGELOG "<N>-step" claims match the from-url fixture step count', async () => {
+    const fixture = JSON.parse(await readFile(
+      resolve(repoRoot, 'fixtures', 'from-url-mock-response.json'),
+      'utf8',
+    )) as {steps: unknown[]};
+    const actualSteps = fixture.steps.length;
+    expect(actualSteps, 'fixture must declare at least one step').toBeGreaterThan(0);
+
+    const stepPhrase = /deterministic\s+(\d+)-step/gu;
+    for (const docFile of ['README.md', 'CHANGELOG.md']) {
+      // eslint-disable-next-line no-await-in-loop
+      const body = await readFile(resolve(repoRoot, docFile), 'utf8');
+      const matches = [...body.matchAll(stepPhrase)];
+      expect(matches.length, `${docFile} must contain a "deterministic <N>-step" phrase`).toBeGreaterThan(0);
+      for (const match of matches) {
+        expect(Number(match[1]), `${docFile} claims ${match[1]}-step; fixture has ${actualSteps}`).toBe(actualSteps);
+      }
     }
   });
 
