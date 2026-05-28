@@ -265,12 +265,12 @@ fresh `recording.webm` + `manifest.json` as a workflow artifact:
 ```bash
 mkdir -p .github/workflows
 cp "$(npm root -g)/ui-demo-runner/templates/auto-demo-on-deploy.yml.template" \
-   .github/workflows/auto-demo-on-deploy.yml
-git add .github/workflows/auto-demo-on-deploy.yml
+   .github/workflows/ui-demo-runner-on-deploy.yml
+git add .github/workflows/ui-demo-runner-on-deploy.yml
 ```
 
 Edit the copied workflow to point at your own `flows/<name>.demo.json` and
-commit. Artifacts land under the workflow run as `auto-demo-<sha>`.
+commit. Artifacts land under the workflow run as `ui-demo-runner-<sha>`.
 
 ## Watch mode
 

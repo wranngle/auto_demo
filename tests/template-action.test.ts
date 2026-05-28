@@ -52,6 +52,33 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
   });
 
+  // Doctrine drift: README's "## CI integration" section embeds a copy-paste
+  // install snippet that names (a) the target workflow filename the consumer
+  // creates, and (b) the artifact name pattern under which run outputs land.
+  // Both are also written into the template body. PR #92 renamed both from
+  // pre-rename strings to the current brand; this test locks them so a future
+  // template edit that bumps the artifact name or path can't desync README.
+  test('doctrine drift: README CI snippet target filename + artifact name match the template body', () => {
+    const readme = readFileSync(resolve(here, '..', 'README.md'), 'utf8');
+
+    // The template body declares an artifact name via `name: <prefix>-${{ github.sha }}`.
+    // Pull the prefix and assert README's "Artifacts land under the workflow run as `<prefix>-<sha>`"
+    // claim references the same one.
+    const templatePrefix = /name:\s+([\w-]+)-\$\{\{\s+github\.sha\s+\}\}/u.exec(raw);
+    expect(templatePrefix, 'template must declare an artifact `name: <prefix>-${{ github.sha }}`').not.toBeNull();
+    const readmePrefix = /Artifacts land under the workflow run as `([\w-]+)-<sha>`/u.exec(readme);
+    expect(readmePrefix, 'README must contain the "Artifacts land under the workflow run as `<prefix>-<sha>`" phrase').not.toBeNull();
+    expect(readmePrefix![1], `README artifact prefix "${readmePrefix![1]}" must match template prefix "${templatePrefix![1]}"`).toBe(templatePrefix![1]);
+
+    // The template's header comment suggests the target filename consumers
+    // should use under .github/workflows/. Pull it and assert README's
+    // copy-paste `cp ... .github/workflows/<name>` uses the same one.
+    const templateTargetName = /Copy this file to `\.github\/workflows\/([\w.-]+\.yml)`/u.exec(raw);
+    expect(templateTargetName, 'template header must suggest a `.github/workflows/<name>.yml` target').not.toBeNull();
+    expect(readme, `README cp snippet must target the template-suggested filename "${templateTargetName![1]}"`)
+      .toContain(`.github/workflows/${templateTargetName![1]}`);
+  });
+
   test('contains no hardcoded credential literals', () => {
     const lines = raw.split('\n');
     const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w-]{16,}/iu;
