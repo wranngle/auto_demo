@@ -29,7 +29,12 @@ const flowShape = type({
   steps: 'object[]',
 });
 
-const actions = [
+// Single runtime allowlist of supported flow actions. Imported by mock-llm
+// (the from-url client's action validator) so the two stay aligned by
+// construction — no chance of a new action being legal in one but not the
+// other. README's "## Modes" bullets are locked to this set by
+// tests/flow-schema.test.ts.
+export const SUPPORTED_ACTIONS = [
   'goto',
   'click',
   'caption',
@@ -46,6 +51,7 @@ const actions = [
   'waitForText',
 ] as const satisfies readonly DemoAction[];
 
+const actions = SUPPORTED_ACTIONS;
 const actionSet: ReadonlySet<string> = new Set(actions);
 
 export async function loadFlow(flowPath: string): Promise<LoadedFlow> {
@@ -506,5 +512,3 @@ function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Re-export for test introspection (README ↔ schema doctrine-drift coupling).
-export const __test__ = {actions};

@@ -3,8 +3,7 @@ import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {dirname, join, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
-// eslint-disable-next-line @typescript-eslint/naming-convention
-import {loadFlow, validateFlow, __test__} from '../src/flow-schema.js';
+import {loadFlow, validateFlow, SUPPORTED_ACTIONS} from '../src/flow-schema.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
 
@@ -270,10 +269,11 @@ describe('validateFlow', () => {
   });
 
   // Doctrine drift: README's "## Modes" section enumerates every supported
-  // DemoAction as a bulleted ``- `<action>`: …`` list. The runtime allowlist
-  // (flow-schema.ts `actions`) is the source of truth — validators reject
-  // anything else. Without this coupling, adding a new action (or removing
-  // one) silently desyncs the README until a reader notices the gap.
+  // DemoAction as a bulleted ``- `<action>`: …`` list. SUPPORTED_ACTIONS is
+  // the source of truth — validators reject anything else, and mock-llm
+  // shares the same constant by import. Without this coupling, adding a
+  // new action (or removing one) silently desyncs the README until a
+  // reader notices the gap.
   test('doctrine drift: README "Modes" bullets enumerate exactly the runtime actions allowlist', async () => {
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
     const modesSection = /## Modes\n([\s\S]*?)(?=\n## )/u.exec(readme);
@@ -282,7 +282,7 @@ describe('validateFlow', () => {
     const bullets = [...modesSection![1]!.matchAll(/^-\s+`([^`]+)`:/gmu)].map(match => match[1]!);
     expect(bullets.length, 'README "## Modes" must list at least one action').toBeGreaterThan(0);
 
-    expect(new Set(bullets), `README Modes lists ${bullets.join(', ')}; schema allows ${[...__test__.actions].join(', ')}`)
-      .toEqual(new Set(__test__.actions));
+    expect(new Set(bullets), `README Modes lists ${bullets.join(', ')}; schema allows ${[...SUPPORTED_ACTIONS].join(', ')}`)
+      .toEqual(new Set(SUPPORTED_ACTIONS));
   });
 });
