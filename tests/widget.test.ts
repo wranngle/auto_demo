@@ -14,6 +14,7 @@ import {
   WIDGET_SELECTORS,
 } from '../src/widget/index.js';
 import {loadScenario} from '../src/widget/scenario.js';
+import {ELEVENLABS_WIDGET_VERSION} from '../src/widget/widget-asset.js';
 import type {WidgetScenario} from '../src/widget/types.js';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
@@ -382,7 +383,7 @@ describe('shipped example scenarios (live + dual-mode)', () => {
 
     // Live render embeds the real pinned CDN widget bound to the agent — no mock runtime.
     const liveHtml = renderWidgetPage(loaded);
-    expect(liveHtml).toContain('@elevenlabs/convai-widget-embed@0.12.2');
+    expect(liveHtml).toContain(`@elevenlabs/convai-widget-embed@${ELEVENLABS_WIDGET_VERSION}`);
     expect(liveHtml).toContain(`data-agent-id="${loaded.live!.agentId}"`);
     expect(liveHtml).not.toContain('id="convai-scenario"');
     // Per-widget branding + canned client tools are stamped for the runtime.
@@ -506,7 +507,7 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(loaded.live?.agentId).toMatch(/^agent_/v);
 
     const liveHtml = renderWidgetPage(loaded);
-    expect(liveHtml).toContain('@elevenlabs/convai-widget-embed@0.12.2');
+    expect(liveHtml).toContain(`@elevenlabs/convai-widget-embed@${ELEVENLABS_WIDGET_VERSION}`);
     expect(liveHtml).toContain(`data-agent-id="${loaded.live!.agentId}"`);
     // Real-backend scenario: it uses workspaceToolIds, NOT canned clientTools,
     // so the page must NOT stamp a data-client-tools payload.

@@ -7,6 +7,10 @@
 // tools" surface. Authored without backticks or "${" so it nests inside the TS
 // template literal below untouched.
 
+// Pinned @elevenlabs/convai-widget-embed version. Bump here only; the
+// LIVE_WIDGET_RUNTIME template below and tests import this constant.
+export const ELEVENLABS_WIDGET_VERSION = '0.12.2';
+
 export const WIDGET_RUNTIME = `
 (function () {
   var dataEl = document.getElementById('convai-scenario');
@@ -251,7 +255,7 @@ export const LIVE_WIDGET_RUNTIME = `
   }
   document.body.append(widget);
   var script = document.createElement('script');
-  script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@0.12.2';
+  script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@${ELEVENLABS_WIDGET_VERSION}';
   script.async = true;
   script.crossOrigin = 'anonymous';
   document.head.append(script);
