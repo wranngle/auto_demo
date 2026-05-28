@@ -41,7 +41,7 @@ export async function renderSplit(options: SplitOptions): Promise<SplitResult> {
   const {flow} = await loadFlow(flowPath);
   const recordingDurationMs = await probeDurationMs(recordingPath);
 
-  const workDir = resolve(options.workDir ?? join(dirname(outputPath), '.auto_demo-split'));
+  const workDir = resolve(options.workDir ?? join(dirname(outputPath), '.ui-demo-runner-split'));
   await rm(workDir, {recursive: true, force: true});
   await mkdir(workDir, {recursive: true});
 

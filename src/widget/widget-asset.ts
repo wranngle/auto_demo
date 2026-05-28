@@ -225,7 +225,7 @@ export const LIVE_WIDGET_RUNTIME = `
 (function () {
   var body = document.body;
   var agentId = body.dataset.agentId;
-  if (!agentId) { console.warn('[auto-demo] no data-agent-id; live widget not mounted'); return; }
+  if (!agentId) { console.warn('[ui-demo-runner] no data-agent-id; live widget not mounted'); return; }
   var widget = document.createElement('elevenlabs-convai');
   widget.setAttribute('agent-id', agentId);
   widget.setAttribute('variant', 'expanded');
