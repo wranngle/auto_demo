@@ -1,6 +1,7 @@
 import {mkdtemp, readFile, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {dirname, join, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
 import {
   buildCaptionCues,
@@ -12,6 +13,8 @@ import {
   type CaptionLanguage,
 } from '../src/captions/srt.js';
 import type {DemoFlow} from '../src/types.js';
+
+const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
 
 const sampleFlow: DemoFlow = {
   startUrl: './fixtures/smoke.html',
@@ -55,6 +58,33 @@ describe('parseLanguages', () => {
   test('requires at least one language', () => {
     expect(() => parseLanguages('')).toThrow(/at least one/v);
     expect(() => parseLanguages(',,')).toThrow(/at least one/v);
+  });
+
+  // Doctrine drift: the comma-separated supported-languages list lives in
+  // three places — `supportedLanguages` in src/captions/srt.ts (source of
+  // truth), the `--captions-lang <codes>` option help text in src/cli.ts,
+  // and the `--captions-lang en,es,pt,fr` line in CHANGELOG.md. Adding a
+  // new locale (e.g. `de`) without updating the CLI help + CHANGELOG
+  // would silently leave the docs wrong. Parse both and assert the set
+  // equals `supportedLanguages`.
+  test('doctrine drift: CLI help text + CHANGELOG line enumerate exactly `supportedLanguages`', async () => {
+    const sourceTruth = new Set<string>(supportedLanguages);
+
+    // CLI help: the `--captions-lang <codes>` option's help string contains
+    // the language list inside `(...)`.
+    const cli = await readFile(resolve(repoRoot, 'src', 'cli.ts'), 'utf8');
+    const cliMatch = /--captions-lang[^)]*\(([\w,\s]+)\)/u.exec(cli);
+    expect(cliMatch, 'src/cli.ts must contain `--captions-lang ... (codes)` help text').not.toBeNull();
+    const cliCodes = new Set(cliMatch![1]!.split(',').map(s => s.trim()).filter(Boolean));
+    expect(cliCodes, `CLI help "${cliMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
+
+    // CHANGELOG: the `--captions-lang <codes>` mention is the first one
+    // after the `Added` section header for the multilingual feature.
+    const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
+    const changelogMatch = /--captions-lang\s+([\w,\s]+?)`/u.exec(changelog);
+    expect(changelogMatch, 'CHANGELOG must contain a `--captions-lang <codes>` reference').not.toBeNull();
+    const changelogCodes = new Set(changelogMatch![1]!.split(',').map(s => s.trim()).filter(Boolean));
+    expect(changelogCodes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
   });
 });
 
