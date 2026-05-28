@@ -55,7 +55,7 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
     throw new Error(`Script ${scriptPath} contains no narration lines`);
   }
 
-  const workDir = resolve(options.workDir ?? join(dirname(outputPath), '.auto_demo-narrate'));
+  const workDir = resolve(options.workDir ?? join(dirname(outputPath), '.ui-demo-runner-narrate'));
   await rm(workDir, {recursive: true, force: true});
   await mkdir(workDir, {recursive: true});
   await mkdir(dirname(outputPath), {recursive: true});

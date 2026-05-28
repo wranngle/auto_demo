@@ -121,6 +121,18 @@ describe('widget scenario → page + flow (central promise)', () => {
       .toBe(JSON.stringify(buildDemoFlow(scenario(), 'x.html')));
   });
 
+  // Brand-rename drift coupling: the live widget runtime emits a console
+  // warning when no agent id is wired up. The warning prefix is the only
+  // diagnostic surface a consumer sees if the widget fails to mount, so it
+  // must carry the current brand. Pre-fix it said "[auto-demo]" — a stale
+  // pre-rename literal that would surface the wrong product name in
+  // browser devtools. Catch this exact regression class going forward.
+  test('LIVE_WIDGET_RUNTIME diagnostics carry the current brand (no stale auto-demo / auto_demo)', () => {
+    const liveHtml = renderWidgetPage(scenario({live: {agentId: 'agent_test'}}));
+    expect(liveHtml).toContain('[ui-demo-runner]');
+    expect(liveHtml, 'rendered live widget HTML must not contain the pre-rename brand').not.toMatch(/\[(auto-demo|auto_demo)\]/v);
+  });
+
   // Brand-rename drift coupling (PR #18 swept auto_demo → ui-demo-runner
   // across user-visible surfaces, including metadata.source on every widget
   // flow). The render.ts:305-307 strings ship in every generated
