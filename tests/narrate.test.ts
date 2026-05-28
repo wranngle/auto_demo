@@ -57,7 +57,7 @@ describe('parseNarrationScript', () => {
   });
 });
 
-// mockToneFrequencyHz (src/modes/narrate.ts:145-152) hashes the cue text into
+// mockToneFrequencyHz (src/modes/narrate.ts) hashes the cue text into
 // a tone frequency in [220, 660] Hz — used by --voice mock so every line in a
 // script gets a distinct, deterministic pitch. Locks the determinism + range
 // contract so a refactor that changes the hash, range, or breaks idempotency

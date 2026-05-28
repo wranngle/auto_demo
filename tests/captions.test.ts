@@ -87,7 +87,7 @@ describe('parseLanguages', () => {
     expect(changelogCodes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
   });
 
-  // Doctrine drift: src/captions/srt.ts:167 defines `phraseBook` with entries
+  // Doctrine drift: src/captions/srt.ts defines `phraseBook` with entries
   // for es, pt, fr — `en` is the no-op identity path. If a new locale is
   // added to `supportedLanguages` without a matching phraseBook entry,
   // `translateCaption` silently falls through to "return original English

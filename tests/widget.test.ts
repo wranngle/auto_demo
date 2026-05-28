@@ -184,7 +184,7 @@ describe('widget scenario → page + flow (central promise)', () => {
 
   // Brand-rename drift coupling (PR #18 swept auto_demo → ui-demo-runner
   // across user-visible surfaces, including metadata.source on every widget
-  // flow). The render.ts:305-307 strings ship in every generated
+  // flow). The render.ts strings ship in every generated
   // .demo.json file — a regression here would publish auto_demo-tagged
   // flows to consumers. svg.test.ts has the parallel guard on the
   // animated-SVG aria-label.
@@ -196,7 +196,7 @@ describe('widget scenario → page + flow (central promise)', () => {
     expect(liveFlow.metadata?.source).toBe('ui-demo-runner widget (real ElevenLabs agent)');
   });
 
-  // src/widget/render.ts:310-312 conditionally spreads `capability` and
+  // src/widget/render.ts conditionally spreads `capability` and
   // `vertical` into metadata: present in the scenario → field included,
   // absent → field omitted (not just `undefined`). A refactor that flips
   // to unconditional spread or `null`-filling would change the wire shape
@@ -239,7 +239,7 @@ describe('scenario validation', () => {
       .toThrow(/say.*beat is required/v);
   });
 
-  // scenario.ts:186 enforces a non-empty reply array — both forms (omitted and
+  // scenario.ts enforces a non-empty reply array — both forms (omitted and
   // empty []) hit the same throw. A turn with no beats would produce a flow
   // with a Send step but no waitForText, freezing the recorder; lock the error
   // path so a refactor that loosens the check fails CI before publishing a
@@ -254,7 +254,7 @@ describe('scenario validation', () => {
       .toThrow(/reply.*non-empty array of beats/v);
   });
 
-  // scenario.ts:205-206: a {say: ''} beat passes the string-type check but
+  // scenario.ts: a {say: ''} beat passes the string-type check but
   // fails the `nonEmpty` guard. Authors who paste an unfilled template (empty
   // string placeholder) get a clear error instead of a silent zero-length
   // waitForText that would hang the recorder.
@@ -314,7 +314,7 @@ describe('scenario validation', () => {
       .toThrow(/workspaceToolIds/v);
   });
 
-  // The linkHosts validator (scenario.ts:113-119) has two reject branches:
+  // The linkHosts validator (scenario.ts) has two reject branches:
   // (a) value is not an array, (b) value is an array but some element is not
   // a string. linkHosts is a documented user-facing field — see
   // examples/widget/README.md — so locking the validator keeps the
@@ -343,7 +343,7 @@ describe('scenario validation', () => {
       .toThrow(/viewport\.height/v);
   });
 
-  // loadScenario() is the file-IO entry point (scenario.ts:27-39) and wraps a
+  // loadScenario() is the file-IO entry point (scenario.ts) and wraps a
   // JSON.parse failure with a helpful error: "Invalid JSON in <abs-path>: ...".
   // This was the only file-IO throw left untested — a refactor that swallowed
   // the catch or stripped the cause would slip past CI.
