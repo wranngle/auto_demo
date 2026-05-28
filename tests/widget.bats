@@ -38,7 +38,10 @@ teardown() {
   [ -s "$html" ]
   [ -s "$flow" ]
 
-  grep -q "@elevenlabs/convai-widget-embed@0.12.2" "$html"
+  # Loose pattern — exact version is pinned by tests/widget.test.ts via the
+  # ELEVENLABS_WIDGET_VERSION constant. Bumping the widget only requires
+  # editing src/widget/widget-asset.ts, not this bats file.
+  grep -qE '@elevenlabs/convai-widget-embed@[0-9]+\.[0-9]+\.[0-9]+' "$html"
   grep -q 'data-agent-id="agent_' "$html"
   # Live mode must NOT inline the deterministic mock script.
   ! grep -q 'id="convai-scenario"' "$html"
