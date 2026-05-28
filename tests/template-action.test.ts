@@ -40,6 +40,18 @@ describe('auto-demo-on-deploy.yml.template', () => {
     }
   });
 
+  // Brand-rename drift coupling: the template is dropped into a consumer's
+  // repo, where its artifact name and output paths become user-visible
+  // strings in GitHub Actions UI and on the consumer's filesystem. The
+  // pre-rename brand (`auto-demo`, `.auto_demo`) leaked here even after
+  // PR #18 — caught and fixed alongside this test. Lock both spellings.
+  // The template's *filename* is intentionally preserved (consumers may
+  // already link by URL); the brand inside the body is what counts.
+  test('no stale auto-demo / auto_demo brand strings in template body', () => {
+    expect(raw, 'template body must not contain `.auto_demo` paths').not.toMatch(/\.auto_demo/u);
+    expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
+  });
+
   test('contains no hardcoded credential literals', () => {
     const lines = raw.split('\n');
     const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w-]{16,}/iu;

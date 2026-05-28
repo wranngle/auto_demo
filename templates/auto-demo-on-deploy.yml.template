@@ -1,9 +1,10 @@
 # ui-demo-runner CI integration: re-record your golden demo on every deploy.
 #
-# Copy this file to `.github/workflows/auto-demo-on-deploy.yml` and edit the
-# placeholders marked CONSUMER:. The workflow installs ui-demo-runner via npx,
-# replays the named .demo.json flow, and uploads the webm + manifest artifacts
-# alongside the run so reviewers can scrub the demo without a local checkout.
+# Copy this file to `.github/workflows/ui-demo-runner-on-deploy.yml` and edit
+# the placeholders marked CONSUMER:. The workflow installs ui-demo-runner via
+# npx, replays the named .demo.json flow, and uploads the webm + manifest
+# artifacts alongside the run so reviewers can scrub the demo without a local
+# checkout.
 
 name: ui-demo-runner on deploy
 
@@ -37,16 +38,16 @@ jobs:
         run: |
           npx --yes ui-demo-runner run \
             flows/golden.demo.json \
-            --output .auto_demo/ci
+            --output .ui-demo-runner/ci
 
       - name: Upload demo artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: auto-demo-${{ github.sha }}
+          name: ui-demo-runner-${{ github.sha }}
           path: |
-            .auto_demo/ci/recording.webm
-            .auto_demo/**/manifest.json
-            .auto_demo/**/events.jsonl
+            .ui-demo-runner/ci/recording.webm
+            .ui-demo-runner/**/manifest.json
+            .ui-demo-runner/**/events.jsonl
           if-no-files-found: error
           retention-days: 30
