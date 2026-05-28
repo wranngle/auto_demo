@@ -4,8 +4,11 @@
 // exposes the real widget's text-mode selectors (see selectors.ts) and plays a
 // scripted multi-turn conversation: streamed agent replies, tool-call cards, and
 // visible on-page actions (toasts + an action board) — the "capabilities and
-// tools" surface. Authored without backticks or "${" so it nests inside the TS
-// template literal below untouched.
+// tools" surface. The browser-runtime template literal below uses `${...}`
+// interpolation for shared constants only; runtime JS itself avoids backticks
+// and bare `${` so it nests inside the TS template untouched.
+
+import {WIDGET_ARIA_LABELS} from './selectors.js';
 
 // Pinned @elevenlabs/convai-widget-embed version. Bump here only; the
 // LIVE_WIDGET_RUNTIME template below and tests import this constant.
@@ -64,8 +67,8 @@ export const WIDGET_RUNTIME = `
       this.style.setProperty('--ec-accent', accent);
       this.appendChild(buildShell());
       this.transcript = this.querySelector('[data-transcript]');
-      this.input = this.querySelector('textarea[aria-label="Text message input"]');
-      this.sendBtn = this.querySelector('button[aria-label="Send"]');
+      this.input = this.querySelector('textarea[aria-label="${WIDGET_ARIA_LABELS.input}"]');
+      this.sendBtn = this.querySelector('button[aria-label="${WIDGET_ARIA_LABELS.send}"]');
       var self = this;
       this.sendBtn.addEventListener('click', function () { self.handleSend(); });
       this.input.addEventListener('keydown', function (e) {
@@ -195,11 +198,11 @@ export const WIDGET_RUNTIME = `
     var transcript = el('div', 'ec-transcript'); transcript.setAttribute('data-transcript', '');
     var footer = el('div', 'ec-footer');
     var ta = el('textarea');
-    ta.setAttribute('aria-label', 'Text message input');
+    ta.setAttribute('aria-label', '${WIDGET_ARIA_LABELS.input}');
     ta.setAttribute('rows', '1');
     ta.setAttribute('placeholder', 'Message ' + (agent.name || 'the agent') + '…');
     var send = el('button', 'ec-send');
-    send.setAttribute('aria-label', 'Send');
+    send.setAttribute('aria-label', '${WIDGET_ARIA_LABELS.send}');
     send.setAttribute('type', 'button');
     send.textContent = '↑';
     footer.appendChild(ta); footer.appendChild(send);
