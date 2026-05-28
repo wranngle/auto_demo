@@ -505,3 +505,6 @@ function assertChoice<T extends string>(value: string, choices: readonly T[], la
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+// Re-export for test introspection (README ↔ schema doctrine-drift coupling).
+export const __test__ = {actions};
