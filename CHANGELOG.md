@@ -123,10 +123,11 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (29 cases across 7 files: from-url, narrate,
-  storyboard, svg, vertical, watch, widget) now runs in CI under the existing
-  `test` job — installs bats + ffmpeg on the ubuntu-latest runner. Closes the
-  doctrine gap "wire to CI before claiming done". (#25)
+- Bats shell-integration suite (32 cases across 8 files: from-url, narrate,
+  split, storyboard, svg, vertical, watch, widget) now runs in CI under the
+  existing `test` job — installs bats + ffmpeg on the ubuntu-latest runner.
+  Closes the doctrine gap "wire to CI before claiming done". (#25; split.bats
+  added later in the autonomous-coherence sweep)
 - `tests/runner-events.test.ts` — ECS-shaped NDJSON sidecar format. (#19)
 - `tests/narrate.test.ts` — `start | duration | text` parser contract. (#26)
 - `tests/url-resolver.test.ts` — relative/baseUrl/file:// branches of
