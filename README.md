@@ -306,9 +306,9 @@ commit. Artifacts land under the workflow run as `ui-demo-runner-<sha>`.
 
 Re-record only when the UI actually changes. `watch --once` hashes the previous
 and next DOM snapshots, emits `CHANGE_DETECTED` (or `NO_CHANGE`), and fires a
-re-run hook exactly once per detected change. The `--once` mode is what tests
-exercise; the polling-loop variant lives behind the same comparator and is gated
-out of this release.
+re-run hook exactly once per detected change. `--once` is the only mode wired
+today — wire a polling loop on top via cron, `nodemon`, or a CI scheduled
+workflow that re-runs this command against your latest DOM snapshot.
 
 ```bash
 node dist/cli.js watch --once \

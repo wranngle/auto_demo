@@ -273,12 +273,11 @@ program
 
 program
   .command('watch')
-  .description('Detect UI changes and re-record. With --once the loop runs a single pass against two fixtures.')
-  .option('--once', 'Run a single comparison pass and exit (no polling)')
+  .description('Detect UI changes and re-record. Single pass against two fixtures via --once.')
+  .option('--once', 'Run a single comparison pass and exit (only mode wired today)')
   .option('--fixture <path>', 'Path to the previous DOM snapshot (HTML)')
   .option('--next <path>', 'Path to the next DOM snapshot (HTML)')
-  .option('--interval <ms>', 'Polling interval in ms (ignored with --once)', parseInteger, 60_000)
-  .action(async (options: {once?: boolean; fixture?: string; next?: string; interval: number}) => {
+  .action(async (options: {once?: boolean; fixture?: string; next?: string}) => {
     if (options.once !== true) {
       console.error('watch: only --once mode is wired in this release; pass --once with --fixture and --next');
       process.exitCode = 2;
