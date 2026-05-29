@@ -310,4 +310,67 @@ describe('validateFlow', () => {
 
     expect(undocumented, `README is missing subcommand references for: ${undocumented.join(', ')}`).toStrictEqual([]);
   });
+
+  // Doctrine drift: README's "## Run the smoke demo" section names four
+  // output files under `.work/smoke-demo/`. All four are user-visible
+  // contracts a first-time user expects to find on disk after running
+  // `npm run demo:smoke`. The constituent values live in three places:
+  //   1. `package.json` scripts.demo:smoke names the flow file +
+  //      `--output .work/smoke-demo` directory
+  //   2. `examples/local-smoke.demo.json` declares the screenshot step
+  //      whose `name` becomes `<name>.png` in the output
+  //   3. `src/runner.ts` hardcodes the runner-emitted filenames
+  //      (`recording.webm`, `manifest.json`, `events.jsonl`, `screenshots/`)
+  // A rename in any of the three silently drifts README. Lock all four
+  // README bullets against their source-of-truth files.
+  test('doctrine drift: README smoke-demo output bullets match the flow + package.json + runner constants', async () => {
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+    const pkg = JSON.parse(await readFile(resolve(repoRoot, 'package.json'), 'utf8')) as {scripts: Record<string, string>};
+    const runnerSrc = await readFile(resolve(repoRoot, 'src/runner.ts'), 'utf8');
+
+    // 1. The `demo:smoke` script must point at a flow file under examples/ and
+    //    write outputs to a directory matching the README's `.work/<dir>` bullets.
+    const smokeScript = pkg.scripts['demo:smoke'];
+    expect(smokeScript, 'package.json must define `demo:smoke`').toBeDefined();
+    const flowMatch = /run\s+(\S+\.demo\.json)/u.exec(smokeScript!);
+    const outDirMatch = /--output\s+(\S+)/u.exec(smokeScript!);
+    expect(flowMatch, '`demo:smoke` must `run <path>.demo.json`').not.toBeNull();
+    expect(outDirMatch, '`demo:smoke` must `--output <dir>`').not.toBeNull();
+    const outDir = outDirMatch![1]!; // e.g. ".work/smoke-demo"
+
+    // 2. Pull README's smoke-demo output bullet paths (lines like
+    //    `- \`.work/smoke-demo/<file>\``). Use the README's "## Run the smoke
+    //    demo" section as the scope; stop at the next "## " heading.
+    const smokeSection = /## Run the smoke demo\n([\s\S]*?)(?=\n## )/u.exec(readme);
+    expect(smokeSection, 'README must contain "## Run the smoke demo" section').not.toBeNull();
+    const bullets = [...smokeSection![1]!.matchAll(/^-\s+`([^`]+)`/gmu)].map(m => m[1]!);
+    expect(bullets.length, 'README smoke section must list at least one output file').toBeGreaterThan(0);
+
+    // Every bullet path must start with the script's --output dir.
+    for (const path of bullets) {
+      expect(path.startsWith(`${outDir}/`), `README bullet "${path}" must live under "${outDir}/"`).toBe(true);
+    }
+
+    // 3. The runner emits these specific filenames (src/runner.ts). Each must
+    //    appear as a README bullet basename, so a renamed constant breaks here.
+    const expectedFilenames = ['recording.webm', 'manifest.json', 'events.jsonl'];
+    const bulletBasenames = bullets.map(p => p.split('/').pop()!);
+    for (const filename of expectedFilenames) {
+      expect(runnerSrc, `runner.ts must still emit "${filename}"`).toContain(`'${filename}'`);
+      expect(bulletBasenames.some(name => name === filename), `README smoke section must list runner-emitted "${filename}"`).toBe(true);
+    }
+
+    // 4. The screenshot bullet under `.work/<dir>/screenshots/<name>.png` must
+    //    name a screenshot step that actually exists in the smoke flow file.
+    const screenshotBullet = bullets.find(p => p.includes('/screenshots/') && p.endsWith('.png'));
+    expect(screenshotBullet, 'README must document the smoke flow screenshot path').toBeDefined();
+    const screenshotName = screenshotBullet!.split('/').pop()!.replace(/\.png$/u, '');
+
+    const flowJson = JSON.parse(await readFile(resolve(repoRoot, flowMatch![1]!), 'utf8')) as {
+      steps: Array<{action: string; name?: string}>;
+    };
+    const flowScreenshotNames = flowJson.steps.filter(s => s.action === 'screenshot').map(s => s.name);
+    expect(flowScreenshotNames, `smoke flow ${flowMatch![1]} must contain README-named screenshot "${screenshotName}"`)
+      .toContain(screenshotName);
+  });
 });
