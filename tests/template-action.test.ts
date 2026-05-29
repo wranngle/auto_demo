@@ -1,6 +1,6 @@
 // Guards the drop-in CI template shipped to consumers.
 // If this test breaks, a consumer's copy-pasted workflow breaks too.
-import {readFileSync} from 'node:fs';
+import {readdirSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
@@ -142,6 +142,37 @@ describe('auto-demo-on-deploy.yml.template', () => {
     expect(templateTargetName, 'template header must suggest a `.github/workflows/<name>.yml` target').not.toBeNull();
     expect(readme, `README cp snippet must target the template-suggested filename "${templateTargetName![1]}"`)
       .toContain(`.github/workflows/${templateTargetName![1]}`);
+  });
+
+  // Brand-rename drift coupling, test-infra edition: PR #88 swept three
+  // legacy `auto_demo-*` mktemp prefixes in the test suite to `ui-demo-*`,
+  // but `tests/captions.test.ts` slipped through and shipped with
+  // `auto-demo-captions-` until the next sweep caught it. Test-infra prefixes
+  // are not user-visible, but they ARE the doctrine drift the brand-rename
+  // sweep committed to (CHANGELOG #88). Lock the convention so the next
+  // renamer cannot leave another one behind: every `mkdtemp(join(tmpdir(),
+  // '<prefix>'))` literal in `tests/*.ts` must use the current brand prefix
+  // `ui-demo-`. Documented exception: `regress-test-` (intentionally not
+  // branded; named for its describe block).
+  test('brand-rename drift: every tests/*.ts mkdtemp prefix uses the `ui-demo-` brand', () => {
+    const testsDir = resolve(here);
+    const mkdtempPrefix = /mkdtemp\(\s*join\(\s*tmpdir\(\)\s*,\s*['"`]([^'"`]+)['"`]\s*\)/gu;
+    const allowedExactPrefix = new Set(['regress-test-']);
+    const requiredBrandPrefix = 'ui-demo-';
+    const offenders: string[] = [];
+
+    for (const entry of readdirSync(testsDir, {withFileTypes: true})) {
+      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+      const source = readFileSync(resolve(testsDir, entry.name), 'utf8');
+      for (const match of source.matchAll(mkdtempPrefix)) {
+        const prefix = match[1]!;
+        if (allowedExactPrefix.has(prefix) || prefix.startsWith(requiredBrandPrefix)) continue;
+        offenders.push(`${entry.name}: ${prefix}`);
+      }
+    }
+
+    expect(offenders, `mkdtemp prefixes must start with "${requiredBrandPrefix}" (allowed exact: ${[...allowedExactPrefix].join(', ')}); found: ${offenders.join(' | ')}`)
+      .toStrictEqual([]);
   });
 
   test('contains no hardcoded credential literals', () => {

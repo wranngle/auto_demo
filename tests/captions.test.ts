@@ -206,7 +206,7 @@ describe('renderSrt', () => {
 describe('caption tracks on disk', () => {
   test('one SRT file per requested language with the same cue count', async () => {
     const cues = buildCaptionCues(sampleFlow);
-    const dir = await mkdtemp(join(tmpdir(), 'auto-demo-captions-'));
+    const dir = await mkdtemp(join(tmpdir(), 'ui-demo-captions-'));
     const langs = supportedLanguages;
 
     const paths = await Promise.all(langs.map(async lang => {
