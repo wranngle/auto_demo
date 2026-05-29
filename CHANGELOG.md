@@ -349,6 +349,62 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   has the same posture. Future options documented in PR #108's close
   comment (codeql annotation, file-whitelist serve, drop the HTTP server).
 
+### Fixed — test-infra rename leftovers
+- `tests/captions.test.ts` was the lone survivor from PR #88's brand-rename
+  sweep of test mktemp prefixes — still wrote `auto-demo-captions-` while
+  every other test (storyboard, from-url, split, flow-schema, widget,
+  vertical/narrate/svg bats) had moved to `ui-demo-*`. Renamed to
+  `ui-demo-captions-`. (#112)
+- Dead `.auto_demo/` line in `.gitignore` removed. PR #94 added
+  `.ui-demo-runner*/` and kept the legacy entry "for one-release
+  back-compat"; 18 releases later nothing in src/, scripts/, templates/,
+  or dist/ ever creates a `.auto_demo/` directory. The only references
+  are regex literals in tests/template-action.test.ts asserting the
+  brand is gone — independent of this line. (#113)
+
+### Tests + CI hardening (third doctrine-drift batch)
+- `tests/template-action.test.ts`: new meta-drift test scans every
+  `tests/*.ts` file for `mkdtemp(join(tmpdir(), '<prefix>'))` literals
+  and asserts each prefix starts with the current brand `ui-demo-` or
+  is in the documented allowlist (`regress-test-`). Would have caught
+  the #112 survivor at the time of the original sweep — locks the
+  convention so the next renamer cannot silently leave another stale
+  prefix behind. (#112)
+- `tests/load-elevenlabs-key.test.ts`: 8 new contract tests for
+  `scripts/_lib/load-elevenlabs-key.mjs` — the single credential-
+  resolution seam for all 3 agent-provisioning scripts (extracted in
+  PR #65, previously zero coverage). Locks env-var-wins-over-file,
+  surrounding-quote stripping (both `"` and `'`), inner-quote
+  preservation, the documented throw message in both file-missing
+  and key-missing branches, and trailing-whitespace trimming. Test
+  isolation via `vi.stubEnv('HOME', mkdtemp(...))` so the operator's
+  real `~/.agents/.env` is never touched. (#115)
+- `scripts/_lib/load-elevenlabs-key.d.mts` added (one-line declaration)
+  so TS LSP can resolve the `.mjs` import from test code without
+  enabling `allowJs` globally. (#115)
+
+### Fixed — recording batch robustness
+- `scripts/record-live-demos.mjs`: per-scenario try/catch + tally
+  (`ok / failed / skipped`) + summary at end. A single agent stall
+  (browser drop, network blip, quota glitch) no longer aborts the
+  remaining recordings. Sets `process.exitCode = 1` only if at least
+  one scenario failed, so the operator sees the full batch state.
+  Observed today: `ecommerce-returns` failed with `page.waitForTimeout:
+  Target page, context or browser has been closed` partway through;
+  without this fix the batch stalled after scenario 1 leaving 5
+  unrefreshed. (#114)
+
+### Added — coexistence with parallel Chromium workloads
+- `scripts/record-live-demos.mjs`: opt-in memory gate via env vars,
+  default behavior byte-equivalent to before. Set `MIN_AVAIL_GIB=N`
+  (e.g. `2`) and the batch polls `/proc/meminfo`'s `MemAvailable`
+  before each scenario, waiting up to `MIN_AVAIL_TIMEOUT_MIN=30`
+  minutes (poll cadence `MIN_AVAIL_POLL_SEC=30`s) for the threshold.
+  Lets the recording batch coexist with a parallel
+  Playwright/Chromium workload on the same host without OOM-ing
+  either side. Non-Linux machines skip the gate (parse returns null),
+  preserving old behavior. (#116)
+
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
   gates on `automerge` label + required-check set
