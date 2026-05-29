@@ -286,6 +286,69 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - `npm update` swept in-range dep bumps: `@types/node`, `vitest`,
   transitive babel. (#80)
 
+### Fixed — accuracy + drift cleanup
+- README's `## Modes` section described `zoom` as "set document zoom for
+  cleaner video framing" but the implementation is an animated cinematic
+  punch-in via `smoothZoom(page, {x, y, scale, durationMs})` — a
+  camera-style transform pinned at `(x, y)`, not a static viewport zoom.
+  The previous prose would mislead consumers writing flows. (#110)
+- Test doc comments carried 18 source-line refs (`src/flow-schema.ts:90-92`,
+  `scenario.ts:186`) that drifted after PRs #88 / #90 / #105 / #106. Stripped
+  every `.ts:NNN[-NNN]` suffix mechanically — comments still hint at the
+  file but make no precision claim that can desync. (#107)
+
+### Refactored — single-source constants + map-driven dispatch
+- `FIT_MODES = ['crop','pad'] as const` hoisted to a single source from
+  `vertical.ts`. The TS type union (in `VerticalOptions`/`VerticalResult`),
+  the `commander` `.choices([...])` literal in `cli.ts`, README's `--fit
+  crop`/`--fit pad` prose, and CHANGELOG's `--fit crop|pad` mention now
+  all derive from or are locked against it. (#100)
+- `vertical`'s `fit === 'crop' ? buildCropFilter(...) : buildPadFilter(...)`
+  ternary replaced with a `Record<FitMode, FilterBuilder>` map. Adding a
+  new mode without a matching builder is now a TS error rather than a
+  silent fall-through to pad. Coupling test asserts each mode produces a
+  distinct filter (catches a copy-paste regression). (#106)
+- `KNOWN_VOICES` (narrate) promoted to a `SUPPORTED_VOICES` named export.
+  CLI option help + README narration prose now locked against it. (#99)
+- Widget aria-label strings (`Text message input`, `Send`) hoisted to
+  `WIDGET_ARIA_LABELS` in `selectors.ts`. The mock runtime's SET (attribute
+  assignment) and READ (querySelector) sides now derive from one source —
+  was 4 hardcoded copies that could silently drift apart. (#103)
+
+### Tests + CI hardening (second doctrine-drift batch)
+- `tests/from-url.test.ts` — README + CHANGELOG `<N>-step` claims locked
+  against the actual mock-fixture step count. Adding a 6th step to the
+  fixture now fails CI until docs catch up. (#96)
+- `tests/captions.test.ts` — CLI help + CHANGELOG language lists locked
+  against `supportedLanguages` (#97); every non-`en` supported language
+  must have a `phraseBook` entry that actually translates (catches a
+  silent identity-fallback regression, not just doc drift). (#105)
+- `tests/quality.test.ts` — CLI help + CHANGELOG `720p | 1080p | 4k`
+  pipe-list locked against `QUALITY_PRESETS` keys. (#98)
+- `tests/template-action.test.ts` — template's `playwright@<X.Y.Z>` pin
+  locked against `package.json` `^X.Y.Z` minor floor (#101); template's
+  `node-version: '<N>'` locked against `engines.node` floor (#102).
+- `tests/widget.test.ts` — `LIVE_WIDGET_RUNTIME` `body.dataset.<camel>`
+  reads must all have matching `render.ts` `data-<kebab>` writes (catches
+  the silent live-widget-fails-to-mount class CodeQL can't see). (#104)
+- `tests/runner-events.test.ts` — `delay(ms, timing)` (the speed adjuster
+  called by 11+ Playwright wait sites) + `clamp(value, min, max)` (the
+  runtime-speed gate) now have full pure-function contracts: speed
+  scaling, negative-input clamp to 0, integer-rounded output, bounds
+  enforcement. Co-located alongside the existing `formatEventNdjson`
+  contract tests per the "one test file per project" doctrine. (#109)
+
+### Reverted / closed
+- PR #108 (extract `resolveServePath` as pure helper + 9 URL-mapping
+  contract tests) closed after 4 fix-up attempts couldn't satisfy
+  CodeQL's `js/path-injection` rule. The security boundary was sound
+  (normalize collapses leading `..` past root + an inline barrier
+  asserts `candidatePath.startsWith(rootAbs + sep)`) but the analyzer's
+  interprocedural taint tracking didn't recognize the gate across any
+  variation of the helper boundary. Main's serveDir is unchanged and
+  has the same posture. Future options documented in PR #108's close
+  comment (codeql annotation, file-whitelist serve, drop the HTTP server).
+
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
   gates on `automerge` label + required-check set
