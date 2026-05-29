@@ -139,6 +139,23 @@ export function buildDemoFlow(scenario: WidgetScenario, htmlFileName: string): D
     : buildLiveFlow(scenario, htmlFileName, scenario.live);
 }
 
+// Cinematic shaping for the post-reply hold: bias toward longer holds on the
+// first turn (orient the viewer) and the last turn (resolve the climax), plus
+// a small bonus when the reply is rich (markdown reply >2 pieces OR the final
+// `say` is long). Without this every turn holds the same window and the eye
+// stops tracking after the first reply. Pure function — exported for the test
+// contract that locks the shape; the runtime always sees clamped values.
+export function replyHoldBonus(reply: WidgetScenario['turns'][number]['reply'], isFirst: boolean, isLast: boolean): number {
+  let bonus = 0;
+  if (isFirst) bonus += 400;
+  if (isLast) bonus += 600;
+  const richReply = reply.length > 2 || reply.some(piece =>
+    typeof piece === 'object' && piece !== null && 'say' in piece && typeof piece.say === 'string' && piece.say.length > 80,
+  );
+  if (richReply) bonus += 500;
+  return bonus;
+}
+
 // The widget is fixed bottom-right; zoom must anchor at its bottom-right corner
 // (transform-origin = this point) so the panel scales up-and-left into the page
 // and never clips off-frame. Centre-anchored zoom pushes the chat off the edges.
@@ -234,11 +251,22 @@ function buildLiveFlow(scenario: WidgetScenario, htmlFileName: string, live: Non
   // so the widget finishes mounting before we type.
   steps.push({action: 'pause', ms: 1800, label: 'Widget settles before first turn'});
 
+  const turnCount = scenario.turns.length;
   for (const [index, turn] of scenario.turns.entries()) {
     const n = index + 1;
+    const isFirst = index === 0;
+    const isLast = index === turnCount - 1;
+    // Per-turn pacing — uniform beats read as a metronome. First turn gets
+    // an extra orient pause + slower caption (viewer registers the
+    // business + question); last turn gets a longer post-reply hold so
+    // the climax resolves; middle turns ride the established rhythm.
+    const captionMs = isFirst ? 1500 : 1300;
+    const composeBreathMs = isLast ? 500 : 350; // Anticipation before hitting Send
+    const holdBonusMs = replyHoldBonus(turn.reply, isFirst, isLast);
+
     if (turn.caption !== undefined) {
       steps.push({
-        action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`,
+        action: 'caption', text: turn.caption, ms: captionMs, label: `Turn ${n} caption`,
       });
     }
 
@@ -247,10 +275,14 @@ function buildLiveFlow(scenario: WidgetScenario, htmlFileName: string, live: Non
       {
         action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`,
       },
+      // Compose breath: a person finishes typing and hesitates before sending.
+      // Without it, type→send is robotic — this single beat is what reads as
+      // "deliberate," especially on the final turn where commitment matters.
+      {action: 'pause', ms: composeBreathMs, label: `Compose breath (turn ${n})`},
       {action: 'click', selector: send, label: `Send turn ${n}`},
       {action: 'pause', ms: leadMs, label: `Live agent reply ${n}`},
       widgetZoom(scenario, 1.18, 300, `Zoom to answer ${n}`),
-      {action: 'pause', ms: watchHoldMs, label: `Hold on answer ${n}`},
+      {action: 'pause', ms: watchHoldMs + holdBonusMs, label: `Hold on answer ${n}`},
       {action: 'resetZoom', label: `Pull back ${n}`},
     );
   }
