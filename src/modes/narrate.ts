@@ -65,14 +65,21 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
   await mkdir(workDir, {recursive: true});
   await mkdir(dirname(outputPath), {recursive: true});
 
-  const useRealVoice = options.voice === 'elevenlabs';
+  // The `elevenlabs` voice is intentionally a thin stub today (see
+  // synthesizeElevenLabsLine below); when called it falls back to the same
+  // mock tone. Track whether the real synthesizer ever ran a network call —
+  // it never does today, so the result honestly reports `'mock'`. Wiring
+  // the real path means changing synthesizeElevenLabsLine to POST and
+  // setting realSynthesisRan = true on success.
+  const wantElevenLabs = options.voice === 'elevenlabs';
   const apiKey = options.elevenLabsApiKey ?? process.env.ELEVENLABS_API_KEY;
+  let realSynthesisRan = false;
 
   const wavPaths: string[] = [];
   for (const [index, line] of lines.entries()) {
     const wavPath = join(workDir, `line-${String(index).padStart(4, '0')}.wav`);
-    if (useRealVoice && apiKey !== undefined && apiKey !== '') {
-      await synthesizeElevenLabsLine(line, wavPath, apiKey);
+    if (wantElevenLabs && apiKey !== undefined && apiKey !== '') {
+      realSynthesisRan ||= await synthesizeElevenLabsLine(line, wavPath, apiKey);
     } else {
       await synthesizeMockLine(line, wavPath);
     }
@@ -90,7 +97,12 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
 
   return {
     outputPath,
-    voice: useRealVoice && apiKey !== undefined && apiKey !== '' ? 'elevenlabs' : 'mock',
+    // Report what actually ran. Until the real ElevenLabs synthesis is
+    // wired (synthesizeElevenLabsLine), the elevenlabs path falls through
+    // to the same mock tone and reporting 'elevenlabs' here would lie to
+    // the operator — they'd think their key was used. Pinned to 'mock'
+    // until realSynthesisRan flips true from a successful network call.
+    voice: realSynthesisRan ? 'elevenlabs' : 'mock',
     lineCount: lines.length,
     audioStreams,
     videoStreams,
@@ -140,11 +152,17 @@ async function synthesizeMockLine(line: NarrationLine, wavPath: string): Promise
   ]);
 }
 
-async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, _apiKey: string): Promise<void> {
-  // Real ElevenLabs synthesis would POST to https://api.elevenlabs.io/v1/text-to-speech/<voice_id>
-  // and decode the mp3 response into wavPath. This branch is intentionally a thin stub for now —
-  // the round-2 plan ships the mock-voice contract; the network path is exercised by integration env.
+// Real ElevenLabs synthesis would POST to https://api.elevenlabs.io/v1/text-to-speech/<voice_id>
+// and decode the mp3 response into wavPath, then return true. This branch is
+// intentionally a thin stub for now — the round-2 plan ships the mock-voice
+// contract; the network path is exercised by integration env. Until that lands,
+// this returns false so the caller's `realSynthesisRan` stays false and the
+// result honestly reports `voice: 'mock'` (the README + CHANGELOG both
+// promise the elevenlabs path falls back to mock — this keeps the JSON output
+// consistent with that promise).
+async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, _apiKey: string): Promise<boolean> {
   await synthesizeMockLine(line, wavPath);
+  return false;
 }
 
 function mockToneFrequencyHz(text: string): number {
