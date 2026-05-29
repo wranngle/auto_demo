@@ -86,7 +86,6 @@ dist/
 .work/
 coverage/
 .ui-demo-runner*/
-.auto_demo/
 *.webm
 
 # Private operator docs — never publish (candid feedback, real agent IDs, home paths)
