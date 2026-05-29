@@ -503,3 +503,8 @@ function stepLabel(step: DemoStep): string {
 function ignoreCleanupError(): void {
   return undefined;
 }
+
+// Re-export for test introspection. `delay` is the speed adjuster called by
+// every Playwright wait in runStep — a regression that breaks the clamp or
+// round would silently affect all recordings. Lock the contract via tests.
+export const __test__ = {delay, clamp};
