@@ -191,8 +191,17 @@ function buildMockFlow(scenario: WidgetScenario, htmlFileName: string): DemoFlow
 
   steps.push({action: 'pause', ms: 900, label: 'Agent greeting renders'});
 
+  const turnCount = scenario.turns.length;
   for (const [index, turn] of scenario.turns.entries()) {
     const n = index + 1;
+    const isFirst = index === 0;
+    const isLast = index === turnCount - 1;
+    // Mock plays at 1.35x, so bonus numbers are wall-clock-scaled smaller than
+    // live (which plays at 1.0x). Same shape, same intent: vary per turn so
+    // the eye has something different to track each beat.
+    const composeBreathMs = isLast ? 360 : 260;
+    const holdBonusMs = replyHoldBonus(turn.reply, isFirst, isLast);
+
     if (turn.caption !== undefined) {
       steps.push({
         action: 'caption', text: turn.caption, ms: 1300, label: `Turn ${n} caption`,
@@ -204,12 +213,13 @@ function buildMockFlow(scenario: WidgetScenario, htmlFileName: string): DemoFlow
       {
         action: 'fill', selector: input, value: turn.user, label: `Type turn ${n}`,
       },
+      {action: 'pause', ms: composeBreathMs, label: `Compose breath (turn ${n})`},
       {action: 'click', selector: send, label: `Send turn ${n}`},
       {
         action: 'waitForText', text: lastSay(turn), timeoutMs: 22_000, label: `Agent reply ${n}`,
       },
       widgetZoom(scenario, 1.18, 280, `Zoom to answer ${n}`),
-      {action: 'pause', ms: 650, label: `Hold on answer ${n}`},
+      {action: 'pause', ms: 650 + holdBonusMs, label: `Hold on answer ${n}`},
       {action: 'resetZoom', label: `Pull back ${n}`},
     );
   }
