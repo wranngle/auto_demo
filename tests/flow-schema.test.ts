@@ -285,4 +285,29 @@ describe('validateFlow', () => {
     expect(new Set(bullets), `README Modes lists ${bullets.join(', ')}; schema allows ${[...SUPPORTED_ACTIONS].join(', ')}`)
       .toEqual(new Set(SUPPORTED_ACTIONS));
   });
+
+  // Doctrine drift: every CLI subcommand declared in src/cli.ts (`commander`'s
+  // `.command('<name>')`) is a user-visible feature. The README must mention
+  // each one at least once so users can discover what the CLI does. Pre-PR,
+  // `split` and `storyboard` shipped but never made it into the README and
+  // were effectively invisible. Parse cli.ts for `.command('<name>')` and
+  // assert each name appears somewhere in README.md (either as
+  // `ui-demo-runner <name>` or `node dist/cli.js <name>`).
+  test('doctrine drift: every src/cli.ts .command() is documented in README.md', async () => {
+    const cliSrc = await readFile(resolve(repoRoot, 'src/cli.ts'), 'utf8');
+    const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
+
+    const commands = [...cliSrc.matchAll(/\.command\(['"]([a-z][a-z-]*)['"]\)/gu)].map(match => match[1]!);
+    expect(commands.length, 'cli.ts must declare at least one subcommand').toBeGreaterThan(0);
+
+    const undocumented = commands.filter(name => {
+      const patterns = [
+        new RegExp(`ui-demo-runner\\s+${name}\\b`, 'u'),
+        new RegExp(`node\\s+dist/cli\\.js\\s+${name}\\b`, 'u'),
+      ];
+      return !patterns.some(p => p.test(readme));
+    });
+
+    expect(undocumented, `README is missing subcommand references for: ${undocumented.join(', ')}`).toStrictEqual([]);
+  });
 });

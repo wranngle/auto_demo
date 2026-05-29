@@ -220,6 +220,36 @@ SMIL `<animate>` elements. The renderer enforces a 200KB ceiling so the file
 stays cheap to ship alongside the README; tune `--frames`, `--width`, or
 `--jpeg-quality` if the budget is tight.
 
+## Split-screen export (flow + recording side-by-side)
+
+`ui-demo-runner split` renders a 1920x1080 MP4 with the flow's step list on the
+left and an existing recording on the right — internal review clip for
+walking a teammate through what each step actually does, frame by frame.
+
+```bash
+node dist/cli.js split \
+  path/to/flow.demo.json \
+  output/console-overview/recording.webm \
+  --output output/console-overview/split.mp4
+```
+
+The flow panel renders each step as a captioned card; the recording panel
+plays the source MP4 timed against the same per-step window. Scratch frames
+land under `.ui-demo-runner-split/` (gitignored) and are cleaned up on
+completion.
+
+## Storyboard (markdown summary of a recorded run)
+
+`ui-demo-runner storyboard` walks a recorded run's `manifest.json` and emits
+a markdown `storyboard.md` beside it — one row per step with the screenshot
+artifact thumbnail and the narration text. Useful for PR descriptions, async
+review, and dropping a flat summary into a doc without re-running the demo.
+
+```bash
+node dist/cli.js storyboard output/console-overview
+# → output/console-overview/storyboard.md
+```
+
 ## Polish controls
 
 Flow files can opt into the recording style used for portfolio demos:
