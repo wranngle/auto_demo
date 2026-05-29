@@ -113,18 +113,24 @@ export function resolveServePath(rawUrl: string | undefined, servedRoot: string)
 }
 
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {
+  // Cache the absolute root once outside the handler so the inline safety
+  // check is a pure path comparison — no fs IO, no surprises mid-request.
+  const rootAbs = resolve(root);
   const server: Server = createServer(async (request, response) => {
     try {
-      const {candidatePath, relPath, safe} = resolveServePath(request.url, root);
-      if (!safe) {
+      const {candidatePath, relPath} = resolveServePath(request.url, root);
+      // Inlined sanitization (CodeQL js/path-injection): the safety check
+      // MUST live next to the readFile call. Earlier attempts to abstract
+      // this via a `safe` flag returned by resolveServePath were correct
+      // but not recognized by CodeQL's interprocedural taint analysis.
+      // Keep the pattern boring and local so the static analyzer can see
+      // the gate that makes readFile of user-controlled input safe.
+      if (candidatePath !== rootAbs && !candidatePath.startsWith(rootAbs + sep)) {
         response.writeHead(403);
         response.end('forbidden');
         return;
       }
 
-      // readFile receives the sanitized absolute path under servedRoot — not
-      // a join of user input. The safe gate above is the path-injection
-      // sanitization CodeQL needs to see.
       const body = await readFile(candidatePath);
       response.writeHead(200, {'content-type': mimeTypes[extname(relPath)] ?? 'application/octet-stream'});
       response.end(body);
