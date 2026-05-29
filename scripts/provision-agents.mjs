@@ -89,7 +89,7 @@ async function createAgent(key, spec) {
       tts: {voice_id: spec.voiceId},
     },
     platform_settings: {overrides: {conversation_config_override: {conversation: {text_only: true}}}},
-    tags: ['wranngle-demo', 'auto-demo-suite'],
+    tags: ['wranngle-demo', 'ui-demo-runner-suite'],
   };
   const res = await fetch(`${API}/create`, {
     method: 'POST',
