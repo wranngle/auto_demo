@@ -1,10 +1,14 @@
-// Contract test for the NDJSON event-log sidecar (events.jsonl alongside
-// manifest.json). Format aligns with the git_good ECS-shaped JSONL ledger
-// doctrine; concept salvaged from the archived auto-demo-merger exploration.
+// Contract tests for runner internals: the NDJSON event-log sidecar
+// (events.jsonl alongside manifest.json) and the timing primitives
+// (`delay`, `clamp`) that drive every Playwright wait. NDJSON format aligns
+// with the git_good ECS-shaped JSONL ledger doctrine.
 
 import {describe, expect, test} from 'vitest';
-import {formatEventNdjson} from '../src/runner.js';
-import type {StepEvent} from '../src/types.js';
+// eslint-disable-next-line @typescript-eslint/naming-convention
+import {formatEventNdjson, __test__} from '../src/runner.js';
+import type {DemoTiming, StepEvent} from '../src/types.js';
+
+const {delay, clamp} = __test__;
 
 const sample: StepEvent[] = [
   {
@@ -62,5 +66,80 @@ describe('formatEventNdjson', () => {
 
   test('empty events array yields an empty string (no stray newline)', () => {
     expect(formatEventNdjson('f', [])).toBe('');
+  });
+});
+
+const timing = (overrides: Partial<DemoTiming> = {}): Required<DemoTiming> => ({
+  speed: 1,
+  moveMs: 0,
+  clickPauseMs: 0,
+  fillPauseMs: 0,
+  pressPauseMs: 0,
+  scrollPauseMs: 0,
+  zoomMs: 0,
+  ...overrides,
+});
+
+// `delay` is called by every Playwright wait in runStep (11+ call sites):
+// every pause, click-pause, fill-pause, zoom, scroll, press, and reset-zoom
+// runs `await page.waitForTimeout(delay(...))`. A silent regression that
+// breaks the clamp (negative input → negative wait, which crashes
+// Playwright) or the round (fractional ms, which Playwright may not honor)
+// would shift the timing of every shipped recording. Lock the contract.
+describe('delay', () => {
+  test('speed=1 returns the input rounded to an integer', () => {
+    expect(delay(100, timing({speed: 1}))).toBe(100);
+    expect(delay(123.4, timing({speed: 1}))).toBe(123);
+    expect(delay(123.5, timing({speed: 1}))).toBe(124);
+  });
+
+  test('speed > 1 shortens the wait (faster playback)', () => {
+    expect(delay(1000, timing({speed: 2}))).toBe(500);
+    expect(delay(1000, timing({speed: 4}))).toBe(250);
+  });
+
+  test('speed < 1 lengthens the wait (slower playback)', () => {
+    expect(delay(500, timing({speed: 0.5}))).toBe(1000);
+    expect(delay(1000, timing({speed: 0.25}))).toBe(4000);
+  });
+
+  test('negative or zero input clamps to 0 (never schedule a negative wait)', () => {
+    expect(delay(0, timing())).toBe(0);
+    expect(delay(-1, timing())).toBe(0);
+    expect(delay(-9999, timing({speed: 2}))).toBe(0);
+  });
+
+  test('result is always an integer (Playwright waitForTimeout expects ms as int)', () => {
+    expect(Number.isInteger(delay(123.7, timing({speed: 1.35})))).toBe(true);
+    expect(Number.isInteger(delay(50, timing({speed: 3})))).toBe(true);
+  });
+});
+
+// `clamp` gates the runtime speed at [0.25, 8] via
+// `clamp(flow.timing?.speed ?? options.speed, 0.25, 8)` in normalizeTiming.
+// flow-schema validates speed in (0, 8], so the clamp protects against an
+// options.speed override (or a regression in validateFlow) producing a
+// near-zero value that would blow up `delay`'s division.
+describe('clamp', () => {
+  test('returns value unchanged when within [min, max]', () => {
+    expect(clamp(5, 0, 10)).toBe(5);
+    expect(clamp(0, 0, 10)).toBe(0);
+    expect(clamp(10, 0, 10)).toBe(10);
+  });
+
+  test('clamps below min', () => {
+    expect(clamp(-5, 0, 10)).toBe(0);
+    expect(clamp(0.1, 1, 10)).toBe(1);
+  });
+
+  test('clamps above max', () => {
+    expect(clamp(15, 0, 10)).toBe(10);
+    expect(clamp(8.5, 0, 8)).toBe(8);
+  });
+
+  test('runtime speed gate: clamp(speed, 0.25, 8)', () => {
+    expect(clamp(0.05, 0.25, 8)).toBe(0.25);
+    expect(clamp(1, 0.25, 8)).toBe(1);
+    expect(clamp(8.5, 0.25, 8)).toBe(8);
   });
 });
