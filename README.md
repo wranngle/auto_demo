@@ -109,7 +109,7 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 - `press`: press a keyboard key, optionally scoped to a selector.
 - `scroll`: scroll by pixel delta.
 - `pause`: wait for a fixed number of milliseconds.
-- `zoom`: set document zoom for cleaner video framing.
+- `zoom`: animate a cinematic punch-in to (x, y) at the given scale over durationMs.
 - `screenshot`: write a PNG artifact.
 
 ## Narrate (AI voice mux)
