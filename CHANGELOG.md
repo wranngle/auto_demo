@@ -434,6 +434,60 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `node dist/cli.js <cmd>`. Future subcommand additions fail CI
   until the README catches up. (#119)
 
+### Tests + CI hardening (fourth doctrine-drift batch)
+- `tests/widget.test.ts`: 3 mock ↔ live pacing parity tests. The
+  existing `replyHoldBonus` contract (#118) locks the helper's shape
+  but does not lock the fact that both flow builders actually call
+  it. Behavioral assertion: a 3-turn scenario produces non-uniform
+  `Hold on answer N` durations AND one `Compose breath` per turn
+  in BOTH mock and live flows. A future refactor that strips
+  variation from one path silently passes the helper tests but
+  fails these. (#122)
+- `tests/template-action.test.ts`: scripts-edition brand-drift lock.
+  Sibling to the test-infra mktemp lock (#112): scans every
+  `scripts/*.mjs` for `auto[-_]demo` brand strings and fails.
+  Documented allowlist: comment references to the historical
+  archived branch `archive/auto-demo-merger-2026-05-25` are
+  preserved. (#123)
+- `tests/flow-schema.test.ts`: smoke-demo README ↔ package.json ↔
+  flow ↔ runner coupling lock. Parses README's "## Run the smoke
+  demo" output bullets and asserts each path lives under the
+  script's `--output` dir, each runner-emitted filename
+  (`recording.webm`, `manifest.json`, `events.jsonl`) appears as
+  a bullet basename AND is still a literal in `runner.ts`, and
+  the `screenshots/<name>.png` bullet's name matches a real
+  screenshot step in the smoke flow file. (#125)
+- `tests/split.bats`: CLI-surface bats coverage for `split` — the
+  seven other shipped subcommands all had bats; `split` had only
+  vitest. Three behavior-focused tests (1920×1080 frame from
+  `<flow>` + `<recording>`, `--json` structured result, missing
+  recording file fails fast). CHANGELOG bats count bumped from
+  29 → 32 cases across 8 files. (#126)
+
+### Fixed — scripts hygiene + dead surface
+- `scripts/provision-agents.mjs`: stale brand tag `auto-demo-suite`
+  → `ui-demo-runner-suite` (survivor of PR #18's brand rename
+  affecting the ElevenLabs API `tags` field on agent creation).
+  Cloud agents created earlier carry their original tags; this
+  fixes the source so future creates use the current brand. (#123)
+- `src/cli.ts` `watch --interval <ms>`: dead CLI option removed.
+  The value parsed to an integer (default 60000) but was never
+  used — `watchOnce()` has no polling path, and the action handler
+  exits 2 unless `--once` is passed. README's matching claim about
+  a "polling-loop variant gated out of this release" was misleading
+  in the same direction; corrected to say `--once` is the only
+  mode wired today and guide operators to wire polling externally
+  via cron / nodemon / CI scheduled workflow. (#124)
+
+### Refactored — single-source constants
+- `scripts/_lib/elevenlabs-api.mjs` (new): `ELEVENLABS_AGENTS_API`
+  base URL extracted from the two duplicate `const API` literals in
+  `scripts/provision-agents.mjs` and `scripts/tune-agents.mjs`. Both
+  consumers re-import under the same local name (`API`); fetch sites
+  are byte-identical. Plus `scripts/_lib/elevenlabs-api.d.mts`
+  (one-line TS declaration) mirroring the pattern PR #115 used for
+  `load-elevenlabs-key.d.mts`. (#127)
+
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
   gates on `automerge` label + required-check set
