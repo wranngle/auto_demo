@@ -405,6 +405,34 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   either side. Non-Linux machines skip the gate (parse returns null),
   preserving old behavior. (#116)
 
+### Changed — recording pacing (designed with intention)
+- Live widget flows now apply per-turn cinematic pacing instead of
+  a uniform metronome. Each turn gets (a) a `Compose breath` pause
+  between `fill` and `click(Send)` — 350ms normally, 500ms on the
+  last turn (commitment beat); (b) a post-reply hold extended by
+  `replyHoldBonus(reply, isFirst, isLast)` — +400ms first turn
+  (orient), +600ms last turn (resolve), +500ms when the reply is
+  rich (>2 pieces OR final say >80 chars); bonuses compose. First
+  slow → middle fast → last slow + extra commit. (#118)
+- New exported pure helper `replyHoldBonus(reply, isFirst, isLast)`
+  with 8 contract tests in `tests/widget.test.ts` locking the bonus
+  shape — a "simplification" back to uniform pacing fails the test,
+  not the user experience. (#118)
+- Mock flow gets the same per-turn variation (compose breath, hold
+  bonus) — scaled smaller for mock's 1.35x playback speed (260ms /
+  360ms compose breath). Pure reuse of `replyHoldBonus`. (#120)
+
+### Added — documented operator subcommands
+- `split` and `storyboard` CLI subcommands now have dedicated README
+  sections (`## Split-screen export`, `## Storyboard (markdown
+  summary of a recorded run)`). Both have shipped in `src/cli.ts`
+  for releases but were previously invisible in the README. (#119)
+- New doctrine-drift test in `tests/flow-schema.test.ts` parses every
+  `.command(...)` in `src/cli.ts` and asserts each subcommand name
+  appears in README.md as either `ui-demo-runner <cmd>` or
+  `node dist/cli.js <cmd>`. Future subcommand additions fail CI
+  until the README catches up. (#119)
+
 ### Infrastructure
 - Squash-merge auto-merge pipeline (`.github/workflows/automerge.yml`)
   gates on `automerge` label + required-check set
