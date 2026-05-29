@@ -12,8 +12,8 @@ import {readdir, readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 import {loadElevenLabsKey} from './_lib/load-elevenlabs-key.mjs';
+import {ELEVENLABS_AGENTS_API as API} from './_lib/elevenlabs-api.mjs';
 
-const API = 'https://api.elevenlabs.io/v1/convai/agents';
 const MARKER = '\n\n[[demo-format]]';
 const here = dirname(fileURLToPath(import.meta.url));
 const scenarioDir = join(here, '..', 'examples', 'widget');
