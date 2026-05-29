@@ -175,6 +175,35 @@ describe('auto-demo-on-deploy.yml.template', () => {
       .toStrictEqual([]);
   });
 
+  // Brand-rename drift, scripts edition: `scripts/provision-agents.mjs` sets
+  // ElevenLabs agent tags on creation (`tags: ['wranngle-demo', '...']`).
+  // Pre-PR, the second tag was `auto-demo-suite` — survivor of PR #18's brand
+  // rename. Cloud agents already created carry whatever tag they got at
+  // creation time (visible in the ElevenLabs dashboard), but new agents
+  // must use the current brand. Test-infra prefixes (above) lock test
+  // mktemp; this locks operator-script literals. Scan every
+  // `scripts/*.mjs` for any `auto[-_]demo` brand reference and fail.
+  test('brand-rename drift: no auto-demo / auto_demo brand strings in scripts/*.mjs', () => {
+    const scriptsDir = resolve(here, '..', 'scripts');
+    const offenders: string[] = [];
+
+    for (const entry of readdirSync(scriptsDir, {withFileTypes: true})) {
+      if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
+      const source = readFileSync(resolve(scriptsDir, entry.name), 'utf8');
+      for (const match of source.matchAll(/auto[-_]demo/gu)) {
+        // Allow comment references to the historical archived branch
+        // `archive/auto-demo-merger-2026-05-25` — that's a historical
+        // identifier, not a brand claim.
+        const before = source.slice(Math.max(0, match.index - 40), match.index);
+        if (/archive\/auto[-_]demo/u.test(before + match[0])) continue;
+        offenders.push(`${entry.name}: ...${source.slice(Math.max(0, match.index - 20), match.index + 30)}...`);
+      }
+    }
+
+    expect(offenders, `scripts/*.mjs must not contain stale brand strings; found: ${offenders.join(' || ')}`)
+      .toStrictEqual([]);
+  });
+
   test('contains no hardcoded credential literals', () => {
     const lines = raw.split('\n');
     const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w-]{16,}/iu;
