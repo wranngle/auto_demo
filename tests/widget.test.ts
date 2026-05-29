@@ -15,6 +15,7 @@ import {
 } from '../src/widget/index.js';
 import {loadScenario} from '../src/widget/scenario.js';
 import {ELEVENLABS_WIDGET_VERSION} from '../src/widget/widget-asset.js';
+import {replyHoldBonus} from '../src/widget/render.js';
 import type {WidgetScenario} from '../src/widget/types.js';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
@@ -423,6 +424,52 @@ describe('mock ↔ real-widget selector contract', () => {
     expect(selectors.some(selector => selector.includes(WIDGET_SELECTORS.send))).toBe(true);
     expect(WIDGET_SELECTORS.input).toBe('textarea[aria-label="Text message input"]');
     expect(WIDGET_SELECTORS.send).toBe('button[aria-label="Send"]');
+  });
+});
+
+// Cinematic-pacing contract: `replyHoldBonus` is the pure function that
+// shapes per-turn post-reply hold duration in the live flow. Uniform beats
+// read as a metronome; this function injects deliberate variation. The
+// numbers (400 / 600 / 500) are explicit design choices — locking them so
+// a refactor that "simplifies" the function back to uniform pacing breaks
+// the test rather than the user experience.
+describe('replyHoldBonus: per-turn pacing variation', () => {
+  const simpleReply = [{say: 'ack'}];
+  const richReply = [{say: 'Booked!'}, {tool: 't', args: {}, result: 'r'}, {say: 'See you then.'}];
+  const longSayReply = [{say: 'A markdown summary with a bold heading, bulleted detail list, and a clickable confirmation link that exceeds the 80-char threshold.'}];
+
+  test('first turn gets +400ms orient bonus', () => {
+    expect(replyHoldBonus(simpleReply, true, false)).toBe(400);
+  });
+
+  test('last turn gets +600ms resolution bonus', () => {
+    expect(replyHoldBonus(simpleReply, false, true)).toBe(600);
+  });
+
+  test('middle turn with simple reply gets no bonus (baseline rhythm)', () => {
+    expect(replyHoldBonus(simpleReply, false, false)).toBe(0);
+  });
+
+  test('rich reply (>2 pieces) adds +500ms regardless of position', () => {
+    expect(replyHoldBonus(richReply, false, false)).toBe(500);
+  });
+
+  test('long final say (>80 chars) adds the same +500ms rich-reply bonus', () => {
+    expect(replyHoldBonus(longSayReply, false, false)).toBe(500);
+  });
+
+  test('bonuses compose: first turn + rich reply = 900ms', () => {
+    expect(replyHoldBonus(richReply, true, false)).toBe(900);
+  });
+
+  test('bonuses compose: last turn + rich reply = 1100ms', () => {
+    expect(replyHoldBonus(richReply, false, true)).toBe(1100);
+  });
+
+  test('single-turn scenarios are both first and last (1000ms total bonus on simple)', () => {
+    // Defensive: a single-turn scenario has index 0 == count-1, so both flags
+    // are true. Hold should reflect both orient + resolution intent.
+    expect(replyHoldBonus(simpleReply, true, true)).toBe(1000);
   });
 });
 
