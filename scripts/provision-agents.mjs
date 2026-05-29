@@ -13,8 +13,8 @@ import {writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 import {loadElevenLabsKey} from './_lib/load-elevenlabs-key.mjs';
+import {ELEVENLABS_AGENTS_API as API} from './_lib/elevenlabs-api.mjs';
 
-const API = 'https://api.elevenlabs.io/v1/convai/agents';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
