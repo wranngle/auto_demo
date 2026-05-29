@@ -473,6 +473,55 @@ describe('replyHoldBonus: per-turn pacing variation', () => {
   });
 });
 
+// Behavioral parity coupling: PR #118 added per-turn variation to live
+// flows; PR #120 mirrored the same shape into mock flows. Both call the
+// same `replyHoldBonus()` helper and add a `Compose breath` pause. Without
+// THIS test, a future refactor that strips the variation from one flow
+// but not the other would still pass the helper's contract tests (the
+// function still works in isolation) — only the actual generated flows
+// would regress. Assert that BOTH paths produce non-uniform per-turn
+// hold durations and ship a compose-breath beat per turn.
+describe('mock ↔ live pacing parity (no metronome)', () => {
+  // Force 3 turns so the first/middle/last variation is observable.
+  function threeTurn(): WidgetScenario {
+    const base = scenario();
+    base.turns.push({
+      user: 'Third Q', reply: [{say: 'Done.'}],
+    });
+    return base;
+  }
+
+  function asLive(scen: WidgetScenario): WidgetScenario {
+    return {...scen, live: {agentId: 'agent_test_parity', replyWaitMs: 6500}};
+  }
+
+  test('mock flow holds vary across turns (not all-equal)', () => {
+    const flow = buildDemoFlow(threeTurn(), 'x.html');
+    const holds = flow.steps.filter(s => s.action === 'pause' && s.label?.startsWith('Hold on answer')).map(s => s.ms);
+    expect(holds).toHaveLength(3);
+    expect(new Set(holds).size, `mock holds were all-equal: ${holds.join(',')} — pacing has regressed to a metronome`).toBeGreaterThan(1);
+  });
+
+  test('live flow holds vary across turns (not all-equal)', () => {
+    const flow = buildDemoFlow(asLive(threeTurn()), 'x.html');
+    const holds = flow.steps.filter(s => s.action === 'pause' && s.label?.startsWith('Hold on answer')).map(s => s.ms);
+    expect(holds).toHaveLength(3);
+    expect(new Set(holds).size, `live holds were all-equal: ${holds.join(',')} — pacing has regressed to a metronome`).toBeGreaterThan(1);
+  });
+
+  test('both flows emit exactly one Compose breath per turn', () => {
+    const base = threeTurn();
+    const mockFlow = buildDemoFlow(base, 'x.html');
+    const liveFlow = buildDemoFlow(asLive(base), 'x.html');
+
+    const mockBreaths = mockFlow.steps.filter(s => s.action === 'pause' && s.label?.startsWith('Compose breath'));
+    const liveBreaths = liveFlow.steps.filter(s => s.action === 'pause' && s.label?.startsWith('Compose breath'));
+
+    expect(mockBreaths, 'mock flow lost its Compose breath beats (PR #120 regressed)').toHaveLength(base.turns.length);
+    expect(liveBreaths, 'live flow lost its Compose breath beats (PR #118 regressed)').toHaveLength(base.turns.length);
+  });
+});
+
 describe('shipped example scenarios (live + dual-mode)', () => {
   const examples = [
     'restaurant-trattoria',
