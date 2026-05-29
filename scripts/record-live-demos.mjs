@@ -31,16 +31,32 @@ async function main() {
   if (!existsSync(cli)) throw new Error('dist/cli.js missing — run `npm run build` first');
   const key = await loadElevenLabsKey();
   const files = (await readdir(scenarioDir)).filter(f => f.endsWith('.scenario.json')).sort();
+  // Per-scenario isolation: a single agent stall / browser drop must not
+  // cancel the remaining 6 recordings. Tally outcomes and exit non-zero
+  // only if at least one failed, so the operator sees the full batch state.
+  const ok = []; const failed = []; const skipped = [];
   for (const file of files) {
     const scenario = JSON.parse(await readFile(join(scenarioDir, file), 'utf8'));
     if (!scenario.live?.agentId) {
       console.log(`skip ${file} (no live.agentId)`);
+      skipped.push(file);
       continue;
     }
     console.log(`\n=== live record ${file} ===`);
-    await run([cli, 'widget', join(scenarioDir, file), '--out-dir', outDir, '--run'], {ELEVENLABS_API_KEY: key});
+    try {
+      await run([cli, 'widget', join(scenarioDir, file), '--out-dir', outDir, '--run'], {ELEVENLABS_API_KEY: key});
+      ok.push(file);
+    } catch (err) {
+      console.error(`!! ${file} failed: ${err instanceof Error ? err.message : String(err)}`);
+      failed.push(file);
+    }
   }
   console.log(`\nrecordings -> ${outDir}`);
+  console.log(`summary: ok=${ok.length} failed=${failed.length} skipped=${skipped.length}`);
+  if (failed.length > 0) {
+    console.log(`failed scenarios:\n  ${failed.join('\n  ')}`);
+    process.exitCode = 1;
+  }
 }
 
 await main();
