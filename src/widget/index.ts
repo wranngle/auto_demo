@@ -1,7 +1,7 @@
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {createServer, type Server} from 'node:http';
 import {
-  extname, join, normalize, resolve,
+  extname, join, normalize, resolve, sep,
 } from 'node:path';
 import {runFlow} from '../runner.js';
 import {loadScenario} from './scenario.js';
@@ -83,27 +83,49 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
 }
 
 // Pure resolver split out of serveDir so the path-traversal boundary can be
-// unit-tested without standing up an HTTP server. Returns the normalized
-// relative path the server would read, plus a `safe` flag — false means
-// the request must be rejected with 403 because the URL would resolve
-// outside the served root (e.g. `/../etc/passwd`, `/%2e%2e/foo`).
-export function resolveServePath(rawUrl: string | undefined): {relPath: string; safe: boolean} {
+// unit-tested without standing up an HTTP server.
+//
+// Returns the resolved absolute candidate path under `servedRoot` plus a
+// `safe` flag — false means the request MUST be rejected with 403 because
+// the URL would resolve outside the served root (e.g. `/../etc/passwd`,
+// `/%2e%2e/foo`, or any future construction that escapes via symlinks /
+// platform-specific path quirks).
+//
+// Safety check: prefix the relPath with `.` before passing to `resolve()` so
+// even a (somehow) absolute relPath is treated as relative to servedRoot.
+// Then assert the resolved candidate is at-or-under the absolute servedRoot
+// — the standard CodeQL-recognized sanitization for fs.readFile of
+// user-controlled input.
+export function resolveServePath(rawUrl: string | undefined, servedRoot: string): {candidatePath: string; relPath: string; safe: boolean} {
   const rel = decodeURIComponent((rawUrl ?? '/').split('?')[0] ?? '/');
   const relPath = normalize(rel.endsWith('/') ? `${rel}index.html` : rel);
-  return {relPath, safe: !relPath.includes('..')};
+  const rootAbs = resolve(servedRoot);
+  // Force a leading `/` so the `.` prefix produces a well-formed relative
+  // path (`./foo`) — a relPath that survives normalize with a leading `..`
+  // (no `/`) would otherwise become `'.' + '../x'` = `'../x'` *after* string
+  // concat is interpreted (no actual concat collision, but make the intent
+  // explicit), defeating the resolve-then-startsWith gate. The `.` ensures
+  // resolve treats relPath as relative even if it later starts with `/`.
+  const relWithSlash = relPath.startsWith('/') ? relPath : `/${relPath}`;
+  const candidatePath = resolve(rootAbs, `.${relWithSlash}`);
+  const safe = candidatePath === rootAbs || candidatePath.startsWith(rootAbs + sep);
+  return {candidatePath, relPath, safe};
 }
 
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {
   const server: Server = createServer(async (request, response) => {
     try {
-      const {relPath, safe} = resolveServePath(request.url);
+      const {candidatePath, relPath, safe} = resolveServePath(request.url, root);
       if (!safe) {
         response.writeHead(403);
         response.end('forbidden');
         return;
       }
 
-      const body = await readFile(join(root, relPath));
+      // readFile receives the sanitized absolute path under servedRoot — not
+      // a join of user input. The safe gate above is the path-injection
+      // sanitization CodeQL needs to see.
+      const body = await readFile(candidatePath);
       response.writeHead(200, {'content-type': mimeTypes[extname(relPath)] ?? 'application/octet-stream'});
       response.end(body);
     } catch {

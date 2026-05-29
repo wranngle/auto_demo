@@ -684,62 +684,74 @@ describe('shipped example scenarios (live + dual-mode)', () => {
 });
 
 // resolveServePath is the pure half of the live-mode static-file server in
-// `serveDir`. It maps an incoming request URL to a relative file path the
-// server reads under the served root + a `safe` flag.
+// `serveDir`. It maps an incoming request URL → an absolute candidate path
+// under `servedRoot` + a `safe` flag that the HTTP handler must check
+// before calling readFile. `safe === false` MUST produce a 403; the
+// candidate path was crafted to escape the served root.
 //
-// Defense observation: for HTTP request URLs (which always start with `/`),
-// `path.normalize` collapses any leading `..` past the root — so the
-// `relPath.includes('..')` guard is dead defense, never reachable from a
-// realistic request.url. Safety comes from normalize + `join(root, relPath)`,
-// both of which keep the resolved path under root. The guard is kept as
-// belt-and-suspenders for any future caller that bypasses normalize. These
-// tests pin the URL → path mapping (query stripping, index.html fallback,
-// inner ../ collapse) — the contract the HTTP handler downstream relies on.
+// The safety check uses the standard CodeQL-recognized pattern: prefix the
+// rel path with `.` before path.resolve() (so an unexpectedly-absolute
+// relPath stays relative to servedRoot), then assert the candidate is
+// at-or-under the absolute servedRoot. The check is what makes
+// fs.readFile of user-controlled input safe — CodeQL traces this gate.
 describe('resolveServePath (live-mode static-file URL → path mapping)', () => {
+  const ROOT = '/served/widget';
+  const expectedRoot = resolve(ROOT);
+
   test('a bare / appends index.html (live widget mount entrypoint)', () => {
-    expect(resolveServePath('/')).toEqual({relPath: '/index.html', safe: true});
+    const r = resolveServePath('/', ROOT);
+    expect(r.relPath).toBe('/index.html');
+    expect(r.candidatePath).toBe(resolve(expectedRoot, './index.html'));
+    expect(r.safe).toBe(true);
   });
 
   test('any path ending with / appends index.html', () => {
-    expect(resolveServePath('/sub/')).toEqual({relPath: '/sub/index.html', safe: true});
+    const r = resolveServePath('/sub/', ROOT);
+    expect(r.relPath).toBe('/sub/index.html');
+    expect(r.safe).toBe(true);
   });
 
   test('a normal file path resolves unchanged and is safe', () => {
-    expect(resolveServePath('/page.html')).toEqual({relPath: '/page.html', safe: true});
-    expect(resolveServePath('/assets/logo.png')).toEqual({relPath: '/assets/logo.png', safe: true});
+    expect(resolveServePath('/page.html', ROOT)).toMatchObject({relPath: '/page.html', safe: true});
+    expect(resolveServePath('/assets/logo.png', ROOT)).toMatchObject({relPath: '/assets/logo.png', safe: true});
   });
 
   test('inner ../ collapses fully inside the served root via normalize', () => {
-    expect(resolveServePath('/foo/../bar')).toEqual({relPath: '/bar', safe: true});
+    const r = resolveServePath('/foo/../bar', ROOT);
+    expect(r.relPath).toBe('/bar');
+    expect(r.safe).toBe(true);
+    expect(r.candidatePath).toBe(resolve(expectedRoot, './bar'));
   });
 
   test('leading ../ past the root is absorbed by normalize → resolves under root, marked safe', () => {
-    // POSIX normalize cannot go above '/'. `/../etc/passwd` collapses to
-    // `/etc/passwd`; combined with `join(servedRoot, '/etc/passwd')` =
-    // `<servedRoot>/etc/passwd`, the read stays under root. The
-    // includes('..') guard is therefore unreachable from real HTTP input.
-    expect(resolveServePath('/../etc/passwd')).toEqual({relPath: '/etc/passwd', safe: true});
-    expect(resolveServePath('/../../foo')).toEqual({relPath: '/foo', safe: true});
+    // `/../etc/passwd` normalizes to `/etc/passwd`; prefixing `.` makes
+    // `path.resolve` treat it as relative → `<rootAbs>/etc/passwd`, which
+    // stays under root. CodeQL's path-injection rule needs this check
+    // (resolved-path-starts-with-root) explicit on the readFile gate.
+    expect(resolveServePath('/../etc/passwd', ROOT).safe).toBe(true);
+    expect(resolveServePath('/../../foo', ROOT).safe).toBe(true);
   });
 
   test('URL-encoded escaping ../ decodes then normalizes (same collapse path)', () => {
-    expect(resolveServePath('/%2e%2e/foo')).toEqual({relPath: '/foo', safe: true});
+    expect(resolveServePath('/%2e%2e/foo', ROOT).safe).toBe(true);
   });
 
   test('strips query string before resolving (query is not part of the path)', () => {
-    expect(resolveServePath('/page.html?foo=bar')).toEqual({relPath: '/page.html', safe: true});
+    expect(resolveServePath('/page.html?foo=bar', ROOT).relPath).toBe('/page.html');
   });
 
   test('undefined url defaults to /index.html (matches the request.url ?? "/" branch)', () => {
-    expect(resolveServePath(undefined)).toEqual({relPath: '/index.html', safe: true});
+    expect(resolveServePath(undefined, ROOT).relPath).toBe('/index.html');
   });
 
-  // Direct cover of the dead-defense `..` guard. Reachable only if a caller
-  // hands `resolveServePath` a non-rooted path that survives normalize
-  // (HTTP request.url always starts with `/`, so this can't happen from
-  // serveDir's caller — but it's worth locking the guard so a refactor
-  // can't quietly remove it).
-  test('a non-rooted path that preserves .. after normalize is marked unsafe', () => {
-    expect(resolveServePath('../escape').safe).toBe(false);
+  // A non-rooted path that survives normalize would resolve OUTSIDE the
+  // served root via path.resolve. The `.` prefix + startsWith(rootAbs)
+  // check catches it. HTTP request.url always starts with `/` so this
+  // can't happen from serveDir's caller, but locks the guard against a
+  // future caller (or path-quirk like `\\?\` on Windows) that bypasses
+  // normalize.
+  test('a non-rooted path that escapes the root is marked unsafe', () => {
+    expect(resolveServePath('../escape', ROOT).safe).toBe(false);
+    expect(resolveServePath('../../etc/passwd', ROOT).safe).toBe(false);
   });
 });
