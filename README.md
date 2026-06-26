@@ -3,7 +3,7 @@
 ![ui-demo-runner hero](docs/hero.gif)
 
 Deterministic CLI recorder for browser UI demos. One command, one flow file,
-one reproducible video — every time.
+one reproducible video, every time.
 
 ```bash
 npm run demo:smoke
@@ -35,8 +35,8 @@ npm run build
 
 You also need `ffmpeg` + `ffprobe` on `PATH` (`apt install ffmpeg` / `brew install
 ffmpeg`). The recorder calls them to (a) re-time every webm to real-time
-playback — Playwright tags recordings at 25 fps while capturing ~75 fps of real
-frames, so without this step recordings play back 3–5× slow — and (b) power
+playback (Playwright tags recordings at 25 fps while capturing ~75 fps of real
+frames, so without this step recordings play back 3-5x slow) and (b) power
 `narrate`, `vertical`, `split`, and `svg`. If ffmpeg is missing the recording
 still succeeds and the manifest still ships; only the post-processing steps
 no-op.
@@ -50,8 +50,8 @@ npm run demo:smoke
 The run writes:
 
 - `.work/smoke-demo/recording.webm`
-- `.work/smoke-demo/manifest.json` — per-run snapshot
-- `.work/smoke-demo/events.jsonl` — ECS-shaped NDJSON event log (one line per step, grep/jq/DuckDB-readable across runs)
+- `.work/smoke-demo/manifest.json`: per-run snapshot
+- `.work/smoke-demo/events.jsonl`: ECS-shaped NDJSON event log (one line per step, grep/jq/DuckDB-readable across runs)
 - `.work/smoke-demo/screenshots/opportunity-review.png`
 
 ## Record another repo
@@ -117,7 +117,7 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 `ui-demo-runner narrate` muxes a voiceover track onto an existing recording.
 The default `--voice mock` synthesizes a deterministic sine tone per line so
 tests never hit the network. `--voice elevenlabs` is reserved for real TTS but is
-not yet wired — it currently falls back to the same mock tone.
+not yet wired; it currently falls back to the same mock tone.
 
 ```bash
 node dist/cli.js narrate \
@@ -163,7 +163,7 @@ node dist/cli.js from-url https://example.com/billing \
 ```
 
 Every step in the emitted `steps[]` carries `selector`, `action`, and
-`narration` — the contract that downstream `run` and `narrate` consume.
+`narration`: the contract that downstream `run` and `narrate` consume.
 
 ## ElevenLabs widget demos (real agent + deterministic mock)
 
@@ -173,12 +173,12 @@ One scenario, two modes (`live` block present = real agent; absent = mock), both
 driven through the real widget's text-mode selectors.
 
 ```bash
-node scripts/provision-agents.mjs        # idempotent — create/reuse 7 demo agents
+node scripts/provision-agents.mjs        # idempotent: create/reuse 7 demo agents
 node scripts/tune-agents.mjs             # PATCH each agent: markdown reply + client tools + branded text-contents
 node scripts/record-live-demos.mjs       # record all 7 → output/live-widget/
 ```
 
-Seven shipped scenarios under `examples/widget/` — six vertical demos (restaurant,
+Seven shipped scenarios under `examples/widget/`: six vertical demos (restaurant,
 dental, salon, ecommerce, medspa, home-services) plus a dedicated SaaS
 **wranngle-scheduling** scenario that exercises the real Cal.com `book_demo`
 webhook end-to-end (the only scenario whose recording creates a real Cal.com
@@ -190,22 +190,22 @@ registers the canned handlers via the `elevenlabs-convai:call` event; the real
 agent's LLM decides to call a tool, it runs in-page with **no backend, no side
 effects**, returns the canned result, and the agent speaks it as rich markdown
 (a bold heading + bulleted detail list + a clickable confirmation link). Live
-recordings are choreographed for motion — a zoom punch anchored at the widget's
+recordings are choreographed for motion: a zoom punch anchored at the widget's
 bottom-right corner held while the reply streams, then a pull-back.
 
 `live.workspaceToolIds: string[]` attaches existing ElevenLabs workspace tools
 by id (e.g. the native cal.com `book_demo` webhook). **These take real actions**
-when invoked — real Cal.com bookings, real SMS. `tune-agents.mjs` merges them
+when invoked: real Cal.com bookings, real SMS. `tune-agents.mjs` merges them
 onto the agent's `prompt.tool_ids` (the API rejects sending inline `tools` +
 `tool_ids` together). Only the **wranngle-scheduling** scenario ships with the
 real Cal.com `book_demo` attached; re-recording it may create a real booking if
 the conversation reaches that tool. The six vertical scenarios use client-tool
-mocks exclusively — recording them is side-effect-free.
+mocks exclusively; recording them is side-effect-free.
 
 ## Animated SVG export (README hero)
 
 `ui-demo-runner svg` samples frames from an existing MP4 and emits a single
-self-contained animated SVG suitable for embedding directly in a README — the
+self-contained animated SVG suitable for embedding directly in a README: the
 same surface as `docs/hero.gif` from the hero block, but as inline markup that
 renders without binary asset hosting.
 
@@ -223,7 +223,7 @@ stays cheap to ship alongside the README; tune `--frames`, `--width`, or
 ## Split-screen export (flow + recording side-by-side)
 
 `ui-demo-runner split` renders a 1920x1080 MP4 with the flow's step list on the
-left and an existing recording on the right — internal review clip for
+left and an existing recording on the right: internal review clip for
 walking a teammate through what each step actually does, frame by frame.
 
 ```bash
@@ -241,7 +241,7 @@ completion.
 ## Storyboard (markdown summary of a recorded run)
 
 `ui-demo-runner storyboard` walks a recorded run's `manifest.json` and emits
-a markdown `storyboard.md` beside it — one row per step with the screenshot
+a markdown `storyboard.md` beside it: one row per step with the screenshot
 artifact thumbnail and the narration text. Useful for PR descriptions, async
 review, and dropping a flat summary into a doc without re-running the demo.
 
@@ -287,14 +287,14 @@ Use the action rail for internal review clips and dense walkthroughs where the
 viewer needs to see the planned sequence. Turn it off for final public exports if
 it competes with the product UI.
 
-## CI integration — re-record on every deploy
+## CI integration: re-record on every deploy
 
 Drop in the shipped GitHub Action template so every push to `main` produces a
 fresh `recording.webm` + `manifest.json` as a workflow artifact:
 
 ```bash
 mkdir -p .github/workflows
-cp "$(npm root -g)/ui-demo-runner/templates/auto-demo-on-deploy.yml.template" \
+cp templates/auto-demo-on-deploy.yml.template \
    .github/workflows/ui-demo-runner-on-deploy.yml
 git add .github/workflows/ui-demo-runner-on-deploy.yml
 ```
@@ -307,7 +307,7 @@ commit. Artifacts land under the workflow run as `ui-demo-runner-<sha>`.
 Re-record only when the UI actually changes. `watch --once` hashes the previous
 and next DOM snapshots, emits `CHANGE_DETECTED` (or `NO_CHANGE`), and fires a
 re-run hook exactly once per detected change. `--once` is the only mode wired
-today — wire a polling loop on top via cron, `nodemon`, or a CI scheduled
+today; wire a polling loop on top via cron, `nodemon`, or a CI scheduled
 workflow that re-runs this command against your latest DOM snapshot.
 
 ```bash
