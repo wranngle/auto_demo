@@ -37,9 +37,10 @@ You also need `ffmpeg` + `ffprobe` on `PATH` (`apt install ffmpeg` / `brew insta
 ffmpeg`). The recorder calls them to (a) re-time every webm to real-time
 playback (Playwright tags recordings at 25 fps while capturing ~75 fps of real
 frames, so without this step recordings play back 3-5x slow) and (b) power
-`narrate`, `vertical`, `split`, and `svg`. If ffmpeg is missing the recording
-still succeeds and the manifest still ships; only the post-processing steps
-no-op.
+`narrate`, `vertical`, `split`, and `svg`. If ffmpeg is missing, `run` still
+records and writes `manifest.json`; only the recording retiming is skipped. The
+`narrate`, `vertical`, `split`, and `svg` subcommands require ffmpeg/ffprobe and
+fail without them.
 
 ## Run the smoke demo
 
