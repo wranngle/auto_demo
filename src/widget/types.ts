@@ -65,6 +65,8 @@ export type ScenarioLiveWidget = {
   agentId: string;
   orb1?: string;
   orb2?: string;
+  /** URL for the widget's avatar image (replaces the orb when set). */
+  avatarImage?: string;
   replyWaitMs?: number;
   branding?: ScenarioBranding;
   linkHosts?: string[];

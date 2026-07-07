@@ -65,7 +65,8 @@ Minimal shape:
 
 `live.branding.{mainLabel,startCall}` set widget labels per business;
 `live.linkHosts` allowlists hosts so markdown links in agent replies are
-clickable; `live.clientTools[]` declares canned in-page tools (`name`,
+clickable; `live.avatarImage` (optional URL) replaces the orb gradient with a
+brand avatar image; `live.clientTools[]` declares canned in-page tools (`name`,
 `description`, `params`, `result`) that the agent's LLM can invoke;
 `live.workspaceToolIds[]` attaches existing ElevenLabs workspace tool ids by
 reference — those take **real actions** when invoked, use only where intended.

@@ -113,6 +113,7 @@ function liveBodyAttrs(scenario: WidgetScenario, live: NonNullable<WidgetScenari
     `data-agent-id="${esc(live.agentId)}"`,
     live.orb1 === undefined ? '' : `data-orb-1="${esc(live.orb1)}"`,
     live.orb2 === undefined ? '' : `data-orb-2="${esc(live.orb2)}"`,
+    live.avatarImage === undefined ? '' : `data-avatar-image="${esc(live.avatarImage)}"`,
     `data-text-contents="${esc(JSON.stringify(textContents))}"`,
     `data-link-hosts="${esc(linkHosts)}"`,
   ];

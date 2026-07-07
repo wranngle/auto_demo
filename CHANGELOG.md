@@ -30,6 +30,12 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   text-contents; `scripts/record-live-demos.mjs` records the whole suite. (#16, #17)
 - `examples/widget/README.md` orientation: scenario shape, real-action
   boundary, authoring guide. (#20)
+- `live.avatarImage` (optional URL): replaces the widget's orb gradient
+  with a brand avatar image. The runtime had read
+  `body.dataset.avatarImage` since #16, but no schema field or renderer
+  write existed — the read↔write drift test carved a permanent exemption
+  around it. Wired end-to-end (scenario schema → `data-avatar-image` →
+  `avatar-image-url`) and the exemption removed. (#140)
 
 ### Added — Recorder + flow features
 - `run` — Playwright-driven flow recorder with cursor overlay, captions,
@@ -52,7 +58,18 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   animated SVG for README embeds, with a 200 KB ceiling. (#14)
 - `writeRegressArtifacts()` library helper (`src/modes/regress.ts`) writes
   `regression.json` + `regression-summary.md` from a per-flow pass-rate report.
-  Library API only — not wired as a CLI subcommand. (#8)
+  Library API only — not wired as a CLI subcommand; importable from the
+  package entry since #139. (#8)
+- Library entry point: `package.json` gains `main`/`types`/`exports`
+  pointing at a new `src/index.ts` barrel, so the documented programmatic
+  surface (`runFlow`, `renderNarration`, `writeRegressArtifacts`,
+  `generateScriptFromUrl`, `watchOnce`, …) is actually importable —
+  previously the package was bin-only and every "library API" claim was
+  unreachable by consumers. (#139)
+- `from-url --narration-out <path>`: writes a narrate-compatible
+  `start | duration | text` script from the steps' narration (one cue per
+  step, slot-timed by reading speed), completing the documented
+  from-url → narrate pipeline that previously had no bridge. (#139)
 - `--quality 720p | 1080p | 4k` preset for `run` (viewport + bitrate). (#6)
 - `--captions-lang en,es,pt,fr` multilingual SRT export. (#5)
 - `split` subcommand — 1920×1080 split-screen of flow + recording. (#4)
@@ -197,7 +214,7 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (37 cases across 8 files: from-url, narrate,
+- Bats shell-integration suite (38 cases across 8 files: from-url, narrate,
   split, storyboard, svg, vertical, watch, widget) now runs in CI under the
   existing `test` job — installs bats + ffmpeg on the ubuntu-latest runner.
   Closes the doctrine gap "wire to CI before claiming done". (#25; split.bats
