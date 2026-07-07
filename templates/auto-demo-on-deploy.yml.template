@@ -31,12 +31,22 @@ jobs:
       - name: Install Playwright browsers
         run: npx --yes playwright@1.57.0 install --with-deps chromium
 
-      - name: Record demo
-        env:
-          # CONSUMER: provide ANTHROPIC_API_KEY only if your flow uses `capture` mode.
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # ffmpeg is NOT preinstalled on ubuntu-latest. Without it the recording
+      # still succeeds but ships stretched 3-5x slow-motion (the runner's
+      # real-time retime is skipped) — install it so CI artifacts play right.
+      - name: Install ffmpeg
         run: |
-          npx --yes ui-demo-runner run \
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Record demo
+        # CONSUMER: plain `run` needs no secrets. Export ELEVENLABS_API_KEY
+        # here only if you chain `narrate --voice elevenlabs` onto the
+        # recording in a later step.
+        # CONSUMER: once ui-demo-runner is published to npm, shorten the
+        # install spec below to just `ui-demo-runner`.
+        run: |
+          npx --yes ui-demo-runner@github:wranngle/auto_demo run \
             flows/golden.demo.json \
             --output .ui-demo-runner/ci
 

@@ -92,6 +92,10 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `.agents/`, `.automation/`, `schemas/automation-policy.v1.json`,
   `WORKFLOW.md`, `AUTOMATION.md`, `DESIGN.md`, internal portfolio docs.
   Audit verdict: zero secrets in any tracked file.
+- `examples/portfolio/gtm-ops-console.demo.json`: unrunnable orphan (its
+  `startUrl` targets a private app that ships nowhere in the repo) that
+  was being published in the npm tarball. Dropped per the same precedent
+  as the earlier portfolio-orphan sweeps (#37/#45/#81). (#138)
 
 ### Fixed
 - **Real-time playback (kills the 3–5× slow-motion bug).** Playwright tags webms
@@ -142,6 +146,19 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   without the real booking webhook until it is manually recreated.
   Verified end-to-end with a live recording (35 steps, branded header,
   markdown reply + client-tool confirmation link). (#137)
+- The packed npm tarball can now actually run `from-url`: the mock-LLM
+  client hard-resolves `<pkg>/fixtures/from-url-mock-response.json`, but
+  `files[]` never shipped it, so every installed copy failed with ENOENT
+  out of the box. Verified by installing the packed tarball fresh and
+  running the command. (#138)
+- Consumer CI template truth pass: the `capture`-mode / `ANTHROPIC_API_KEY`
+  guidance pointed at a mode that has never existed (replaced with the
+  real optional secret, `ELEVENLABS_API_KEY` for narrate chaining); the
+  recording step now installs ffmpeg (not preinstalled on ubuntu-latest —
+  without it every CI artifact shipped 3-5x slow-motion); and the install
+  spec uses `ui-demo-runner@github:wranngle/auto_demo` so the workflow
+  works today — the bare registry name 404s until the package is
+  published. (#138)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was
