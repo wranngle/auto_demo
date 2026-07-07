@@ -121,6 +121,21 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 - `split` now delivers the README's cleanup promise: the default scratch
   dir (`.ui-demo-runner-split/`) is removed after a successful render; an
   explicit `--work-dir` is kept for inspection. (#136)
+- **Live widget suite restored after workspace loss.** All 7 demo agents
+  had been deleted from the ElevenLabs workspace (every `live.agentId`
+  404'd), leaving the provisioning scripts green locally but dead against
+  the cloud. Re-provisioned all 7 and hardened the scripts so this class
+  of loss self-heals: `provision-agents.mjs` now syncs fresh agent ids
+  back into each scenario file (format-preserving) and single-sources
+  `first_message` from the scenario's `agent.greeting`; `tune-agents.mjs`
+  gains per-scenario failure isolation (same contract as
+  `record-live-demos.mjs`) and preflights `workspaceToolIds`, skipping
+  dead tools with a loud warning instead of aborting the PATCH. The
+  Cal.com `book_demo` workspace tool (`tool_4001…`) was also deleted and
+  cannot be recreated from repo state — `wranngle-scheduling` runs
+  without the real booking webhook until it is manually recreated.
+  Verified end-to-end with a live recording (35 steps, branded header,
+  markdown reply + client-tool confirmation link). (#137)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was

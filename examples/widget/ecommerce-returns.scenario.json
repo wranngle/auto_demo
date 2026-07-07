@@ -12,7 +12,7 @@
     "greeting": "Hi, you've reached Northwind Supply support — this is Nova. Tracking an order, or starting a return?"
   },
   "live": {
-    "agentId": "agent_2201kseyczpyf8k81f0csq2jg5st",
+    "agentId": "agent_2901kwxg24q9ew28azpzsfk4d3sv",
     "orb1": "#a78bfa", "orb2": "#4c1d95",
     "branding": {"mainLabel": "Northwind Supply support", "startCall": "Talk to Nova"},
     "linkHosts": ["northwind.example.com"],
