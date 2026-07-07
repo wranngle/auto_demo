@@ -1,5 +1,5 @@
 import {execFile} from 'node:child_process';
-import {mkdir, readFile, rm} from 'node:fs/promises';
+import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {promisify} from 'node:util';
@@ -7,6 +7,17 @@ import {promisify} from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const SAMPLE_RATE = 44_100;
+
+// Base URL is env-overridable (ELEVENLABS_TTS_API) so shell-level tests can
+// point it at an unroutable address and exercise the failure path offline.
+const ELEVENLABS_TTS_API = 'https://api.elevenlabs.io/v1/text-to-speech';
+// "George — Warm, Captivating Storyteller": a current premade voice present
+// in every workspace's roster, so it works via API even on the free tier
+// (legacy voices like Rachel resolve as "library voices" there and 402).
+export const DEFAULT_ELEVENLABS_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb';
+const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2';
+const SYNTHESIS_MAX_ATTEMPTS = 3;
+const RETRYABLE_HTTP_STATUS = new Set([429, 500, 502, 503, 504]);
 
 // Supported `--voice` ids. The CLI option help and README enumerate these
 // — adding a new id requires updating both surfaces (locked by
@@ -21,6 +32,10 @@ export type NarrateOptions = {
   voice: string;
   workDir?: string;
   elevenLabsApiKey?: string;
+  /** ElevenLabs voice to synthesize with; only read when voice === 'elevenlabs'. */
+  voiceId?: string;
+  /** Base backoff in ms between synthesis retries (doubles per attempt); tests shrink it. */
+  retryBaseMs?: number;
 };
 
 export type NarrateResult = {
@@ -65,30 +80,44 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
   await mkdir(workDir, {recursive: true});
   await mkdir(dirname(outputPath), {recursive: true});
 
-  // The `elevenlabs` voice is intentionally a thin stub today (see
-  // synthesizeElevenLabsLine below); when called it falls back to the same
-  // mock tone. Track whether the real synthesizer ever ran a network call —
-  // it never does today, so the result honestly reports `'mock'`. Wiring
-  // the real path means changing synthesizeElevenLabsLine to POST and
-  // setting realSynthesisRan = true on success.
+  // `--voice elevenlabs` performs real synthesis when a key is available
+  // (option first, then ELEVENLABS_API_KEY). Without a key it deliberately
+  // falls back to the mock tone — documented in the README — and the result
+  // must honestly report `'mock'`: realSynthesisRan only flips on a
+  // successful network synthesis. Once a key IS provided, failures throw
+  // rather than silently degrading to the tone.
   const wantElevenLabs = options.voice === 'elevenlabs';
   const apiKey = options.elevenLabsApiKey ?? process.env.ELEVENLABS_API_KEY;
   let realSynthesisRan = false;
 
   const wavPaths: string[] = [];
+  const mixLines: NarrationLine[] = [];
   for (const [index, line] of lines.entries()) {
     const wavPath = join(workDir, `line-${String(index).padStart(4, '0')}.wav`);
     if (wantElevenLabs && apiKey !== undefined && apiKey !== '') {
-      realSynthesisRan ||= await synthesizeElevenLabsLine(line, wavPath, apiKey);
+      // NOT `||=`: logical-or assignment short-circuits once true, which
+      // would skip synthesis for every line after the first.
+      const lineSynthesized = await synthesizeElevenLabsLine(line, wavPath, {
+        apiKey,
+        voiceId: options.voiceId ?? DEFAULT_ELEVENLABS_VOICE_ID,
+        retryBaseMs: options.retryBaseMs ?? 1000,
+      });
+      realSynthesisRan = realSynthesisRan || lineSynthesized;
+      // Real speech has a natural length that can overrun the script's slot.
+      // The mix must know the true extent or its trailing `-t` would clip the
+      // final line mid-word (mux still caps audio at video length via -shortest).
+      const actualSec = await probeDurationSec(wavPath);
+      mixLines.push({...line, durationSec: Math.max(line.durationSec, actualSec)});
     } else {
       await synthesizeMockLine(line, wavPath);
+      mixLines.push(line);
     }
 
     wavPaths.push(wavPath);
   }
 
   const mixedAudioPath = join(workDir, 'mixed.wav');
-  await mixNarrationTrack(wavPaths, lines, mixedAudioPath);
+  await mixNarrationTrack(wavPaths, mixLines, mixedAudioPath);
 
   await muxAudioOntoVideo(inputVideoPath, mixedAudioPath, outputPath);
 
@@ -97,11 +126,9 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
 
   return {
     outputPath,
-    // Report what actually ran. Until the real ElevenLabs synthesis is
-    // wired (synthesizeElevenLabsLine), the elevenlabs path falls through
-    // to the same mock tone and reporting 'elevenlabs' here would lie to
-    // the operator — they'd think their key was used. Pinned to 'mock'
-    // until realSynthesisRan flips true from a successful network call.
+    // Report what actually ran: 'elevenlabs' only if at least one line was
+    // synthesized over the network. The keyless fall-through renders the
+    // mock tone, and claiming 'elevenlabs' for it would lie to the operator.
     voice: realSynthesisRan ? 'elevenlabs' : 'mock',
     lineCount: lines.length,
     audioStreams,
@@ -152,18 +179,94 @@ async function synthesizeMockLine(line: NarrationLine, wavPath: string): Promise
   ]);
 }
 
-// Real ElevenLabs synthesis would POST to https://api.elevenlabs.io/v1/text-to-speech/<voice_id>
-// and decode the mp3 response into wavPath, then return true. This branch is
-// intentionally a thin stub for now — the round-2 plan ships the mock-voice
-// contract; the network path is exercised by integration env. Until that lands,
-// this returns false so the caller's `realSynthesisRan` stays false and the
-// result honestly reports `voice: 'mock'` (the README + CHANGELOG both
-// promise the elevenlabs path falls back to mock — this keeps the JSON output
-// consistent with that promise).
-async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, _apiKey: string): Promise<boolean> {
-  await synthesizeMockLine(line, wavPath);
-  return false;
+type ElevenLabsSynthesisConfig = {
+  apiKey: string;
+  voiceId: string;
+  retryBaseMs: number;
+};
+
+// Network layer, split from the ffmpeg decode so the retry/error contract
+// stays unit-testable without external binaries (CI's vitest job has no
+// ffmpeg; the bats job covers the decode integration against a local mock
+// server). POSTs one narration line to the ElevenLabs TTS API and returns
+// the mp3 bytes. Rate limits and transient 5xx retry with exponential
+// backoff (honouring Retry-After when the server sends a longer wait);
+// every other failure throws — once the operator provides a key, degrading
+// to the mock tone silently is never acceptable.
+async function fetchElevenLabsSpeech(line: NarrationLine, config: ElevenLabsSynthesisConfig): Promise<Uint8Array> {
+  const base = process.env.ELEVENLABS_TTS_API ?? ELEVENLABS_TTS_API;
+  const url = `${base}/${config.voiceId}?output_format=mp3_44100_128`;
+  const snippet = line.text.length > 48 ? `${line.text.slice(0, 48)}…` : line.text;
+
+  let lastFailure = '';
+  for (let attempt = 1; attempt <= SYNTHESIS_MAX_ATTEMPTS; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': config.apiKey,
+          'content-type': 'application/json',
+          accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({text: line.text, model_id: ELEVENLABS_MODEL_ID}),
+      });
+    } catch (error) {
+      const cause = (error as {cause?: {code?: string}}).cause?.code;
+      throw new Error(`ElevenLabs TTS request failed for line "${snippet}": ${cause ?? (error instanceof Error ? error.message : String(error))}`);
+    }
+
+    if (response.ok) {
+      return new Uint8Array(await response.arrayBuffer());
+    }
+
+    const body = (await response.text()).slice(0, 300);
+    lastFailure = `HTTP ${response.status}${body === '' ? '' : `: ${body}`}`;
+    if (!RETRYABLE_HTTP_STATUS.has(response.status)) {
+      throw new Error(`ElevenLabs TTS failed for line "${snippet}": ${lastFailure}`);
+    }
+
+    if (attempt < SYNTHESIS_MAX_ATTEMPTS) {
+      const backoffMs = config.retryBaseMs * 2 ** (attempt - 1);
+      const retryAfterSec = Number.parseFloat(response.headers.get('retry-after') ?? '');
+      await sleep(Math.max(backoffMs, Number.isFinite(retryAfterSec) ? retryAfterSec * 1000 : 0));
+    }
+  }
+
+  throw new Error(`ElevenLabs TTS failed for line "${snippet}" after ${SYNTHESIS_MAX_ATTEMPTS} attempts (${lastFailure})`);
 }
+
+// Fetches one line's speech and decodes it into the mono 44.1 kHz WAV the
+// mixer expects, returning true so the caller's `realSynthesisRan` flips.
+async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, config: ElevenLabsSynthesisConfig): Promise<boolean> {
+  const audio = await fetchElevenLabsSpeech(line, config);
+  const mp3Path = wavPath.replace(/\.wav$/, '.mp3');
+  await writeFile(mp3Path, audio);
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-i', mp3Path,
+    '-ac', '1',
+    '-ar', String(SAMPLE_RATE),
+    '-acodec', 'pcm_s16le',
+    wavPath,
+  ]);
+  return true;
+}
+
+async function probeDurationSec(mediaPath: string): Promise<number> {
+  const {stdout} = await execFileAsync('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration',
+    '-of', 'csv=p=0',
+    mediaPath,
+  ]);
+  const seconds = Number.parseFloat(stdout.trim());
+  return Number.isFinite(seconds) ? seconds : 0;
+}
+
+const sleep = async (ms: number) => new Promise<void>(resolve => {
+  setTimeout(resolve, ms);
+});
 
 function mockToneFrequencyHz(text: string): number {
   let hash = 0;
@@ -244,4 +347,4 @@ async function fileSize(path: string): Promise<number> {
 }
 
 // Re-export for test introspection.
-export const __test__ = {mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo};
+export const __test__ = {mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo, fetchElevenLabsSpeech};

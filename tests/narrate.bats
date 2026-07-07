@@ -25,6 +25,9 @@ setup_file() {
 }
 
 teardown_file() {
+  if [ -f "${WORK_DIR:-}/mock-server.pid" ]; then
+    kill "$(cat "$WORK_DIR/mock-server.pid")" 2>/dev/null || true
+  fi
   if [ -n "${WORK_DIR:-}" ] && [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
   fi
@@ -75,22 +78,76 @@ teardown_file() {
   [[ "${output}" == *"\"voice\": \"mock\""* ]]
 }
 
-@test "narrate: --voice elevenlabs WITH API key still reports voice=mock (stub not wired)" {
-  # The synthesize-elevenlabs branch is intentionally a thin stub that falls
-  # through to the mock tone (see src/modes/narrate.ts comment). Until the
-  # real network call is wired, the JSON result must NOT claim 'elevenlabs'
-  # as the voice — it would be lying to the operator who set the key.
-  # Locks the honesty contract: result.voice == what actually ran.
+@test "narrate: --voice elevenlabs WITH key fails fast when the API is unreachable (no silent mock fallback)" {
+  # Once a key is provided the operator asked for real synthesis; a network
+  # failure must surface as an error, never silently degrade to the mock
+  # tone. ELEVENLABS_TTS_API points at an unroutable local port so the test
+  # stays offline and deterministic. Locks the honesty contract from the
+  # other side: result.voice == what actually ran, and 'nothing ran' is an
+  # error, not a mock recording.
   outputWithKey="$WORK_DIR/elevenlabs-with-key.mp4"
-  ELEVENLABS_API_KEY="dummy-key-for-test" run node "$CLI_ENTRY" narrate \
+  ELEVENLABS_API_KEY="dummy-key-for-test" \
+    ELEVENLABS_TTS_API="http://127.0.0.1:9/v1/text-to-speech" \
+    run node "$CLI_ENTRY" narrate \
     --script "$SCRIPT_PATH" \
     --in "$INPUT_VIDEO" \
     --out "$outputWithKey" \
     --voice elevenlabs \
     --json
+  [ "$status" -ne 0 ]
+  [[ "${output}" == *"ElevenLabs TTS request failed"* ]]
+  [ ! -f "$outputWithKey" ]
+}
+
+@test "narrate: --voice elevenlabs against a reachable API performs real synthesis end-to-end" {
+  # Full success-path integration, offline: a local HTTP server plays the
+  # ElevenLabs API and returns a real (tiny) mp3 for every POST, so the CLI
+  # exercises fetch -> decode -> mix -> mux and must report voice=elevenlabs.
+  mockMp3="$WORK_DIR/mock-tts.mp3"
+  ffmpeg -y -f lavfi -i "sine=frequency=440:duration=0.4:sample_rate=44100" \
+    -ac 1 -acodec libmp3lame -b:a 128k "$mockMp3" >/dev/null 2>&1
+
+  portFile="$WORK_DIR/mock-port"
+  rm -f "$portFile"
+  node -e '
+    const {createServer} = require("node:http");
+    const {readFileSync} = require("node:fs");
+    const bytes = readFileSync(process.argv[1]);
+    createServer((req, res) => {
+      res.writeHead(200, {"content-type": "audio/mpeg"});
+      res.end(bytes);
+    }).listen(0, "127.0.0.1", function () {
+      console.log(String(this.address().port));
+    });
+  ' "$mockMp3" > "$portFile" 2>/dev/null 3>&- &
+  echo "$!" > "$WORK_DIR/mock-server.pid"
+
+  for _ in $(seq 1 50); do
+    [ -s "$portFile" ] && break
+    sleep 0.1
+  done
+  [ -s "$portFile" ]
+  mockPort="$(cat "$portFile")"
+
+  outputSuccess="$WORK_DIR/elevenlabs-success.mp4"
+  ELEVENLABS_API_KEY="dummy-key-for-test" \
+    ELEVENLABS_TTS_API="http://127.0.0.1:$mockPort/v1/text-to-speech" \
+    run node "$CLI_ENTRY" narrate \
+    --script "$SCRIPT_PATH" \
+    --in "$INPUT_VIDEO" \
+    --out "$outputSuccess" \
+    --voice elevenlabs \
+    --json
+
+  kill "$(cat "$WORK_DIR/mock-server.pid")" 2>/dev/null || true
+
   [ "$status" -eq 0 ]
-  [ -f "$outputWithKey" ]
-  [[ "${output}" == *"\"voice\": \"mock\""* ]]
+  [ -f "$outputSuccess" ]
+  [[ "${output}" == *"\"voice\": \"elevenlabs\""* ]]
+
+  audioStreams=$(ffprobe -v error -select_streams a -show_entries stream=codec_type \
+    -of csv=p=0 "$outputSuccess" | wc -l)
+  [ "$audioStreams" -ge 1 ]
 }
 
 @test "narrate: missing input video surfaces a clear error" {

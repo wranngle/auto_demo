@@ -34,9 +34,12 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
 ### Added — Recorder + flow features
 - `run` — Playwright-driven flow recorder with cursor overlay, captions,
   smooth zoom/focus, screenshot artifacts, and a per-run `manifest.json`.
-- `narrate` — mux a voiceover track (deterministic mock tone today; the
-  `--voice elevenlabs` slot is reserved for real TTS but currently falls
-  back to mock). (#9)
+- `narrate` — mux a voiceover track. `--voice mock` (default) renders a
+  deterministic sine tone per line; `--voice elevenlabs` performs real
+  ElevenLabs TTS (voice selected via `--voice-id`, exponential backoff on
+  429/5xx, hard failures throw). Without an API key the elevenlabs path
+  falls back to the mock tone and the result honestly reports
+  `voice: "mock"`. (#9, #134)
 - `vertical` — convert a recording into a 9:16 export for Shorts/TikTok/
   Reels with `--fit crop|pad`. (#10)
 - `from-url` — deterministic 5-step script from a URL + plain-English
@@ -123,7 +126,7 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (33 cases across 8 files: from-url, narrate,
+- Bats shell-integration suite (34 cases across 8 files: from-url, narrate,
   split, storyboard, svg, vertical, watch, widget) now runs in CI under the
   existing `test` job — installs bats + ffmpeg on the ubuntu-latest runner.
   Closes the doctrine gap "wire to CI before claiming done". (#25; split.bats

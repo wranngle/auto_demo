@@ -6,9 +6,14 @@
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, resolve} from 'node:path';
-import {describe, expect, test} from 'vitest';
-// eslint-disable-next-line @typescript-eslint/naming-convention
-import {parseNarrationScript, SUPPORTED_VOICES, __test__} from '../src/modes/narrate.js';
+import {afterEach, describe, expect, test, vi} from 'vitest';
+import {
+  DEFAULT_ELEVENLABS_VOICE_ID,
+  parseNarrationScript,
+  SUPPORTED_VOICES,
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __test__,
+} from '../src/modes/narrate.js';
 
 const {mockToneFrequencyHz} = __test__;
 const repoRoot = resolve(dirname(fileURLToPath(new URL('.', import.meta.url))));
@@ -82,6 +87,96 @@ describe('mockToneFrequencyHz', () => {
     // Not a hash strength claim — just confirming the hash isn't degenerate
     // (e.g., refactor to a constant return).
     expect(frequencies.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// fetchElevenLabsSpeech network contract, with fetch mocked so nothing ever
+// leaves the process — and no ffmpeg: CI's vitest job has no external
+// binaries (the decode/mix/mux integration lives in narrate.bats, which
+// runs on the ffmpeg-equipped bats CI step against a local mock server).
+// Locks: request shape, --voice-id routing, 429/5xx retry with backoff,
+// and hard HTTP failures throwing instead of degrading to the mock tone.
+describe('fetchElevenLabsSpeech (mocked network)', () => {
+  const {fetchElevenLabsSpeech} = __test__;
+  const line = {startSec: 0, durationSec: 1, text: 'First line'};
+  const speechBytes = new Uint8Array([1, 2, 3, 4]);
+  const config = (overrides: Partial<{apiKey: string; voiceId: string; retryBaseMs: number}> = {}) => ({
+    apiKey: 'test-api-key',
+    voiceId: DEFAULT_ELEVENLABS_VOICE_ID,
+    retryBaseMs: 1,
+    ...overrides,
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('POSTs the line to the voice endpoint and returns the audio bytes', async () => {
+    const fetchMock = vi.fn(async () => new Response(speechBytes, {status: 200}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const audio = await fetchElevenLabsSpeech(line, config());
+
+    expect([...audio]).toEqual([...speechBytes]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]! as unknown as [string, {method: string; headers: Record<string, string>; body: string}];
+    expect(url).toContain(`/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}`);
+    expect(url).toContain('output_format=mp3_44100_128');
+    expect(init.method).toBe('POST');
+    expect(init.headers['xi-api-key']).toBe('test-api-key');
+    expect(JSON.parse(init.body)).toMatchObject({text: 'First line'});
+  });
+
+  test('voiceId routes the request to the requested voice', async () => {
+    const fetchMock = vi.fn(async () => new Response(speechBytes, {status: 200}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchElevenLabsSpeech(line, config({voiceId: 'custom-voice-123'}));
+
+    const [url] = fetchMock.mock.calls[0]! as unknown as [string];
+    expect(url).toContain('/v1/text-to-speech/custom-voice-123');
+  });
+
+  test('429 retries with backoff and then succeeds', async () => {
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      calls++;
+      return calls === 1
+        ? new Response('rate limited', {status: 429, headers: {'retry-after': '0'}})
+        : new Response(speechBytes, {status: 200});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const audio = await fetchElevenLabsSpeech(line, config());
+
+    expect(audio.length).toBe(speechBytes.length);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('a non-retryable HTTP failure throws instead of degrading to mock', async () => {
+    const fetchMock = vi.fn(async () => new Response('invalid api key', {status: 401}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/HTTP 401/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('persistent 5xx exhausts retries and throws', async () => {
+    const fetchMock = vi.fn(async () => new Response('upstream sad', {status: 503}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/after 3 attempts/);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test('a network-level failure throws with the cause code, no retry', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw Object.assign(new TypeError('fetch failed'), {cause: {code: 'ECONNREFUSED'}});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/ECONNREFUSED/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
