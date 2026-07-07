@@ -55,3 +55,30 @@ print("ok")
   steps_count=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["steps"]))' "$tmpfile")
   [ "$steps_count" -eq 5 ]
 }
+
+@test "from-url: --narration-out emits a script narrate can consume end-to-end (mock voice)" {
+  # The full pipeline-story chain: from-url -> narration script -> narrate.
+  # Locks the bridge at the CLI layer, ffmpeg included.
+  WORK="$(mktemp -d -t ui-demo-fromurl-narrate.XXXXXX)"
+  run node "$CLI" from-url https://example.com/billing \
+    --goal "show how to add a credit card" \
+    --out "$WORK/script.json" \
+    --narration-out "$WORK/narration.txt"
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/narration.txt" ]
+  # One cue line per step (5), pipe-separated with numeric start/duration.
+  cue_count=$(grep -cE '^[0-9.]+ \| [0-9.]+ \| ' "$WORK/narration.txt")
+  [ "$cue_count" -eq 5 ]
+
+  ffmpeg -y -f lavfi -i "testsrc=duration=3:size=320x240:rate=15" \
+    -c:v libx264 -pix_fmt yuv420p "$WORK/input.mp4" >/dev/null 2>&1
+  run node "$CLI" narrate \
+    --script "$WORK/narration.txt" \
+    --in "$WORK/input.mp4" \
+    --out "$WORK/narrated.mp4" \
+    --voice mock --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"voice": "mock"'* ]]
+  [[ "$output" == *'"lineCount": 5'* ]]
+  rm -rf "$WORK"
+}

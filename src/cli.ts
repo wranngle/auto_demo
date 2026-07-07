@@ -11,6 +11,7 @@ import {parseQualityPreset, type QualitySpec} from './quality.js';
 import {runFlow} from './runner.js';
 import {parseLanguages, type CaptionLanguage} from './captions/srt.js';
 import {generateScriptFromUrl} from './from-url/index.js';
+import {renderNarrationScript} from './from-url/narration-script.js';
 import {buildWidgetScenario} from './widget/index.js';
 import {watchOnce} from './watch/index.js';
 import {writeStoryboard} from './storyboard/index.js';
@@ -204,10 +205,18 @@ program
   .argument('<url>', 'Target URL the script should drive')
   .requiredOption('--goal <text>', 'Plain-English goal, e.g. "show how to add a credit card"')
   .option('-o, --out <path>', 'Write the script JSON to this path instead of stdout')
-  .action(async (url: string, options: {goal: string; out?: string}) => {
+  .option('--narration-out <path>', 'Also write a narrate-compatible start|duration|text script built from the steps\' narration')
+  .action(async (url: string, options: {goal: string; out?: string; narrationOut?: string}) => {
     try {
       const script = await generateScriptFromUrl({url, goal: options.goal});
       const serialized = JSON.stringify(script, null, 2);
+
+      if (options.narrationOut !== undefined) {
+        const narrationPath = resolve(options.narrationOut);
+        await mkdir(dirname(narrationPath), {recursive: true});
+        await writeFile(narrationPath, renderNarrationScript(script), 'utf8');
+        console.log(`Wrote narration script to ${narrationPath}`);
+      }
 
       if (options.out === undefined) {
         console.log(serialized);
