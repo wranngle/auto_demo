@@ -93,3 +93,6 @@ docs/wranngle-hero-demo/
 
 # git_good runtime (per dotfiles doctrine)
 .artifacts/
+
+# Hero render intermediate (docs/hero.gif is the published asset)
+demo/hero.gif

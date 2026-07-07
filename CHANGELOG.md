@@ -153,6 +153,19 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   spec uses `ui-demo-runner@github:wranngle/auto_demo` so the workflow
   works today — the bare registry name 404s until the package is
   published. (#138)
+- **README hero GIF re-rendered — it now actually shows the product.**
+  The old `docs/hero.gif` cut off right after the run command was typed
+  (the tape slept a fixed 3 s while the Playwright run takes ~15 s) and
+  was a byte-identical copy of the raw vhs output — the optimize pass had
+  never run. Deeper: the stock VHS docker image has no node, so the
+  in-container pipeline could never have captured real output at all.
+  The tape now runs on the host (real recorder, real browser), waits on
+  the on-screen JSON payoff (`Wait+Screen`) instead of magic sleeps,
+  prints the basename instead of a home path, and shows the `retime`
+  status. New repo-owned `demo/render-hero.sh` renders + palette-optimizes
+  (ffmpeg gif re-encodes REQUIRE `palettegen`/`paletteuse`; the naive
+  filter emitted 29.7 MB from a 132 KB source) + publishes `docs/hero.gif`
+  (65 KB). (#141)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was
