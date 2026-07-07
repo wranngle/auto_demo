@@ -62,7 +62,9 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
         headed: options.headed ?? false,
         recordVideo: true,
         slowMoMs: 0,
-        speed: options.speed ?? 1,
+        // Only forward an explicit override: when absent, the generated
+        // flow's pinned timing.speed (1.35 mock / 1 live) governs the run.
+        ...(options.speed === undefined ? {} : {speed: options.speed}),
         ...(server === undefined ? {} : {baseUrl: `http://127.0.0.1:${server.port}/`}),
       });
 

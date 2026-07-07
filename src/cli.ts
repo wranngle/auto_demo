@@ -31,7 +31,7 @@ program
   .option('--headed', 'Show the browser while recording')
   .option('--no-video', 'Disable Playwright video capture')
   .option('--slow-mo <ms>', 'Delay Playwright actions for human-readable demos', parseInteger, 0)
-  .option('--speed <factor>', 'Scale demo waits and cursor motion; 1.5 is faster, 0.75 is slower', parseSpeed, 1)
+  .option('--speed <factor>', 'Scale demo waits and cursor motion; 1.5 is faster, 0.75 is slower. When passed, overrides the flow\'s timing.speed.', parseSpeed)
   .option('--captions-lang <codes>', 'Comma-separated SRT export languages (en,es,pt,fr)', parseLanguages)
   .option('--quality <preset>', 'Video preset: 720p | 1080p | 4k (sets viewport + bitrate)', parseQualityPreset)
   .addOption(new Option('--json', 'Print the run result as JSON').default(false))
@@ -41,7 +41,7 @@ program
     headed?: boolean;
     video: boolean;
     slowMo: number;
-    speed: number;
+    speed?: number;
     captionsLang?: CaptionLanguage[];
     quality?: QualitySpec;
     json: boolean;
@@ -54,7 +54,7 @@ program
         headed: options.headed ?? false,
         recordVideo: options.video,
         slowMoMs: options.slowMo,
-        speed: options.speed,
+        ...(options.speed === undefined ? {} : {speed: options.speed}),
         ...(options.captionsLang === undefined ? {} : {captionsLang: options.captionsLang}),
         ...(options.quality === undefined ? {} : {quality: options.quality}),
       };
@@ -231,14 +231,14 @@ program
   .option('-d, --out-dir <dir>', 'Directory for the generated <name>.html + <name>.demo.json', 'output/widget')
   .option('--run', 'Record the scenario immediately after generating it')
   .option('-o, --output <dir>', 'Recording output dir (implies --run; defaults under --out-dir)')
-  .option('--speed <factor>', 'Playback speed override for the recording run', parseSpeed, 1)
+  .option('--speed <factor>', 'Playback speed override for the recording run; when passed, wins over the generated flow\'s pinned timing.speed', parseSpeed)
   .option('--headed', 'Show the browser while recording')
   .addOption(new Option('--json', 'Print the result as JSON').default(false))
   .action(async (scenarioPath: string, options: {
     outDir: string;
     run?: boolean;
     output?: string;
-    speed: number;
+    speed?: number;
     headed?: boolean;
     json: boolean;
   }) => {
@@ -247,8 +247,8 @@ program
         scenarioPath: resolve(scenarioPath),
         outDir: options.outDir,
         run: options.run === true || options.output !== undefined,
-        speed: options.speed,
         headed: options.headed ?? false,
+        ...(options.speed === undefined ? {} : {speed: options.speed}),
         ...(options.output === undefined ? {} : {output: resolve(options.output)}),
       });
 
@@ -280,7 +280,8 @@ program
   .option('--once', 'Run a single comparison pass and exit (only mode wired today)')
   .option('--fixture <path>', 'Path to the previous DOM snapshot (HTML)')
   .option('--next <path>', 'Path to the next DOM snapshot (HTML)')
-  .action(async (options: {once?: boolean; fixture?: string; next?: string}) => {
+  .addOption(new Option('--json', 'Print the comparison result as JSON (suppresses the text sentinels)').default(false))
+  .action(async (options: {once?: boolean; fixture?: string; next?: string; json: boolean}) => {
     if (options.once !== true) {
       console.error('watch: only --once mode is wired in this release; pass --once with --fixture and --next');
       process.exitCode = 2;
@@ -298,14 +299,23 @@ program
       const result = await watchOnce({
         fixture: options.fixture,
         next: options.next,
+        // JSON mode swallows the human sentinels (CHANGE_DETECTED / NO_CHANGE
+        // / RERUN_INVOKED) so stdout stays a single parseable document.
+        ...(options.json ? {logger: () => undefined} : {}),
         runner: () => {
           rerunInvocations += 1;
-          console.log(`RERUN_INVOKED count=${rerunInvocations}`);
+          if (!options.json) {
+            console.log(`RERUN_INVOKED count=${rerunInvocations}`);
+          }
         },
       });
 
       if (result.changed && rerunInvocations !== 1) {
         throw new Error(`watch: expected exactly one re-run invocation, got ${rerunInvocations}`);
+      }
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
       }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -317,11 +327,16 @@ program
   .command('storyboard')
   .description('Render a markdown storyboard from a recorded run directory.')
   .argument('<runDir>', 'Directory containing manifest.json (e.g. out/run-<id>)')
-  .action(async (runDir: string) => {
+  .addOption(new Option('--json', 'Print the result as JSON').default(false))
+  .action(async (runDir: string, options: {json: boolean}) => {
     try {
       const resolved = resolve(runDir);
       const {path, rowCount} = await writeStoryboard(resolved);
-      console.log(`Storyboard: ${path} (${rowCount} keyframes)`);
+      if (options.json) {
+        console.log(JSON.stringify({path, rowCount}, null, 2));
+      } else {
+        console.log(`Storyboard: ${path} (${rowCount} keyframes)`);
+      }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

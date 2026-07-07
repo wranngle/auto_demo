@@ -249,7 +249,7 @@ node dist/cli.js split \
 The flow panel renders each step as a captioned card; the recording panel
 plays the source MP4 timed against the same per-step window. Scratch frames
 land under `.ui-demo-runner-split/` (gitignored) and are cleaned up on
-completion.
+completion; pass an explicit `--work-dir` to keep them for inspection.
 
 ## Storyboard (markdown summary of a recorded run)
 

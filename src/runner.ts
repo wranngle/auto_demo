@@ -469,7 +469,11 @@ function slug(value: string): string {
 type RuntimeTiming = Required<DemoTiming>;
 
 function normalizeTiming(flow: DemoFlow, options: RunOptions): RuntimeTiming {
-  const speed = clamp(flow.timing?.speed ?? options.speed, 0.25, 8);
+  // Precedence: an explicitly passed CLI --speed wins over the flow's pinned
+  // timing.speed (the CLI option no longer carries a default, so it is only
+  // present when the operator actually asked for an override), then the flow,
+  // then real-time.
+  const speed = clamp(options.speed ?? flow.timing?.speed ?? 1, 0.25, 8);
 
   return {
     speed,
@@ -513,4 +517,4 @@ function ignoreCleanupError(): void {
 // Re-export for test introspection. `delay` is the speed adjuster called by
 // every Playwright wait in runStep — a regression that breaks the clamp or
 // round would silently affect all recordings. Lock the contract via tests.
-export const __test__ = {delay, clamp};
+export const __test__ = {delay, clamp, normalizeTiming};

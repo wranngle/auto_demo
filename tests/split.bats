@@ -83,3 +83,22 @@ teardown_file() {
   [ "$status" -ne 0 ]
   [[ "${output}" == *"not found"* ]]
 }
+
+@test "split: default scratch dir is removed on success; explicit --work-dir is kept" {
+  # Default scratch (.ui-demo-runner-split/ beside the output) must be gone
+  # after a successful render, per the README cleanup promise. An explicit
+  # --work-dir is operator-owned and stays for inspection.
+  CLEAN_OUT="$WORK_DIR/clean/split.mp4"
+  mkdir -p "$WORK_DIR/clean"
+  run node "$CLI_ENTRY" split "$FLOW_PATH" "$INPUT_VIDEO" --output "$CLEAN_OUT"
+  [ "$status" -eq 0 ]
+  [ -f "$CLEAN_OUT" ]
+  [ ! -d "$WORK_DIR/clean/.ui-demo-runner-split" ]
+
+  KEEP_OUT="$WORK_DIR/keep/split.mp4"
+  mkdir -p "$WORK_DIR/keep"
+  run node "$CLI_ENTRY" split "$FLOW_PATH" "$INPUT_VIDEO" \
+    --output "$KEEP_OUT" --work-dir "$WORK_DIR/keep/scratch"
+  [ "$status" -eq 0 ]
+  [ -d "$WORK_DIR/keep/scratch" ]
+}

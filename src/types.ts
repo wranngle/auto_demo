@@ -98,7 +98,8 @@ export type RunOptions = {
   headed: boolean;
   recordVideo: boolean;
   slowMoMs: number;
-  speed: number;
+  /** Explicit speed override; when present it wins over the flow's timing.speed. */
+  speed?: number;
   captionsLang?: readonly CaptionLanguage[];
   quality?: {
     preset: string;

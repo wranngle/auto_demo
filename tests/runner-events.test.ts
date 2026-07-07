@@ -8,7 +8,7 @@ import {describe, expect, test} from 'vitest';
 import {formatEventNdjson, __test__} from '../src/runner.js';
 import type {DemoTiming, StepEvent} from '../src/types.js';
 
-const {delay, clamp} = __test__;
+const {delay, clamp, normalizeTiming} = __test__;
 
 const sample: StepEvent[] = [
   {
@@ -116,10 +116,11 @@ describe('delay', () => {
 });
 
 // `clamp` gates the runtime speed at [0.25, 8] via
-// `clamp(flow.timing?.speed ?? options.speed, 0.25, 8)` in normalizeTiming.
-// flow-schema validates speed in (0, 8], so the clamp protects against an
-// options.speed override (or a regression in validateFlow) producing a
-// near-zero value that would blow up `delay`'s division.
+// `clamp(options.speed ?? flow.timing?.speed ?? 1, 0.25, 8)` in
+// normalizeTiming. flow-schema validates speed in (0, 8], so the clamp
+// protects against an options.speed override (or a regression in
+// validateFlow) producing a near-zero value that would blow up `delay`'s
+// division.
 describe('clamp', () => {
   test('returns value unchanged when within [min, max]', () => {
     expect(clamp(5, 0, 10)).toBe(5);
@@ -141,5 +142,41 @@ describe('clamp', () => {
     expect(clamp(0.05, 0.25, 8)).toBe(0.25);
     expect(clamp(1, 0.25, 8)).toBe(1);
     expect(clamp(8.5, 0.25, 8)).toBe(8);
+  });
+});
+
+// Speed precedence: an explicitly passed CLI --speed must win over the
+// flow's pinned timing.speed (the option carries no default, so presence
+// means the operator asked), then the flow value, then real-time 1. Locks
+// the fix for the dead `widget --run --speed` override — generated widget
+// flows always pin timing.speed, which used to shadow the CLI flag.
+describe('normalizeTiming speed precedence', () => {
+  const flowWithPinnedSpeed = {
+    startUrl: './x',
+    timing: {speed: 1.35},
+    steps: [],
+  };
+  const baseOptions = {
+    outputDir: '/tmp/x',
+    flowDir: '/tmp',
+    headed: false,
+    recordVideo: false,
+    slowMoMs: 0,
+  };
+
+  test('explicit options.speed overrides the flow timing.speed', () => {
+    expect(normalizeTiming(flowWithPinnedSpeed, {...baseOptions, speed: 2}).speed).toBe(2);
+  });
+
+  test('absent options.speed falls back to the flow timing.speed', () => {
+    expect(normalizeTiming(flowWithPinnedSpeed, baseOptions).speed).toBe(1.35);
+  });
+
+  test('absent both falls back to real-time 1', () => {
+    expect(normalizeTiming({startUrl: './x', steps: []}, baseOptions).speed).toBe(1);
+  });
+
+  test('override is still clamped to the [0.25, 8] runtime gate', () => {
+    expect(normalizeTiming(flowWithPinnedSpeed, {...baseOptions, speed: 100}).speed).toBe(8);
   });
 });

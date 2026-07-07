@@ -109,6 +109,18 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   (`retimed | skipped | failed`, applied ratio/bitrate, error) in
   `manifest.json`. The `events.jsonl` forensic-ledger write failure is
   likewise warned instead of ignored. (#135)
+- `--speed` was dead on `widget --run` (and shadowed on `run` whenever a
+  flow pinned `timing.speed`): the runner let the flow value win over the
+  CLI flag. `--speed` no longer carries a default, so an explicitly passed
+  value now overrides the flow's pinned speed (`options.speed ??
+  flow.timing?.speed ?? 1`, still clamped to [0.25, 8]). (#136)
+- `storyboard` and `watch` gain `--json` for structured pipeline output,
+  matching every other subcommand; `watch --json` suppresses the
+  `CHANGE_DETECTED` / `NO_CHANGE` / `RERUN_INVOKED` text sentinels so
+  stdout is a single parseable document. (#136)
+- `split` now delivers the README's cleanup promise: the default scratch
+  dir (`.ui-demo-runner-split/`) is removed after a successful render; an
+  explicit `--work-dir` is kept for inspection. (#136)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was
@@ -140,7 +152,7 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (34 cases across 8 files: from-url, narrate,
+- Bats shell-integration suite (37 cases across 8 files: from-url, narrate,
   split, storyboard, svg, vertical, watch, widget) now runs in CI under the
   existing `test` job — installs bats + ffmpeg on the ubuntu-latest runner.
   Closes the doctrine gap "wire to CI before claiming done". (#25; split.bats

@@ -41,6 +41,10 @@ export async function renderSplit(options: SplitOptions): Promise<SplitResult> {
   const {flow} = await loadFlow(flowPath);
   const recordingDurationMs = await probeDurationMs(recordingPath);
 
+  // An explicit --work-dir is operator-owned (kept for inspection); the
+  // default scratch dir is removed after a successful render, matching the
+  // README's cleaned-up-on-completion promise.
+  const usingDefaultWorkDir = options.workDir === undefined;
   const workDir = resolve(options.workDir ?? join(dirname(outputPath), '.ui-demo-runner-split'));
   await rm(workDir, {recursive: true, force: true});
   await mkdir(workDir, {recursive: true});
@@ -100,6 +104,10 @@ export async function renderSplit(options: SplitOptions): Promise<SplitResult> {
 
   const finalDurationMs = await probeDurationMs(outputPath);
   const {width, height} = await probeDimensions(outputPath);
+
+  if (usingDefaultWorkDir) {
+    await rm(workDir, {recursive: true, force: true});
+  }
 
   return {
     outputPath,

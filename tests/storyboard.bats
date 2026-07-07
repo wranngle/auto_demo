@@ -58,3 +58,12 @@ teardown() {
   run node "$CLI" storyboard "$bogus_dir"
   [ "$status" -ne 0 ]
 }
+
+@test "storyboard: --json emits a structured result with path + rowCount" {
+  run node "$CLI" storyboard "$RUN_DIR" --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"path"'* ]]
+  [[ "$output" == *'"rowCount"'* ]]
+  # JSON mode must not also print the human line.
+  [[ "$output" != *"Storyboard:"* ]]
+}
