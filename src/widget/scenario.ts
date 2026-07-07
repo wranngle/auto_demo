@@ -92,6 +92,7 @@ function optionalLive(value: unknown, label: string): ScenarioLiveWidget | undef
 
   assignOptionalString(live, 'orb1', record.orb1, `${label}.orb1`);
   assignOptionalString(live, 'orb2', record.orb2, `${label}.orb2`);
+  assignOptionalString(live, 'avatarImage', record.avatarImage, `${label}.avatarImage`);
 
   if (record.replyWaitMs !== undefined) {
     const ms = requireNumber(record.replyWaitMs, `${label}.replyWaitMs`);

@@ -30,6 +30,12 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   text-contents; `scripts/record-live-demos.mjs` records the whole suite. (#16, #17)
 - `examples/widget/README.md` orientation: scenario shape, real-action
   boundary, authoring guide. (#20)
+- `live.avatarImage` (optional URL): replaces the widget's orb gradient
+  with a brand avatar image. The runtime had read
+  `body.dataset.avatarImage` since #16, but no schema field or renderer
+  write existed — the read↔write drift test carved a permanent exemption
+  around it. Wired end-to-end (scenario schema → `data-avatar-image` →
+  `avatar-image-url`) and the exemption removed. (#140)
 
 ### Added — Recorder + flow features
 - `run` — Playwright-driven flow recorder with cursor overlay, captions,
