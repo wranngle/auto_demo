@@ -25,6 +25,9 @@ setup_file() {
 }
 
 teardown_file() {
+  if [ -f "${WORK_DIR:-}/mock-server.pid" ]; then
+    kill "$(cat "$WORK_DIR/mock-server.pid")" 2>/dev/null || true
+  fi
   if [ -n "${WORK_DIR:-}" ] && [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
   fi
@@ -94,6 +97,57 @@ teardown_file() {
   [ "$status" -ne 0 ]
   [[ "${output}" == *"ElevenLabs TTS request failed"* ]]
   [ ! -f "$outputWithKey" ]
+}
+
+@test "narrate: --voice elevenlabs against a reachable API performs real synthesis end-to-end" {
+  # Full success-path integration, offline: a local HTTP server plays the
+  # ElevenLabs API and returns a real (tiny) mp3 for every POST, so the CLI
+  # exercises fetch -> decode -> mix -> mux and must report voice=elevenlabs.
+  mockMp3="$WORK_DIR/mock-tts.mp3"
+  ffmpeg -y -f lavfi -i "sine=frequency=440:duration=0.4:sample_rate=44100" \
+    -ac 1 -acodec libmp3lame -b:a 128k "$mockMp3" >/dev/null 2>&1
+
+  portFile="$WORK_DIR/mock-port"
+  rm -f "$portFile"
+  node -e '
+    const {createServer} = require("node:http");
+    const {readFileSync} = require("node:fs");
+    const bytes = readFileSync(process.argv[1]);
+    createServer((req, res) => {
+      res.writeHead(200, {"content-type": "audio/mpeg"});
+      res.end(bytes);
+    }).listen(0, "127.0.0.1", function () {
+      console.log(String(this.address().port));
+    });
+  ' "$mockMp3" > "$portFile" 2>/dev/null 3>&- &
+  echo "$!" > "$WORK_DIR/mock-server.pid"
+
+  for _ in $(seq 1 50); do
+    [ -s "$portFile" ] && break
+    sleep 0.1
+  done
+  [ -s "$portFile" ]
+  mockPort="$(cat "$portFile")"
+
+  outputSuccess="$WORK_DIR/elevenlabs-success.mp4"
+  ELEVENLABS_API_KEY="dummy-key-for-test" \
+    ELEVENLABS_TTS_API="http://127.0.0.1:$mockPort/v1/text-to-speech" \
+    run node "$CLI_ENTRY" narrate \
+    --script "$SCRIPT_PATH" \
+    --in "$INPUT_VIDEO" \
+    --out "$outputSuccess" \
+    --voice elevenlabs \
+    --json
+
+  kill "$(cat "$WORK_DIR/mock-server.pid")" 2>/dev/null || true
+
+  [ "$status" -eq 0 ]
+  [ -f "$outputSuccess" ]
+  [[ "${output}" == *"\"voice\": \"elevenlabs\""* ]]
+
+  audioStreams=$(ffprobe -v error -select_streams a -show_entries stream=codec_type \
+    -of csv=p=0 "$outputSuccess" | wc -l)
+  [ "$audioStreams" -ge 1 ]
 }
 
 @test "narrate: missing input video surfaces a clear error" {

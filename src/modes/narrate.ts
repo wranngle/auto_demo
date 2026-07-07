@@ -185,13 +185,15 @@ type ElevenLabsSynthesisConfig = {
   retryBaseMs: number;
 };
 
-// POSTs one narration line to the ElevenLabs TTS API and decodes the mp3
-// response into a mono 44.1 kHz WAV at wavPath, returning true so the
-// caller's `realSynthesisRan` flips. Rate limits and transient 5xx retry
-// with exponential backoff (honouring Retry-After when the server sends a
-// longer wait); every other failure throws — once the operator provides a
-// key, degrading to the mock tone silently is never acceptable.
-async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, config: ElevenLabsSynthesisConfig): Promise<boolean> {
+// Network layer, split from the ffmpeg decode so the retry/error contract
+// stays unit-testable without external binaries (CI's vitest job has no
+// ffmpeg; the bats job covers the decode integration against a local mock
+// server). POSTs one narration line to the ElevenLabs TTS API and returns
+// the mp3 bytes. Rate limits and transient 5xx retry with exponential
+// backoff (honouring Retry-After when the server sends a longer wait);
+// every other failure throws — once the operator provides a key, degrading
+// to the mock tone silently is never acceptable.
+async function fetchElevenLabsSpeech(line: NarrationLine, config: ElevenLabsSynthesisConfig): Promise<Uint8Array> {
   const base = process.env.ELEVENLABS_TTS_API ?? ELEVENLABS_TTS_API;
   const url = `${base}/${config.voiceId}?output_format=mp3_44100_128`;
   const snippet = line.text.length > 48 ? `${line.text.slice(0, 48)}…` : line.text;
@@ -215,17 +217,7 @@ async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, co
     }
 
     if (response.ok) {
-      const mp3Path = wavPath.replace(/\.wav$/, '.mp3');
-      await writeFile(mp3Path, Buffer.from(await response.arrayBuffer()));
-      await execFileAsync('ffmpeg', [
-        '-y',
-        '-i', mp3Path,
-        '-ac', '1',
-        '-ar', String(SAMPLE_RATE),
-        '-acodec', 'pcm_s16le',
-        wavPath,
-      ]);
-      return true;
+      return new Uint8Array(await response.arrayBuffer());
     }
 
     const body = (await response.text()).slice(0, 300);
@@ -242,6 +234,23 @@ async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, co
   }
 
   throw new Error(`ElevenLabs TTS failed for line "${snippet}" after ${SYNTHESIS_MAX_ATTEMPTS} attempts (${lastFailure})`);
+}
+
+// Fetches one line's speech and decodes it into the mono 44.1 kHz WAV the
+// mixer expects, returning true so the caller's `realSynthesisRan` flips.
+async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, config: ElevenLabsSynthesisConfig): Promise<boolean> {
+  const audio = await fetchElevenLabsSpeech(line, config);
+  const mp3Path = wavPath.replace(/\.wav$/, '.mp3');
+  await writeFile(mp3Path, audio);
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-i', mp3Path,
+    '-ac', '1',
+    '-ar', String(SAMPLE_RATE),
+    '-acodec', 'pcm_s16le',
+    wavPath,
+  ]);
+  return true;
 }
 
 async function probeDurationSec(mediaPath: string): Promise<number> {
@@ -338,4 +347,4 @@ async function fileSize(path: string): Promise<number> {
 }
 
 // Re-export for test introspection.
-export const __test__ = {mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo};
+export const __test__ = {mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo, fetchElevenLabsSpeech};
