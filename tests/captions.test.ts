@@ -144,6 +144,29 @@ describe('buildCaptionCues', () => {
     });
     expect(cues).toStrictEqual([]);
   });
+
+  // The runner divides every wait by timing.speed (delay() in runner.ts), so
+  // cue estimates must scale identically or SRT captions drift behind the
+  // retimed video — ~35% late on the 1.35x widget flows. Locks the sync.
+  test('cue timing scales by timing.speed exactly as the runner does', () => {
+    const unscaled = buildCaptionCues(sampleFlow);
+    const scaled = buildCaptionCues({...sampleFlow, timing: {speed: 2}});
+
+    expect(scaled).toHaveLength(unscaled.length);
+    for (const [i, cue] of scaled.entries()) {
+      expect(cue.startMs).toBeCloseTo(unscaled[i]!.startMs / 2, 6);
+    }
+
+    // Duration also halves, but never below the minimum display floor.
+    expect(scaled[0]!.endMs - scaled[0]!.startMs)
+      .toBe(Math.max((unscaled[0]!.endMs - unscaled[0]!.startMs) / 2, 600));
+  });
+
+  test('a non-positive or missing timing.speed falls back to 1x (no scaling)', () => {
+    const zeroSpeed = buildCaptionCues({...sampleFlow, timing: {speed: 0}});
+    const unscaled = buildCaptionCues(sampleFlow);
+    expect(zeroSpeed).toStrictEqual(unscaled);
+  });
 });
 
 describe('translateCaption', () => {

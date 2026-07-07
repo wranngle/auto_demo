@@ -95,6 +95,20 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `src/retime.ts` after writing the manifest, comparing wall-clock to container
   duration and re-encoding with `ffmpeg setpts` when the video is stretched
   >10 %. Caught only by viewing the actual playback, not by step counts. (#30, #32)
+- `--quality` presets now actually deliver their bitrate: the preset's
+  `videoBitrateKbps` was defined, documented, and copied into the manifest,
+  but no encoder ever consumed it. The post-process encode now applies
+  `-b:v`/`-maxrate`/`-bufsize` whenever a preset is set (even for
+  recordings that need no retime). (#135)
+- SRT caption cues now honor `timing.speed`: the runner divides every wait
+  by the speed factor but cue estimation didn't, so `--captions-lang`
+  tracks drifted ~35 % behind the video on 1.35× widget flows. (#135)
+- Recording post-process failures are no longer swallowed: a failed
+  retime/bitrate encode used to silently ship the raw stretched capture as
+  success. It now warns on stderr and lands a `retime` outcome block
+  (`retimed | skipped | failed`, applied ratio/bitrate, error) in
+  `manifest.json`. The `events.jsonl` forensic-ledger write failure is
+  likewise warned instead of ignored. (#135)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was

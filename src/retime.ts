@@ -38,23 +38,59 @@ export function computeRetimeRatio(events: StepEvent[], containerSec: number | u
   return ratio > 0.9 ? undefined : ratio;
 }
 
-export async function retimeRecordingToRealTime(videoPath: string, events: StepEvent[]): Promise<void> {
+export type RetimeOutcome = {
+  status: 'retimed' | 'skipped' | 'failed';
+  ratio?: number;
+  videoBitrateKbps?: number;
+  error?: string;
+};
+
+// Pure arg assembly for the post-process encode, split out so the encode
+// contract stays unit-testable without ffmpeg (CI's vitest job has none):
+// setpts only when the recording is stretched, -b:v/-maxrate/-bufsize only
+// when a --quality preset asked for a bitrate target.
+export function buildRetimeArgs(ratio: number | undefined, videoBitrateKbps: number | undefined): string[] {
+  const filter = ratio === undefined ? [] : ['-filter:v', `setpts=${ratio.toFixed(6)}*PTS`];
+  const bitrate = videoBitrateKbps === undefined ? [] : [
+    '-b:v', `${videoBitrateKbps}k`,
+    '-maxrate', `${videoBitrateKbps}k`,
+    '-bufsize', `${videoBitrateKbps * 2}k`,
+  ];
+  return [...filter, ...bitrate, '-an'];
+}
+
+// Re-encodes in place when the capture is stretched (setpts) and/or a
+// --quality preset requests a bitrate target. Never throws: the raw capture
+// is still a valid deliverable — but a failure is WARNED and returned, never
+// swallowed, so `run` cannot silently ship the 3-5x slow-motion video the
+// CHANGELOG claims is dead.
+export async function retimeRecordingToRealTime(videoPath: string, events: StepEvent[], quality?: {videoBitrateKbps: number}): Promise<RetimeOutcome> {
   const containerSec = await probeDurationSec(videoPath);
   const ratio = computeRetimeRatio(events, containerSec);
-  if (ratio === undefined) {
-    return;
+  const videoBitrateKbps = quality?.videoBitrateKbps;
+  if (ratio === undefined && videoBitrateKbps === undefined) {
+    return {status: 'skipped'};
   }
+
+  const applied = {
+    ...(ratio === undefined ? {} : {ratio: Number(ratio.toFixed(6))}),
+    ...(videoBitrateKbps === undefined ? {} : {videoBitrateKbps}),
+  };
 
   const tmp = `${videoPath}.retime.webm`;
   try {
     await execFileAsync('ffmpeg', [
       '-y', '-i', videoPath,
-      '-filter:v', `setpts=${ratio.toFixed(6)}*PTS`,
-      '-an', tmp,
+      ...buildRetimeArgs(ratio, videoBitrateKbps),
+      tmp,
     ]);
     await rename(tmp, videoPath);
-  } catch {
+    return {status: 'retimed', ...applied};
+  } catch (error) {
     await rm(tmp, {force: true}).catch(() => undefined);
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, 300);
+    console.error(`Warning: recording post-process (retime/bitrate) failed; shipping the raw capture. ${message}`);
+    return {status: 'failed', ...applied, error: message};
   }
 }
 

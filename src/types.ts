@@ -129,5 +129,12 @@ export type RunResult = {
     viewport: ViewportSize;
     videoBitrateKbps: number;
   };
+  /** Post-process outcome (real-time retime + --quality bitrate), recorded in manifest.json. */
+  retime?: {
+    status: 'retimed' | 'skipped' | 'failed';
+    ratio?: number;
+    videoBitrateKbps?: number;
+    error?: string;
+  };
   events: StepEvent[];
 };
