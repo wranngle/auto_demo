@@ -172,11 +172,15 @@ checked-in fixture, so tests and offline runs are stable.
 ```bash
 node dist/cli.js from-url https://example.com/billing \
   --goal "show how to add a credit card" \
-  --out out/credit-card.script.json
+  --out out/credit-card.script.json \
+  --narration-out out/credit-card.narration.txt
 ```
 
 Every step in the emitted `steps[]` carries `selector`, `action`, and
 `narration`: the contract that downstream `run` and `narrate` consume.
+`--narration-out` writes the bridge for the narrate half: a
+`start | duration | text` script with one cue per step, slot-timed by
+reading speed, ready for `narrate --script` (mock tone or ElevenLabs).
 
 ## ElevenLabs widget demos (real agent + deterministic mock)
 
