@@ -25,7 +25,9 @@ describe('auto-demo-on-deploy.yml.template', () => {
   });
 
   test('runs the ui-demo-runner CLI in a recording step', () => {
-    expect(raw).toMatch(/ui-demo-runner\s+run\b/u);
+    // The install spec may carry an @<source> suffix (e.g. the github:
+    // fallback used until the package is published to npm).
+    expect(raw).toMatch(/ui-demo-runner(?:@\S+)?\s+run\b/u);
   });
 
   // Doctrine drift: the per-run artifact set (recording.webm + manifest.json +
