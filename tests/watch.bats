@@ -47,3 +47,13 @@ setup() {
   run node "$CLI" watch --fixture "$OLD" --next "$NEW"
   [ "$status" -ne 0 ]
 }
+
+@test "watch --once: --json emits the comparison result and suppresses text sentinels" {
+  run node "$CLI" watch --once --fixture "$OLD" --next "$NEW" --json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"changed": true'* ]]
+  [[ "$output" == *'"rerunCount": 1'* ]]
+  [[ "$output" == *'"previousHash"'* ]]
+  [[ "$output" != *"CHANGE_DETECTED"* ]]
+  [[ "$output" != *"RERUN_INVOKED"* ]]
+}
