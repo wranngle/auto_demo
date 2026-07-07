@@ -161,12 +161,10 @@ describe('widget scenario → page + flow (central promise)', () => {
 
     // Every key the runtime reads MUST be written. Extra writes are fine
     // (they're inert) but a read with no matching write means a silent
-    // mount failure for that feature.
+    // mount failure for that feature. No exemptions: avatarImage was the
+    // one dangling read until live.avatarImage got wired through
+    // scenario.ts + render.ts.
     for (const key of reads) {
-      // body.dataset.avatarImage is intentionally optional — the renderer
-      // doesn't always write it, and the runtime guards with `if (...)`.
-      // Skip avatarImage from this check.
-      if (key === 'avatarImage') continue;
       expect(writes, `runtime reads body.dataset.${key} but render.ts never writes data-${camelToKebab(key)}`).toContain(key);
     }
   });
@@ -238,6 +236,25 @@ describe('scenario validation', () => {
   test('rejects a reply with no {say} beat (recorder cannot sync)', () => {
     expect(() => validateScenario({...base, turns: [{user: 'u', reply: [{tool: 't', result: 'r'}]}]}))
       .toThrow(/say.*beat is required/v);
+  });
+
+  // live.avatarImage: optional brand avatar URL; the renderer stamps it as
+  // data-avatar-image and the widget runtime forwards it as
+  // avatar-image-url. Was a dangling runtime read until wired end-to-end.
+  test('live.avatarImage is accepted and rendered into the live page body', () => {
+    const scenario = validateScenario({
+      ...base,
+      live: {agentId: 'agent_x', avatarImage: 'https://cdn.example.com/gia.png'},
+    });
+    expect(scenario.live?.avatarImage).toBe('https://cdn.example.com/gia.png');
+
+    const html = renderWidgetPage(scenario);
+    expect(html).toContain('data-avatar-image="https://cdn.example.com/gia.png"');
+  });
+
+  test('live.avatarImage rejects a non-string value', () => {
+    expect(() => validateScenario({...base, live: {agentId: 'agent_x', avatarImage: 7}}))
+      .toThrow(/avatarImage/v);
   });
 
   // scenario.ts enforces a non-empty reply array — both forms (omitted and
