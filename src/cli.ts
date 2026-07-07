@@ -4,7 +4,7 @@ import {dirname, resolve} from 'node:path';
 import process from 'node:process';
 import {Command, Option} from 'commander';
 import {loadFlow} from './flow-schema.js';
-import {renderNarration} from './modes/narrate.js';
+import {DEFAULT_ELEVENLABS_VOICE_ID, renderNarration} from './modes/narrate.js';
 import {renderSplit} from './modes/split.js';
 import {FIT_MODES, renderVertical, type FitMode} from './modes/vertical.js';
 import {parseQualityPreset, type QualitySpec} from './quality.js';
@@ -94,6 +94,7 @@ program
   .requiredOption('--in <video>', 'Input MP4 to add narration to')
   .requiredOption('--out <video>', 'Output MP4 with narration track')
   .option('--voice <id>', 'Voice id: "mock" (deterministic sine) or "elevenlabs"', 'mock')
+  .option('--voice-id <elevenLabsVoiceId>', 'ElevenLabs voice to synthesize with (only with --voice elevenlabs)', DEFAULT_ELEVENLABS_VOICE_ID)
   .option('--work-dir <dir>', 'Scratch directory for intermediate WAV files')
   .addOption(new Option('--json', 'Print the result as JSON').default(false))
   .action(async (options: {
@@ -101,6 +102,7 @@ program
     in: string;
     out: string;
     voice: string;
+    voiceId: string;
     workDir?: string;
     json: boolean;
   }) => {
@@ -110,6 +112,7 @@ program
         inputVideoPath: resolve(options.in),
         outputPath: resolve(options.out),
         voice: options.voice,
+        voiceId: options.voiceId,
         ...(options.workDir === undefined ? {} : {workDir: resolve(options.workDir)}),
       });
 

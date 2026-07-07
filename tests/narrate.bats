@@ -75,22 +75,25 @@ teardown_file() {
   [[ "${output}" == *"\"voice\": \"mock\""* ]]
 }
 
-@test "narrate: --voice elevenlabs WITH API key still reports voice=mock (stub not wired)" {
-  # The synthesize-elevenlabs branch is intentionally a thin stub that falls
-  # through to the mock tone (see src/modes/narrate.ts comment). Until the
-  # real network call is wired, the JSON result must NOT claim 'elevenlabs'
-  # as the voice — it would be lying to the operator who set the key.
-  # Locks the honesty contract: result.voice == what actually ran.
+@test "narrate: --voice elevenlabs WITH key fails fast when the API is unreachable (no silent mock fallback)" {
+  # Once a key is provided the operator asked for real synthesis; a network
+  # failure must surface as an error, never silently degrade to the mock
+  # tone. ELEVENLABS_TTS_API points at an unroutable local port so the test
+  # stays offline and deterministic. Locks the honesty contract from the
+  # other side: result.voice == what actually ran, and 'nothing ran' is an
+  # error, not a mock recording.
   outputWithKey="$WORK_DIR/elevenlabs-with-key.mp4"
-  ELEVENLABS_API_KEY="dummy-key-for-test" run node "$CLI_ENTRY" narrate \
+  ELEVENLABS_API_KEY="dummy-key-for-test" \
+    ELEVENLABS_TTS_API="http://127.0.0.1:9/v1/text-to-speech" \
+    run node "$CLI_ENTRY" narrate \
     --script "$SCRIPT_PATH" \
     --in "$INPUT_VIDEO" \
     --out "$outputWithKey" \
     --voice elevenlabs \
     --json
-  [ "$status" -eq 0 ]
-  [ -f "$outputWithKey" ]
-  [[ "${output}" == *"\"voice\": \"mock\""* ]]
+  [ "$status" -ne 0 ]
+  [[ "${output}" == *"ElevenLabs TTS request failed"* ]]
+  [ ! -f "$outputWithKey" ]
 }
 
 @test "narrate: missing input video surfaces a clear error" {

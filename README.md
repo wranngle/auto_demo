@@ -117,8 +117,12 @@ directory. With `--base-url`, relative URLs resolve against that local dev serve
 
 `ui-demo-runner narrate` muxes a voiceover track onto an existing recording.
 The default `--voice mock` synthesizes a deterministic sine tone per line so
-tests never hit the network. `--voice elevenlabs` is reserved for real TTS but is
-not yet wired; it currently falls back to the same mock tone.
+tests never hit the network. `--voice elevenlabs` performs real ElevenLabs TTS:
+it reads `ELEVENLABS_API_KEY`, synthesizes each line with the voice from
+`--voice-id` (default: George, a premade voice available on every plan), and
+backs off exponentially on 429/5xx before failing. Without a key it falls back
+to the deterministic mock tone; the JSON result's `voice` field always reports
+what actually ran.
 
 ```bash
 node dist/cli.js narrate \
