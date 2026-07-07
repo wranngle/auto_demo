@@ -12,7 +12,7 @@
     "greeting": "Welcome to Lumen Aesthetics, this is Vera. Booking a consult, or following up on a treatment?"
   },
   "live": {
-    "agentId": "agent_6401kseyd0v2f29bvs8vnehvj878",
+    "agentId": "agent_2601kwxg25jcfv390t1hq6p4g88y",
     "orb1": "#2dd4bf", "orb2": "#0b4f49",
     "branding": {"mainLabel": "Lumen Aesthetics", "startCall": "Talk to Vera"},
     "linkHosts": ["lumenaesthetics.example.com"],

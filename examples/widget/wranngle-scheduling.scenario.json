@@ -12,7 +12,7 @@
     "greeting": "This is Sage at Wranngle. Want to book a 15-minute product demo? I can put it on the calendar now."
   },
   "live": {
-    "agentId": "agent_8001ksgs9866ffc8xy6afxm70v53",
+    "agentId": "agent_1001kwxg27e2ehgrvntqrxapksbd",
     "orb1": "#38bdf8", "orb2": "#1e293b",
     "branding": {"mainLabel": "Book a Wranngle demo", "startCall": "Talk to Sage"},
     "linkHosts": ["wranngle.com", "cal.com"],

@@ -12,7 +12,7 @@ import {readdir, readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 import {loadElevenLabsKey} from './_lib/load-elevenlabs-key.mjs';
-import {ELEVENLABS_AGENTS_API as API} from './_lib/elevenlabs-api.mjs';
+import {ELEVENLABS_AGENTS_API as API, ELEVENLABS_TOOLS_API as TOOLS_API} from './_lib/elevenlabs-api.mjs';
 
 const MARKER = '\n\n[[demo-format]]';
 const here = dirname(fileURLToPath(import.meta.url));
@@ -61,7 +61,19 @@ async function tune(key, scenario) {
   const prompt = cur.conversation_config?.agent?.prompt ?? {};
   const base = String(prompt.prompt ?? '').split(MARKER)[0].trimEnd();
   const tools = (scenario.live.clientTools ?? []).map(toClientTool);
-  const workspaceIds = scenario.live.workspaceToolIds ?? [];
+  // Preflight workspace tool ids: a scenario can outlive a workspace tool
+  // (e.g. the Cal.com book_demo webhook after a workspace wipe). Attaching a
+  // dead id would 4xx the whole PATCH, so drop missing tools with a loud
+  // warning and still tune the rest of the agent.
+  const workspaceIds = [];
+  for (const toolId of scenario.live.workspaceToolIds ?? []) {
+    const toolRes = await fetch(`${TOOLS_API}/${toolId}`, {headers: {'xi-api-key': key}});
+    if (toolRes.ok) {
+      workspaceIds.push(toolId);
+    } else {
+      console.error(`!! ${scenario.name}: workspace tool ${toolId} not found (${toolRes.status}) — skipping attachment; recreate it and re-run`);
+    }
+  }
   // The ConvAI API rejects sending both `tools` (inline) and `tool_ids` in one
   // PATCH ("both_tools_and_tool_ids_provided"). Inline client-tool PATCHes
   // auto-promote to standalone tools whose ids appear in prompt.tool_ids on the
@@ -121,10 +133,26 @@ async function main() {
   const key = await loadElevenLabsKey();
   const only = process.argv.slice(2);
   const files = (await readdir(scenarioDir)).filter(f => f.endsWith('.scenario.json')).sort();
+  // Per-scenario isolation (same contract as record-live-demos.mjs): one
+  // agent's failure must not abort the remaining tunes.
+  const ok = [];
+  const failed = [];
   for (const file of files) {
     const scenario = JSON.parse(await readFile(join(scenarioDir, file), 'utf8'));
     if (only.length > 0 && !only.includes(scenario.name) && !only.includes(file.replace('.scenario.json', ''))) continue;
-    console.log(await tune(key, scenario));
+    try {
+      console.log(await tune(key, scenario));
+      ok.push(file);
+    } catch (err) {
+      console.error(`!! ${file} failed: ${err instanceof Error ? err.message : String(err)}`);
+      failed.push(file);
+    }
+  }
+
+  console.log(`summary: ok=${ok.length} failed=${failed.length}`);
+  if (failed.length > 0) {
+    console.log(`failed scenarios:\n  ${failed.join('\n  ')}`);
+    process.exitCode = 1;
   }
 }
 

@@ -12,7 +12,7 @@
     "greeting": "Buonasera, thanks for calling Bella Vista Trattoria. I'm Gia — would you like to book a table?"
   },
   "live": {
-    "agentId": "agent_1201ksb6296reyc97dxn9ngfkx79",
+    "agentId": "agent_8101kwxg21shf5n9am3db114j66y",
     "orb1": "#c08a2e", "orb2": "#7c1d1d",
     "branding": {"mainLabel": "Reserve at Bella Vista", "startCall": "Talk to Gia"},
     "linkHosts": ["bellavista.example.com"],

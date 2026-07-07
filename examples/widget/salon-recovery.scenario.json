@@ -12,7 +12,7 @@
     "greeting": "Hey, you've reached Atlas Hair Co., this is Robin! Looking to book, reschedule, or check on color?"
   },
   "live": {
-    "agentId": "agent_1501ksb62c8xevxvswp451hj7ykz",
+    "agentId": "agent_2901kwxg23w2eyj8e2dsqdng5030",
     "orb1": "#ff5fae", "orb2": "#8a0f4d",
     "branding": {"mainLabel": "Atlas Hair Co.", "startCall": "Talk to Robin"},
     "linkHosts": ["atlashair.example.com"],
