@@ -106,8 +106,11 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
     // Emit the NDJSON sidecar even when a step threw — failed runs are exactly
     // what this forensic log must capture. Runs in finally so a selector
     // timeout (which aborts before the manifest write below) still records the
-    // partial event stream.
-    await writeEventsNdjson(eventsPath, flowName, events).catch(ignoreCleanupError);
+    // partial event stream. A failed append is warned, not swallowed: losing
+    // the forensic ledger silently would defeat its purpose.
+    await writeEventsNdjson(eventsPath, flowName, events).catch((error: unknown) => {
+      console.error(`Warning: failed to write events.jsonl ledger: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }
 
   const manifestPath = join(outputDir, 'manifest.json');
@@ -131,14 +134,17 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
     result.quality = options.quality;
   }
 
-  await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
   // Playwright tags webms at 25 fps while capturing ~75 fps of real frames, so
   // every recording plays back stretched ~3-5x (smoke demo: 2.7s wall / 15.3s
   // container; widget demos: 34s / 101s). Compress to real-time playback in
-  // place; no-op when ffmpeg is missing or the video is already real-time.
+  // place (and apply the --quality bitrate target when one was requested);
+  // no-op when ffmpeg is missing or the video is already real-time. Runs
+  // before the manifest write so the outcome lands in manifest.json.
   if (videoPath !== undefined) {
-    await retimeRecordingToRealTime(videoPath, events);
+    result.retime = await retimeRecordingToRealTime(videoPath, events, options.quality);
   }
+
+  await writeFile(manifestPath, `${JSON.stringify(result, null, 2)}\n`);
 
   return result;
 }

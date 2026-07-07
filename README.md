@@ -96,6 +96,14 @@ node dist/cli.js run path/to/console-overview.demo.json \
 Relative `startUrl` and `goto.url` values resolve against the flow file's
 directory. With `--base-url`, relative URLs resolve against that local dev server.
 
+Two more `run` flags worth knowing:
+
+- `--quality 720p | 1080p | 4k` sets the capture viewport and re-encodes the
+  recording at the preset's bitrate target during post-process; the manifest's
+  `retime` block records what was applied (or why the post-process failed).
+- `--captions-lang en,es,pt,fr` exports one SRT caption track per language
+  beside the recording, cue-timed to the flow's `timing.speed`.
+
 ## Modes
 
 - `goto`: navigate to another URL.

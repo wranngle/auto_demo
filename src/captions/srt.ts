@@ -44,8 +44,14 @@ export function buildCaptionCues(flow: DemoFlow): CaptionCue[] {
   let cursorMs = 0;
   let index = 0;
 
+  // The runner divides every wait by timing.speed (see delay() in runner.ts),
+  // so cue estimates must scale the same way or captions drift behind the
+  // retimed video — ~35% on the 1.35x widget flows.
+  const rawSpeed = flow.timing?.speed;
+  const speed = rawSpeed !== undefined && rawSpeed > 0 ? rawSpeed : 1;
+
   for (const step of flow.steps) {
-    const dwellMs = estimateStepMs(step);
+    const dwellMs = estimateStepMs(step) / speed;
     if (step.action === 'caption' && typeof step.text === 'string' && step.text.length > 0) {
       index += 1;
       const startMs = cursorMs;
