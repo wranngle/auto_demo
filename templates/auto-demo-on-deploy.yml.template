@@ -46,6 +46,7 @@ jobs:
         # CONSUMER: once ui-demo-runner is published to npm, shorten the
         # install spec below to just `ui-demo-runner`.
         run: |
+          # CONSUMER: replace flows/golden.demo.json with your checked-in flow.
           npx --yes ui-demo-runner@github:wranngle/auto_demo run \
             flows/golden.demo.json \
             --output .ui-demo-runner/ci

@@ -70,16 +70,29 @@ const SPECS = [
   },
 ];
 
-// The scenario file is the single source for the agent's opening line: the
-// mock widget renders agent.greeting verbatim, so the live agent must open
-// with the same words or the two modes drift apart.
-async function loadGreeting(spec) {
+// The scenario file is the single source for the agent's opening line and
+// orb colors: the mock widget renders agent.greeting + live.orb* verbatim,
+// so the live agent must match or the two modes drift apart.
+async function loadScenarioBrand(spec) {
   const raw = await readFile(join(scenarioDir, `${spec.scenario}.scenario.json`), 'utf8');
-  const greeting = JSON.parse(raw)?.agent?.greeting;
+  const scenario = JSON.parse(raw);
+  const greeting = scenario?.agent?.greeting;
   if (typeof greeting !== 'string' || greeting.length === 0) {
     throw new Error(`${spec.scenario}.scenario.json has no agent.greeting`);
   }
-  return greeting;
+  return {greeting, orb1: scenario?.live?.orb1, orb2: scenario?.live?.orb2};
+}
+
+// Reused agents get their first_message re-PATCHed from the scenario
+// greeting — otherwise an edited greeting silently drifts the live agent
+// away from the mock (the reuse path used to skip this entirely).
+async function resyncGreeting(key, agentId, greeting) {
+  const res = await fetch(`${API}/${agentId}`, {
+    method: 'PATCH',
+    headers: {'xi-api-key': key, 'content-type': 'application/json'},
+    body: JSON.stringify({conversation_config: {agent: {first_message: greeting}}}),
+  });
+  if (!res.ok) throw new Error(`greeting resync for ${agentId} failed: ${res.status} ${await res.text()}`);
 }
 
 // Format-preserving update of live.agentId in a scenario file: targeted
@@ -110,7 +123,7 @@ async function createAgent(key, spec) {
     name: spec.name,
     conversation_config: {
       agent: {
-        first_message: await loadGreeting(spec),
+        first_message: (await loadScenarioBrand(spec)).greeting,
         language: 'en',
         prompt: {prompt: spec.prompt, llm: 'gemini-2.5-flash'},
       },
@@ -133,11 +146,16 @@ async function main() {
   const existing = await listExisting(key);
   const out = [];
   for (const spec of SPECS) {
+    const brand = await loadScenarioBrand(spec);
     const found = existing.get(spec.name);
     const agentId = found ?? await createAgent(key, spec);
+    if (found) {
+      await resyncGreeting(key, agentId, brand.greeting);
+    }
+
     const synced = await syncScenarioAgentId(spec, agentId);
     console.log(`${found ? 'reuse ' : 'create'} ${spec.id.padEnd(11)} -> ${agentId}${synced ? `  (synced ${spec.scenario}.scenario.json)` : ''}`);
-    out.push({id: spec.id, brand: spec.brand, agentId, orb1: spec.orb1, orb2: spec.orb2, voiceId: spec.voiceId});
+    out.push({id: spec.id, brand: spec.brand, agentId, orb1: brand.orb1 ?? spec.orb1, orb2: brand.orb2 ?? spec.orb2, voiceId: spec.voiceId});
   }
 
   const snapshot = join(repoRoot, 'examples', 'widget', 'agents.json');

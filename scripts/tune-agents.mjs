@@ -150,6 +150,11 @@ async function main() {
   }
 
   console.log(`summary: ok=${ok.length} failed=${failed.length}`);
+  if (only.length > 0 && ok.length === 0 && failed.length === 0) {
+    console.error(`!! no scenario matched: ${only.join(', ')} — check the name (with or without .scenario.json)`);
+    process.exitCode = 1;
+  }
+
   if (failed.length > 0) {
     console.log(`failed scenarios:\n  ${failed.join('\n  ')}`);
     process.exitCode = 1;

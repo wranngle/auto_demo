@@ -198,8 +198,23 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   with type predicates (quality/vertical/storyboard/scenario), detached
   async server handler made explicit, `toSorted`/`toReversed` for
   mutating sorts. (#142)
+- Round-two sweep fixes: `tune-agents.mjs` now exits non-zero when a
+  scenario-name argument matches nothing (previously "summary: ok=0
+  failed=0" and success); `provision-agents.mjs` re-syncs a reused
+  agent's `first_message` from the scenario greeting (the reuse path
+  never re-PATCHed, so edited greetings silently drifted live agents
+  away from the mock) and single-sources orb colors from the scenario's
+  `live` block; `playwright` is exact-pinned (`1.57.0`, no caret) so a
+  consumer's resolved runtime can never outrun the CI template's
+  browser-install pin; the template's flow path carries the promised
+  `CONSUMER:` marker. `run` — the flagship subcommand and the only one
+  with zero bats — gains a 3-case suite (offline smoke recording with
+  manifest↔events.jsonl parity, fast failure on a missing flow, and the
+  widget `--output`-implies-`--run` mock recording), chromium-gated with
+  a visible `skip` on hosts without a browser. (#144)
 - Real repo URL in `SECURITY.md` + issue-template config (was
-  `REPO_URL_NOT_DETECTED` placeholder).
+  `REPO_URL_NOT_DETECTED` placeholder; both files were later removed
+  outright in #132).
 - Template artifact paths now `recording.webm` + `manifest.json` (was
   `recording.mp4` + `*.ndjson` — consumer CI was failing with
   `if-no-files-found: error`).
@@ -229,8 +244,9 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `issue-triage.yml` classification. (#44)
 
 ### Tests + CI hardening
-- Bats shell-integration suite (38 cases across 8 files: from-url, narrate,
-  split, storyboard, svg, vertical, watch, widget) now runs in CI under the
+- Bats shell-integration suite (41 cases across 9 files: from-url,
+  narrate, run, split, storyboard, svg, vertical, watch, widget) now runs
+  in CI under the
   existing `test` job — installs bats + ffmpeg on the ubuntu-latest runner.
   Closes the doctrine gap "wire to CI before claiming done". (#25; split.bats
   added later in the autonomous-coherence sweep)
@@ -564,7 +580,8 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   the `screenshots/<name>.png` bullet's name matches a real
   screenshot step in the smoke flow file. (#125)
 - `tests/split.bats`: CLI-surface bats coverage for `split` — the
-  seven other shipped subcommands all had bats; `split` had only
+  eight other shipped subcommands all had bats except `run` (which
+  gained its suite in #144); `split` had only
   vitest. Three behavior-focused tests (1920×1080 frame from
   `<flow>` + `<recording>`, `--json` structured result, missing
   recording file fails fast). CHANGELOG bats count bumped from
