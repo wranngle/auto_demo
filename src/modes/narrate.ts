@@ -137,6 +137,39 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
   };
 }
 
+// A cue field must be a plain non-negative decimal. Anchored on a short,
+// already-isolated field — no separator ambiguity, no backtracking blowup
+// (the previous one-regex-per-line parse was polynomial on long tab runs).
+const CUE_NUMBER = /^\d+(?:\.\d+)?$/v;
+
+function splitCueLine(line: string): [string, string, string] | undefined {
+  const first = separatorIndex(line, 0);
+  if (first === -1) {
+    return undefined;
+  }
+
+  const second = separatorIndex(line, first + 1);
+  if (second === -1) {
+    return undefined;
+  }
+
+  return [line.slice(0, first).trim(), line.slice(first + 1, second).trim(), line.slice(second + 1).trim()];
+}
+
+function separatorIndex(line: string, from: number): number {
+  const pipe = line.indexOf('|', from);
+  const tab = line.indexOf('\t', from);
+  if (pipe === -1) {
+    return tab;
+  }
+
+  if (tab === -1) {
+    return pipe;
+  }
+
+  return Math.min(pipe, tab);
+}
+
 export function parseNarrationScript(raw: string): NarrationLine[] {
   const lines: NarrationLine[] = [];
   for (const rawLine of raw.split(/\r?\n/v)) {
@@ -145,17 +178,14 @@ export function parseNarrationScript(raw: string): NarrationLine[] {
       continue;
     }
 
-    // Padding around separators is spaces-only ON PURPOSE: `\s*` would
-    // overlap the tab separator class and open polynomial backtracking on
-    // long tab runs (CodeQL js/polynomial-redos).
-    const match = /^(\d+(?:\.\d+)?) *[\|\t] *(\d+(?:\.\d+)?) *[\|\t] *(.+)$/v.exec(line);
-    if (match === null) {
+    const parts = splitCueLine(line);
+    if (parts === undefined || !CUE_NUMBER.test(parts[0]) || !CUE_NUMBER.test(parts[1]) || parts[2] === '') {
       throw new Error(`Invalid narration line (expected "start|duration|text"): ${line}`);
     }
 
-    const startSec = Number.parseFloat(match[1] ?? '');
-    const durationSec = Number.parseFloat(match[2] ?? '');
-    const text = (match[3] ?? '').trim();
+    const startSec = Number.parseFloat(parts[0]);
+    const durationSec = Number.parseFloat(parts[1]);
+    const text = parts[2];
     if (!Number.isFinite(startSec) || startSec < 0) {
       throw new Error(`Invalid start time in: ${line}`);
     }
