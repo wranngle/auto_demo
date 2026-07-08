@@ -201,11 +201,12 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   a `pretest` hook runs xo before every `npm test`, so CI's generic test
   job gates on it — the debt existed precisely because nothing ran lint.
   The config moved to `xo.config.js` (flat; a `package.json#xo` block
-  would shadow it via cosmiconfig order) with three deliberate tunings,
+  would shadow it via cosmiconfig order) with four deliberate tunings,
   each documented in-file: naming-convention permits UPPER_CASE module
   constants + external-API snake_case/dotted payload keys;
   `no-await-in-loop` off (sequential steps/lines/cloud-calls are the
-  product); test files may assert mock shapes. Everything else was fixed
+  product); switch-exhaustiveness accepts an intentional `default` for
+  open string unions; test files may assert mock shapes. Everything else was fixed
   in code: all regexes on the `v` flag, `promisify(execFile)` replaced by
   a typed shared `src/exec-file.ts` wrapper (kills six duplicates and a
   strict-void-return false positive), unsafe type assertions replaced
@@ -226,6 +227,22 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   manifest↔events.jsonl parity, fast failure on a missing flow, and the
   widget `--output`-implies-`--run` mock recording), chromium-gated with
   a visible `skip` on hosts without a browser. (#144)
+- **Adversarial-review fixes over the whole session diff** (4 reviewers,
+  2 refuters per finding; 7 confirmed): SRT cues now scale by the
+  runner's EFFECTIVE speed — the clamped `--speed`-override-aware value —
+  instead of the flow's raw pinned speed, closing the drift the #136
+  precedence change reintroduced on the override path (and the
+  unclamped-speed variant); the mock-tone hash reverts to UTF-16-unit
+  semantics so narration with astral characters (emoji) keeps its
+  historical pitch; `watch`'s comment-strip fixpoint is pass-bounded
+  (adversarially nested splices measured O(n²), ~1 min/MB — both
+  snapshots get identical treatment so comparisons stay sound);
+  `from-url --narration-out` reports to stderr so the default stdout
+  JSON stays a single parseable document; the narration bridge collapses
+  embedded newlines so every cue is one physical line (round-trip
+  contract now tested with multiline input); and the #142 entry's
+  tuning count corrected (four, not three — switch-exhaustiveness was
+  omitted). (#145)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder; both files were later removed
   outright in #132).

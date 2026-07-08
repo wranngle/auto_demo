@@ -20,7 +20,10 @@ export function renderNarrationScript(script: FromUrlScript): string {
 
   let cursorSec = 0;
   for (const step of script.steps) {
-    const text = step.narration.trim();
+    // Collapse ALL internal whitespace (newlines included): the cue format
+    // is strictly one physical line, and an embedded \n would emit a
+    // fragment parseNarrationScript rejects.
+    const text = step.narration.replaceAll(/\s+/gv, ' ').trim();
     if (text === '') {
       continue;
     }

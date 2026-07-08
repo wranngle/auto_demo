@@ -167,6 +167,20 @@ describe('buildCaptionCues', () => {
     const unscaled = buildCaptionCues(sampleFlow);
     expect(zeroSpeed).toStrictEqual(unscaled);
   });
+
+  // The runner resolves `clamp(options.speed ?? flow.timing?.speed ?? 1)`
+  // and passes THAT to cue building — a CLI --speed override or the
+  // [0.25, 8] clamp must reach the captions or SRT drifts against the
+  // video (the exact regression an adversarial review caught after the
+  // #136 precedence change).
+  test('an explicit effectiveSpeed wins over the flow-pinned timing.speed', () => {
+    const viaOverride = buildCaptionCues({...sampleFlow, timing: {speed: 1.35}}, 2);
+    const plain2x = buildCaptionCues(sampleFlow, 2);
+    expect(viaOverride).toStrictEqual(plain2x);
+
+    const pinnedOnly = buildCaptionCues({...sampleFlow, timing: {speed: 1.35}});
+    expect(viaOverride).not.toStrictEqual(pinnedOnly);
+  });
 });
 
 describe('translateCaption', () => {
