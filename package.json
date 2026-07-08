@@ -60,7 +60,7 @@
   "dependencies": {
     "arktype": "^2.1.27",
     "commander": "^14.0.2",
-    "playwright": "^1.57.0"
+    "playwright": "1.57.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
