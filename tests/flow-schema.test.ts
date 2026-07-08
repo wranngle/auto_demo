@@ -1,4 +1,6 @@
-import {mkdtemp, readdir, readFile, writeFile} from 'node:fs/promises';
+import {
+  mkdtemp, readdir, readFile, writeFile,
+} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {dirname, join, resolve} from 'node:path';
@@ -172,7 +174,7 @@ describe('validateFlow', () => {
     })).toThrow(expected);
   });
 
-  // optionalTiming enforces playback speed > 0 and <= 8 (src/flow-schema.ts).
+  // OptionalTiming enforces playback speed > 0 and <= 8 (src/flow-schema.ts).
   // Below 0 is nonsensical; above 8x the recording is unwatchable. Locks both
   // bound branches so a refactor that flips the operator or drops the range
   // fails CI.
@@ -201,7 +203,7 @@ describe('validateFlow', () => {
     expect(() => validateFlow({steps: [{action: 'pause', ms: 1}]})).toThrow(/Invalid flow/v);
   });
 
-  // optionalCaptions enforces polish.captions.position is "top" or "bottom"
+  // OptionalCaptions enforces polish.captions.position is "top" or "bottom"
   // (src/flow-schema.ts via assertChoice). The "rejects unsupported
   // cursor styles" test above covers the cursor.style branch of the same
   // assertChoice helper; this covers the captions.position branch.
@@ -213,7 +215,7 @@ describe('validateFlow', () => {
     })).toThrow(/captions\.position/v);
   });
 
-  // optionalZoom enforces polish.zoom.defaultScale > 0 and <= 2
+  // OptionalZoom enforces polish.zoom.defaultScale > 0 and <= 2
   // (src/flow-schema.ts). Below 0 is nonsense; above 2x the
   // viewport's content overflows the visible frame. Same pattern as the
   // speed bound test above.
@@ -230,7 +232,7 @@ describe('validateFlow', () => {
     })).toThrow(/zoom\.defaultScale/v);
   });
 
-  // loadFlow() is the file-IO entry point (src/flow-schema.ts). When
+  // LoadFlow() is the file-IO entry point (src/flow-schema.ts). When
   // JSON.parse fails on the file contents, it wraps the cause with a helpful
   // error naming the absolute source path. Mirrors the loadScenario malformed-
   // JSON test from PR #56 — same pattern, complementary coverage. A refactor
@@ -261,7 +263,6 @@ describe('validateFlow', () => {
     expect(candidates.length, 'expected at least one *.demo.json under examples/').toBeGreaterThan(0);
 
     for (const path of candidates) {
-      // eslint-disable-next-line no-await-in-loop
       const raw = await readFile(path, 'utf8');
       const flow = JSON.parse(raw) as unknown;
       expect(() => validateFlow(flow, path), `${path} must pass production validation`).not.toThrow();
@@ -276,10 +277,10 @@ describe('validateFlow', () => {
   // reader notices the gap.
   test('doctrine drift: README "Modes" bullets enumerate exactly the runtime actions allowlist', async () => {
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
-    const modesSection = /## Modes\n([\s\S]*?)(?=\n## )/u.exec(readme);
+    const modesSection = /## Modes\n([\s\S]*?)(?=\n## )/v.exec(readme);
     expect(modesSection, 'README must contain a "## Modes" section').not.toBeNull();
 
-    const bullets = [...modesSection![1]!.matchAll(/^-\s+`([^`]+)`:/gmu)].map(match => match[1]!);
+    const bullets = [...modesSection![1]!.matchAll(/^-\s+`([^`]+)`:/gmv)].map(match => match[1]!);
     expect(bullets.length, 'README "## Modes" must list at least one action').toBeGreaterThan(0);
 
     expect(new Set(bullets), `README Modes lists ${bullets.join(', ')}; schema allows ${[...SUPPORTED_ACTIONS].join(', ')}`)
@@ -297,13 +298,13 @@ describe('validateFlow', () => {
     const cliSrc = await readFile(resolve(repoRoot, 'src/cli.ts'), 'utf8');
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
 
-    const commands = [...cliSrc.matchAll(/\.command\(['"]([a-z][a-z-]*)['"]\)/gu)].map(match => match[1]!);
+    const commands = [...cliSrc.matchAll(/\.command\(['"]([a-z][a-z\-]*)['"]\)/gv)].map(match => match[1]!);
     expect(commands.length, 'cli.ts must declare at least one subcommand').toBeGreaterThan(0);
 
     const undocumented = commands.filter(name => {
       const patterns = [
-        new RegExp(`ui-demo-runner\\s+${name}\\b`, 'u'),
-        new RegExp(`node\\s+dist/cli\\.js\\s+${name}\\b`, 'u'),
+        new RegExp(String.raw`ui-demo-runner\s+${name}\b`, 'v'),
+        new RegExp(String.raw`node\s+dist/cli\.js\s+${name}\b`, 'v'),
       ];
       return !patterns.some(p => p.test(readme));
     });
@@ -332,18 +333,18 @@ describe('validateFlow', () => {
     //    write outputs to a directory matching the README's `.work/<dir>` bullets.
     const smokeScript = pkg.scripts['demo:smoke'];
     expect(smokeScript, 'package.json must define `demo:smoke`').toBeDefined();
-    const flowMatch = /run\s+(\S+\.demo\.json)/u.exec(smokeScript!);
-    const outDirMatch = /--output\s+(\S+)/u.exec(smokeScript!);
+    const flowMatch = /run\s+(\S+\.demo\.json)/v.exec(smokeScript!);
+    const outDirMatch = /--output\s+(\S+)/v.exec(smokeScript!);
     expect(flowMatch, '`demo:smoke` must `run <path>.demo.json`').not.toBeNull();
     expect(outDirMatch, '`demo:smoke` must `--output <dir>`').not.toBeNull();
-    const outDir = outDirMatch![1]!; // e.g. ".work/smoke-demo"
+    const outDir = outDirMatch![1]!; // E.g. ".work/smoke-demo"
 
     // 2. Pull README's smoke-demo output bullet paths (lines like
     //    `- \`.work/smoke-demo/<file>\``). Use the README's "## Run the smoke
     //    demo" section as the scope; stop at the next "## " heading.
-    const smokeSection = /## Run the smoke demo\n([\s\S]*?)(?=\n## )/u.exec(readme);
+    const smokeSection = /## Run the smoke demo\n([\s\S]*?)(?=\n## )/v.exec(readme);
     expect(smokeSection, 'README must contain "## Run the smoke demo" section').not.toBeNull();
-    const bullets = [...smokeSection![1]!.matchAll(/^-\s+`([^`]+)`/gmu)].map(m => m[1]!);
+    const bullets = [...smokeSection![1]!.matchAll(/^-\s+`([^`]+)`/gmv)].map(m => m[1]!);
     expect(bullets.length, 'README smoke section must list at least one output file').toBeGreaterThan(0);
 
     // Every bullet path must start with the script's --output dir.
@@ -354,17 +355,17 @@ describe('validateFlow', () => {
     // 3. The runner emits these specific filenames (src/runner.ts). Each must
     //    appear as a README bullet basename, so a renamed constant breaks here.
     const expectedFilenames = ['recording.webm', 'manifest.json', 'events.jsonl'];
-    const bulletBasenames = bullets.map(p => p.split('/').pop()!);
+    const bulletBasenames = new Set(bullets.map(p => p.split('/').pop()!));
     for (const filename of expectedFilenames) {
       expect(runnerSrc, `runner.ts must still emit "${filename}"`).toContain(`'${filename}'`);
-      expect(bulletBasenames.some(name => name === filename), `README smoke section must list runner-emitted "${filename}"`).toBe(true);
+      expect(bulletBasenames.has(filename), `README smoke section must list runner-emitted "${filename}"`).toBe(true);
     }
 
     // 4. The screenshot bullet under `.work/<dir>/screenshots/<name>.png` must
     //    name a screenshot step that actually exists in the smoke flow file.
     const screenshotBullet = bullets.find(p => p.includes('/screenshots/') && p.endsWith('.png'));
     expect(screenshotBullet, 'README must document the smoke flow screenshot path').toBeDefined();
-    const screenshotName = screenshotBullet!.split('/').pop()!.replace(/\.png$/u, '');
+    const screenshotName = screenshotBullet!.split('/').pop()!.replace(/\.png$/v, '');
 
     const flowJson = JSON.parse(await readFile(resolve(repoRoot, flowMatch![1]!), 'utf8')) as {
       steps: Array<{action: string; name?: string}>;

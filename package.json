@@ -26,6 +26,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "xo src tests",
     "test": "vitest run",
     "test:bats": "bats tests/*.bats",
     "lint": "xo src tests",
@@ -61,13 +62,5 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.15",
     "xo": "^2.0.2"
-  },
-  "xo": {
-    "prettier": false,
-    "space": 2,
-    "semicolon": true,
-    "rules": {
-      "@typescript-eslint/consistent-type-definitions": "off"
-    }
   }
 }

@@ -10,8 +10,12 @@ import {
 } from '../src/modes/regress.js';
 
 const fixtureFlows: RegressFlowResult[] = [
-  {flow: 'console-overview', total: 10, passed: 9, selectorQuality: 0.92},
-  {flow: 'opportunity-review', total: 4, passed: 4, selectorQuality: 0.81},
+  {
+    flow: 'console-overview', total: 10, passed: 9, selectorQuality: 0.92,
+  },
+  {
+    flow: 'opportunity-review', total: 4, passed: 4, selectorQuality: 0.81,
+  },
 ];
 
 describe('regress mode artifacts', () => {
@@ -35,7 +39,7 @@ describe('regress mode artifacts', () => {
     const report = buildRegressReport(fixtureFlows, new Date('2026-05-14T00:00:00Z'));
     const markdown = renderRegressMarkdown(report);
 
-    expect(markdown).toMatch(/^# Regression summary/);
+    expect(markdown).toMatch(/^# Regression summary/v);
     expect(markdown).toContain('| flow | pass-rate | selector-quality |');
     expect(markdown).toContain('| --- | --- | --- |');
     expect(markdown).toContain('console-overview');
@@ -58,8 +62,12 @@ describe('regress mode artifacts', () => {
   });
 
   test('rejects invalid pass counts and out-of-range selector quality', () => {
-    expect(() => buildRegressReport([{flow: 'bad', total: 2, passed: 5, selectorQuality: 0.5}])).toThrow(/invalid counts/);
-    expect(() => buildRegressReport([{flow: 'bad', total: 2, passed: 1, selectorQuality: 1.4}])).toThrow(/selectorQuality/);
+    expect(() => buildRegressReport([{
+      flow: 'bad', total: 2, passed: 5, selectorQuality: 0.5,
+    }])).toThrow(/invalid counts/v);
+    expect(() => buildRegressReport([{
+      flow: 'bad', total: 2, passed: 1, selectorQuality: 1.4,
+    }])).toThrow(/selectorQuality/v);
   });
 
   test('handles an empty flow set without emitting a malformed table', () => {

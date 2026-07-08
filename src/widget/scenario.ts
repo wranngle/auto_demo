@@ -125,11 +125,17 @@ function optionalLive(value: unknown, label: string): ScenarioLiveWidget | undef
   }
 
   if (record.workspaceToolIds !== undefined) {
-    if (!Array.isArray(record.workspaceToolIds) || !record.workspaceToolIds.every(id => typeof id === 'string' && id.length > 0)) {
+    if (!Array.isArray(record.workspaceToolIds)) {
       throw new TypeError(`Invalid ${label}.workspaceToolIds: expected non-empty string[]`);
     }
 
-    live.workspaceToolIds = record.workspaceToolIds;
+    live.workspaceToolIds = record.workspaceToolIds.map((id: unknown) => {
+      if (typeof id !== 'string' || id.length === 0) {
+        throw new TypeError(`Invalid ${label}.workspaceToolIds: expected non-empty string[]`);
+      }
+
+      return id;
+    });
   }
 
   return live;
@@ -231,12 +237,12 @@ function parseAction(value: unknown, label: string): ActionBeat {
   const record = requireRecord(value, label);
   const actionType = requireString(record.type, `${label}.type`);
 
-  if (!(actionTypes as readonly string[]).includes(actionType)) {
+  if (!isActionType(actionType)) {
     throw new Error(`Invalid ${label}.type: expected one of ${actionTypes.join(', ')}`);
   }
 
   return {
-    type: actionType as ActionBeat['type'],
+    type: actionType,
     text: nonEmpty(requireString(record.text, `${label}.text`), `${label}.text`),
   };
 }
@@ -261,20 +267,28 @@ function optionalViewport(value: unknown, label: string): ViewportSize | undefin
   return {width, height};
 }
 
+function isUnknownRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isActionType(value: string): value is ActionBeat['type'] {
+  return (actionTypes as readonly string[]).includes(value);
+}
+
 function requireRecord(value: unknown, label: string): UnknownRecord {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  if (!isUnknownRecord(value)) {
     throw new TypeError(`Invalid ${label}: expected object`);
   }
 
-  return value as UnknownRecord;
+  return value;
 }
 
 function requireRecordArray(value: unknown, label: string): UnknownRecord[] {
-  if (!Array.isArray(value) || !value.every(item => typeof item === 'object' && item !== null && !Array.isArray(item))) {
+  if (!Array.isArray(value) || !value.every(item => isUnknownRecord(item))) {
     throw new TypeError(`Invalid ${label}: expected object[]`);
   }
 
-  return value as UnknownRecord[];
+  return value.filter(item => isUnknownRecord(item));
 }
 
 function requireString(value: unknown, label: string): string {
@@ -310,10 +324,10 @@ function requireAccent(value: unknown, label: string): string {
   return accent;
 }
 
-function assignOptionalString<T extends Record<string, unknown>>(target: T, key: keyof T, value: unknown, label: string): void {
+function assignOptionalString<K extends string>(target: Partial<Record<K, string>>, key: K, value: unknown, label: string): void {
   if (value === undefined) {
     return;
   }
 
-  (target[key] as string) = nonEmpty(requireString(value, label), label);
+  target[key] = nonEmpty(requireString(value, label), label);
 }

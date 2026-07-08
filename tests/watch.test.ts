@@ -14,8 +14,10 @@ describe('watchOnce', () => {
     const result = await watchOnce({
       fixture: fixture('old-dom.html'),
       next: fixture('new-dom.html'),
-      logger: (line) => logLines.push(line),
-      runner: () => {
+      logger(line) {
+        logLines.push(line);
+      },
+      runner() {
         runnerCalls += 1;
       },
     });
@@ -23,7 +25,7 @@ describe('watchOnce', () => {
     expect(result.changed).toBe(true);
     expect(result.rerunCount).toBe(1);
     expect(runnerCalls).toBe(1);
-    expect(logLines.some((line) => line.startsWith('CHANGE_DETECTED '))).toBe(true);
+    expect(logLines.some(line => line.startsWith('CHANGE_DETECTED '))).toBe(true);
   });
 
   test('NO_CHANGE log line fires when DOMs match, runner is not invoked', async () => {
@@ -33,8 +35,10 @@ describe('watchOnce', () => {
     const result = await watchOnce({
       fixture: fixture('old-dom.html'),
       next: fixture('old-dom.html'),
-      logger: (line) => logLines.push(line),
-      runner: () => {
+      logger(line) {
+        logLines.push(line);
+      },
+      runner() {
         runnerCalls += 1;
       },
     });
@@ -42,8 +46,8 @@ describe('watchOnce', () => {
     expect(result.changed).toBe(false);
     expect(result.rerunCount).toBe(0);
     expect(runnerCalls).toBe(0);
-    expect(logLines.some((line) => line.startsWith('NO_CHANGE '))).toBe(true);
-    expect(logLines.some((line) => line.startsWith('CHANGE_DETECTED '))).toBe(false);
+    expect(logLines.some(line => line.startsWith('NO_CHANGE '))).toBe(true);
+    expect(logLines.some(line => line.startsWith('CHANGE_DETECTED '))).toBe(false);
   });
 
   test('hashDom strips HTML comments, is case-insensitive, and is deterministic', () => {

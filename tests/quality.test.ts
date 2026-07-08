@@ -45,7 +45,7 @@ describe('quality presets', () => {
   });
 
   test('parseQualityPreset rejects unknown preset', () => {
-    expect(() => parseQualityPreset('8k')).toThrow(/720p, 1080p, 4k/);
+    expect(() => parseQualityPreset('8k')).toThrow(/720p, 1080p, 4k/v);
   });
 
   test('higher resolutions carry higher bitrate', () => {
@@ -70,14 +70,14 @@ describe('quality presets', () => {
 
     // CLI help: `--quality <preset>` option text reads `Video preset: 720p | 1080p | 4k (...)`.
     const cli = await readFile(resolve(repoRoot, 'src', 'cli.ts'), 'utf8');
-    const cliMatch = /--quality[^)]*Video preset:\s*([\w\s|]+?)\s*\(/u.exec(cli);
+    const cliMatch = /--quality[^\)]*Video preset:\s*([\w\s\|]+?)\s*\(/v.exec(cli);
     expect(cliMatch, 'src/cli.ts must contain `Video preset: <a> | <b> | ... (...)` help text').not.toBeNull();
     const cliPresets = parsePipeList(cliMatch![1]!);
     expect(cliPresets, `CLI help "${cliMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
 
     // CHANGELOG: `--quality 720p | 1080p | 4k` preset for `run` (...).
     const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
-    const changelogMatch = /--quality\s+([\w\s|]+?)`/u.exec(changelog);
+    const changelogMatch = /--quality\s+([\w\s\|]+?)`/v.exec(changelog);
     expect(changelogMatch, 'CHANGELOG must contain a `--quality <a> | <b> | ...` reference').not.toBeNull();
     const changelogPresets = parsePipeList(changelogMatch![1]!);
     expect(changelogPresets, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);

@@ -311,7 +311,7 @@ program
         // JSON mode swallows the human sentinels (CHANGE_DETECTED / NO_CHANGE
         // / RERUN_INVOKED) so stdout stays a single parseable document.
         ...(options.json ? {logger: () => undefined} : {}),
-        runner: () => {
+        runner() {
           rerunInvocations += 1;
           if (!options.json) {
             console.log(`RERUN_INVOKED count=${rerunInvocations}`);

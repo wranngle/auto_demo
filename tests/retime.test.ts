@@ -4,7 +4,9 @@
 // pins the ratio math so a regression that disables or mis-thresholds the
 // retime fails CI instead of shipping slow-motion recordings again.
 
-import {describe, expect, test, vi} from 'vitest';
+import {
+  describe, expect, test, vi,
+} from 'vitest';
 import {buildRetimeArgs, computeRetimeRatio, retimeRecordingToRealTime} from '../src/retime.js';
 import type {StepEvent} from '../src/types.js';
 
@@ -12,8 +14,12 @@ function events(wallClockSec: number): StepEvent[] {
   const t0 = '2026-05-26T00:00:00.000Z';
   const t1 = new Date(Date.parse(t0) + (wallClockSec * 1000)).toISOString();
   return [
-    {index: 0, action: 'waitForText', startedAt: t0, endedAt: t0, status: 'ok'},
-    {index: 1, action: 'screenshot', startedAt: t1, endedAt: t1, status: 'ok'},
+    {
+      index: 0, action: 'waitForText', startedAt: t0, endedAt: t0, status: 'ok',
+    },
+    {
+      index: 1, action: 'screenshot', startedAt: t1, endedAt: t1, status: 'ok',
+    },
   ];
 }
 
@@ -31,8 +37,8 @@ describe('computeRetimeRatio', () => {
   });
 
   test('boundary: strictly > 0.9 skips, ≤ 0.9 still re-times (10% is worth the fix)', () => {
-    expect(computeRetimeRatio(events(9), 10)).toBe(0.9);        // ratio 0.9 exactly → re-time
-    expect(computeRetimeRatio(events(89), 100)).toBe(0.89);     // just below → re-time
+    expect(computeRetimeRatio(events(9), 10)).toBe(0.9); // Ratio 0.9 exactly → re-time
+    expect(computeRetimeRatio(events(89), 100)).toBe(0.89); // Just below → re-time
     expect(computeRetimeRatio(events(91), 100)).toBeUndefined(); // 0.91 > 0.9 → skip
   });
 
@@ -53,10 +59,10 @@ describe('computeRetimeRatio', () => {
   });
 
   test('falls back to startedAt when the last event has no endedAt', () => {
-    const e = events(34);
-    delete e.at(-1)!.endedAt;
-    // last endedAt missing → uses startedAt of last event, which is +34s from first.
-    expect(computeRetimeRatio(e, 101.5)).toBeCloseTo(34 / 101.5, 4);
+    const sample = events(34);
+    delete sample.at(-1)!.endedAt;
+    // Last endedAt missing → uses startedAt of last event, which is +34s from first.
+    expect(computeRetimeRatio(sample, 101.5)).toBeCloseTo(34 / 101.5, 4);
   });
 });
 
@@ -67,26 +73,34 @@ describe('computeRetimeRatio', () => {
 describe('buildRetimeArgs', () => {
   test('stretched recording without quality: setpts only', () => {
     expect(buildRetimeArgs(0.335, undefined)).toStrictEqual([
-      '-filter:v', 'setpts=0.335000*PTS',
+      '-filter:v',
+      'setpts=0.335000*PTS',
       '-an',
     ]);
   });
 
   test('quality preset without stretch: bitrate target only', () => {
     expect(buildRetimeArgs(undefined, 8000)).toStrictEqual([
-      '-b:v', '8000k',
-      '-maxrate', '8000k',
-      '-bufsize', '16000k',
+      '-b:v',
+      '8000k',
+      '-maxrate',
+      '8000k',
+      '-bufsize',
+      '16000k',
       '-an',
     ]);
   });
 
   test('stretched + quality: setpts and bitrate together', () => {
     expect(buildRetimeArgs(0.5, 4000)).toStrictEqual([
-      '-filter:v', 'setpts=0.500000*PTS',
-      '-b:v', '4000k',
-      '-maxrate', '4000k',
-      '-bufsize', '8000k',
+      '-filter:v',
+      'setpts=0.500000*PTS',
+      '-b:v',
+      '4000k',
+      '-maxrate',
+      '4000k',
+      '-bufsize',
+      '8000k',
       '-an',
     ]);
   });

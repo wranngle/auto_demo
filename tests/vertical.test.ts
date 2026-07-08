@@ -7,7 +7,6 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
-// eslint-disable-next-line @typescript-eslint/naming-convention
 import {FIT_MODES, __test__} from '../src/modes/vertical.js';
 
 const {buildCropFilter, buildPadFilter, ASPECT_PRESETS, FILTER_BUILDERS} = __test__;
@@ -27,7 +26,7 @@ describe('ASPECT_PRESETS', () => {
   // ASPECT_PRESETS that forgets to update the README fails CI instead of
   // silently shipping stale doc dimensions to consumers.
   test('doctrine drift: README cites the same 9:16 dimensions ASPECT_PRESETS exposes', async () => {
-    const preset = ASPECT_PRESETS['9:16']!;
+    const preset = ASPECT_PRESETS['9:16'];
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
     // Tolerate `1080x1920` or `1080×1920` (ASCII `x` vs Unicode `×`).
     const dimsPattern = /\((\d+)\s*[x×]\s*(\d+)\)/v;
@@ -92,13 +91,13 @@ describe('doctrine drift: --fit enum across vertical.ts ↔ README ↔ CHANGELOG
     // README: every `--fit <mode>` mention. The "Vertical export" section
     // names both `--fit crop` and `--fit pad`.
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
-    const readmeModes = new Set([...readme.matchAll(/--fit\s+([\w-]+)/gu)].map(m => m[1]!));
+    const readmeModes = new Set([...readme.matchAll(/--fit\s+([\w\-]+)/gv)].map(m => m[1]!));
     expect(readmeModes, `README enumerates ${[...readmeModes].join(', ')}; FIT_MODES is ${[...sourceTruth].join(', ')}`)
       .toEqual(sourceTruth);
 
     // CHANGELOG: the pipe-separated list in `--fit crop|pad`.
     const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
-    const changelogMatch = /--fit\s+([\w|]+)/u.exec(changelog);
+    const changelogMatch = /--fit\s+([\w\|]+)/v.exec(changelog);
     expect(changelogMatch, 'CHANGELOG must contain a `--fit <a>|<b>|...` reference').not.toBeNull();
     const changelogModes = new Set(changelogMatch![1]!.split('|').map(s => s.trim()).filter(Boolean));
     expect(changelogModes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`)

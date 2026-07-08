@@ -1,13 +1,12 @@
-import {execFile} from 'node:child_process';
 import {mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {promisify} from 'node:util';
-import {afterAll, beforeAll, describe, expect, test} from 'vitest';
+import {
+  afterAll, beforeAll, describe, expect, test,
+} from 'vitest';
+import {execFileAsync} from '../src/exec-file.js';
 import {renderSplit} from '../src/modes/split.js';
-
-const execFileAsync = promisify(execFile);
 
 const FIXTURE_DURATION_SEC = 3;
 const FIXTURE_DURATION_MS = FIXTURE_DURATION_SEC * 1000;
@@ -30,7 +29,10 @@ let flowPath = '';
 let recordingPath = '';
 
 beforeAll(async () => {
-  if (!ffmpegAvailable) return;
+  if (!ffmpegAvailable) {
+    return;
+  }
+
   workRoot = await mkdtemp(join(tmpdir(), 'ui-demo-split-test-'));
   flowPath = join(workRoot, 'flow.demo.json');
   recordingPath = join(workRoot, 'recording.mp4');
@@ -41,7 +43,9 @@ beforeAll(async () => {
     steps: [
       {action: 'goto', url: 'https://example.com', label: 'Open landing'},
       {action: 'click', selector: '#cta', label: 'Click CTA'},
-      {action: 'fill', selector: '#email', value: 'demo@example.com', label: 'Fill email'},
+      {
+        action: 'fill', selector: '#email', value: 'demo@example.com', label: 'Fill email',
+      },
       {action: 'caption', text: 'Confirmation appears'},
     ],
   };
@@ -49,10 +53,14 @@ beforeAll(async () => {
 
   await execFileAsync('ffmpeg', [
     '-y',
-    '-f', 'lavfi',
-    '-i', `testsrc=duration=${FIXTURE_DURATION_SEC}:size=1280x720:rate=30`,
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
+    '-f',
+    'lavfi',
+    '-i',
+    `testsrc=duration=${FIXTURE_DURATION_SEC}:size=1280x720:rate=30`,
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
     recordingPath,
   ]);
 }, 60_000);
@@ -80,10 +88,14 @@ describeIfFfmpeg('renderSplit', () => {
     expect(result.stepCount).toBe(4);
 
     const {stdout} = await execFileAsync('ffprobe', [
-      '-v', 'error',
-      '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height',
-      '-of', 'csv=p=0',
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=width,height',
+      '-of',
+      'csv=p=0',
       outputPath,
     ]);
     expect(stdout.trim()).toBe('1920,1080');
@@ -94,6 +106,6 @@ describeIfFfmpeg('renderSplit', () => {
       flowPath,
       recordingPath: join(workRoot, 'does-not-exist.mp4'),
       outputPath: join(workRoot, 'never.mp4'),
-    })).rejects.toThrow(/Recording not found/);
+    })).rejects.toThrow(/Recording not found/v);
   });
 });

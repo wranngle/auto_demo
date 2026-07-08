@@ -1,4 +1,5 @@
 import {readFile} from 'node:fs/promises';
+import process from 'node:process';
 import {createHash} from 'node:crypto';
 
 export type WatchRunner = (context: {previousHash: string; nextHash: string}) => Promise<void> | void;
@@ -19,8 +20,8 @@ export type WatchOnceResult = {
 
 const hashDom = (raw: string): string => {
   const normalized = raw
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/<!--[\s\S]*?-->/gv, '')
+    .replaceAll(/\s+/gv, ' ')
     .trim()
     .toLowerCase();
   return createHash('sha256').update(normalized).digest('hex');
@@ -63,7 +64,9 @@ export async function watchOnce(options: WatchOnceOptions): Promise<WatchOnceRes
     logger(`NO_CHANGE hash=${previousHash.slice(0, 12)}`);
   }
 
-  return {previousHash, nextHash, changed, rerunCount};
+  return {
+    previousHash, nextHash, changed, rerunCount,
+  };
 }
 
 export {hashDom};

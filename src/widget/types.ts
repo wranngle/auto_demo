@@ -40,7 +40,7 @@ export type ScenarioAgent = {
 // Present → "live" mode: the page embeds the real <elevenlabs-convai> widget
 // bound to this ElevenLabs agent and the recorder drives a real conversation.
 // Absent → "mock" mode: the deterministic scripted widget plays the reply beats.
-export type ScenarioClientToolParam = {
+export type ScenarioClientToolParameter = {
   name: string;
   description: string;
   required?: boolean;
@@ -52,7 +52,7 @@ export type ScenarioClientToolParam = {
 export type ScenarioClientTool = {
   name: string;
   description: string;
-  params?: ScenarioClientToolParam[];
+  params?: ScenarioClientToolParameter[];
   result: unknown;
 };
 

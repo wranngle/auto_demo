@@ -81,5 +81,5 @@ function formatPercent(ratio: number): string {
 }
 
 function escapeCell(value: string): string {
-  return value.replaceAll('|', '\\|');
+  return value.replaceAll('|', String.raw`\|`);
 }

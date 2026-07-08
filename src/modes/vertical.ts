@@ -1,10 +1,7 @@
-import {execFile} from 'node:child_process';
 import {stat, mkdir} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
-import {promisify} from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import {execFileAsync} from '../exec-file.js';
 
 export type AspectRatio = '9:16';
 
@@ -38,13 +35,16 @@ export type VerticalResult = {
   byteSize: number;
 };
 
+function isKnownAspect(value: string): value is AspectRatio {
+  return KNOWN_ASPECTS.has(value);
+}
+
 export async function renderVertical(options: VerticalOptions): Promise<VerticalResult> {
-  if (!KNOWN_ASPECTS.has(options.aspect)) {
+  if (!isKnownAspect(options.aspect)) {
     throw new Error(`Unknown aspect "${options.aspect}". Valid: ${[...KNOWN_ASPECTS].join(', ')}`);
   }
 
-  const aspect = options.aspect as AspectRatio;
-  const preset = ASPECT_PRESETS[aspect];
+  const preset = ASPECT_PRESETS[options.aspect];
   const inputPath = resolve(options.inputPath);
   const outputPath = resolve(options.outputPath);
 
@@ -59,22 +59,28 @@ export async function renderVertical(options: VerticalOptions): Promise<Vertical
 
   await execFileAsync('ffmpeg', [
     '-y',
-    '-i', inputPath,
-    '-vf', filter,
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
-    '-preset', 'veryfast',
-    '-movflags', '+faststart',
+    '-i',
+    inputPath,
+    '-vf',
+    filter,
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
+    '-preset',
+    'veryfast',
+    '-movflags',
+    '+faststart',
     '-an',
     outputPath,
   ]);
 
   const {width, height} = await probeDimensions(outputPath);
-  const byteSize = (await stat(outputPath)).size;
+  const {size: byteSize} = await stat(outputPath);
 
   return {
     outputPath,
-    aspect,
+    aspect: options.aspect,
     width,
     height,
     ratio: width / height,
@@ -111,10 +117,14 @@ const FILTER_BUILDERS: Record<FitMode, FilterBuilder> = {
 
 async function probeDimensions(mediaPath: string): Promise<{width: number; height: number}> {
   const {stdout} = await execFileAsync('ffprobe', [
-    '-v', 'error',
-    '-select_streams', 'v:0',
-    '-show_entries', 'stream=width,height',
-    '-of', 'csv=p=0',
+    '-v',
+    'error',
+    '-select_streams',
+    'v:0',
+    '-show_entries',
+    'stream=width,height',
+    '-of',
+    'csv=p=0',
     mediaPath,
   ]);
   const [widthRaw, heightRaw] = stdout.trim().split(',');
@@ -127,4 +137,6 @@ async function probeDimensions(mediaPath: string): Promise<{width: number; heigh
   return {width, height};
 }
 
-export const __test__ = {buildCropFilter, buildPadFilter, ASPECT_PRESETS, FILTER_BUILDERS};
+export const __test__ = {
+  buildCropFilter, buildPadFilter, ASPECT_PRESETS, FILTER_BUILDERS,
+};

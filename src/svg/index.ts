@@ -1,13 +1,10 @@
-import {execFile} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {
   mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile,
 } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
-import {promisify} from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import {execFileAsync} from '../exec-file.js';
 
 export type SvgOptions = {
   fixturePath: string;
@@ -65,16 +62,20 @@ export async function renderAnimatedSvg(options: SvgOptions): Promise<SvgResult>
       join(workDir, 'frame-%03d.jpg'),
     ]);
 
-    const frameFiles = (await readdir(workDir))
+    const workDirEntries = await readdir(workDir);
+    const frameFiles = workDirEntries
       .filter(name => name.startsWith('frame-') && name.endsWith('.jpg'))
-      .sort()
+      .toSorted()
       .slice(0, frameCount);
 
     if (frameFiles.length < 2) {
       throw new Error(`ffmpeg produced ${frameFiles.length} frames; need at least 2 to animate`);
     }
 
-    const frames = await Promise.all(frameFiles.map(async name => (await readFile(join(workDir, name))).toString('base64')));
+    const frames = await Promise.all(frameFiles.map(async name => {
+      const bytes = await readFile(join(workDir, name));
+      return bytes.toString('base64');
+    }));
 
     const {height} = await probeFirstFrameDimensions(join(workDir, frameFiles[0]!));
     const totalDurationMs = frameDurationMs * frames.length;
@@ -83,7 +84,7 @@ export async function renderAnimatedSvg(options: SvgOptions): Promise<SvgResult>
     });
 
     await writeFile(outputPath, svg, 'utf8');
-    const byteSize = (await stat(outputPath)).size;
+    const {size: byteSize} = await stat(outputPath);
 
     if (byteSize > MAX_BYTES) {
       throw new Error(`Animated SVG is ${byteSize} bytes; budget is ${MAX_BYTES}. Reduce --frames, --width, or --jpeg-quality.`);

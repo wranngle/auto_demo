@@ -26,14 +26,17 @@ export const QUALITY_PRESETS: Record<QualityPreset, QualitySpec> = {
   },
 };
 
-export function parseQualityPreset(value: string): QualitySpec {
-  const key = value.toLowerCase() as QualityPreset;
-  const spec = QUALITY_PRESETS[key];
+function isQualityPreset(key: string): key is QualityPreset {
+  return Object.hasOwn(QUALITY_PRESETS, key);
+}
 
-  if (spec === undefined) {
+export function parseQualityPreset(value: string): QualitySpec {
+  const key = value.toLowerCase();
+
+  if (!isQualityPreset(key)) {
     const valid = Object.keys(QUALITY_PRESETS).join(', ');
     throw new Error(`Expected one of ${valid}, received ${value}`);
   }
 
-  return spec;
+  return QUALITY_PRESETS[key];
 }
