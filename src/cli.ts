@@ -215,7 +215,9 @@ program
         const narrationPath = resolve(options.narrationOut);
         await mkdir(dirname(narrationPath), {recursive: true});
         await writeFile(narrationPath, renderNarrationScript(script), 'utf8');
-        console.log(`Wrote narration script to ${narrationPath}`);
+        // Stderr, deliberately: without --out the script JSON streams to
+        // stdout, which must stay a single parseable document.
+        console.error(`Wrote narration script to ${narrationPath}`);
       }
 
       if (options.out === undefined) {

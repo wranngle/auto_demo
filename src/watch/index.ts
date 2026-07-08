@@ -19,15 +19,22 @@ export type WatchOnceResult = {
 };
 
 const hashDom = (raw: string): string => {
-  // Strip comments to a fixpoint: a single pass can splice two fragments
-  // into a fresh `<!--` (e.g. `<!<!--- -->-- x -->`), which CodeQL rightly
-  // flags as incomplete multi-character sanitization.
+  // Strip comments toward a fixpoint: a single pass can splice two
+  // fragments into a fresh `<!--` (e.g. `<!<!--- -->-- x -->`), which
+  // CodeQL rightly flags as incomplete multi-character sanitization. The
+  // pass count is BOUNDED: adversarially nested splices otherwise force
+  // one full-regex pass per layer — measured O(n^2), ~1 min on a 1 MB
+  // snapshot. Ten layers covers any real DOM; residue past that is simply
+  // hashed as-is (this is a change detector, not a sanitizer — both
+  // snapshots get identical treatment, so comparisons stay sound).
   let withoutComments = raw;
-  let previous;
-  do {
-    previous = withoutComments;
+  for (let pass = 0; pass < 10; pass++) {
+    const previous = withoutComments;
     withoutComments = withoutComments.replaceAll(/<!--[\s\S]*?-->/gv, '');
-  } while (withoutComments !== previous);
+    if (withoutComments === previous) {
+      break;
+    }
+  }
 
   const normalized = withoutComments
     .replaceAll(/\s+/gv, ' ')

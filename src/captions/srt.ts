@@ -39,15 +39,18 @@ export function parseLanguages(raw: string): CaptionLanguage[] {
   return out;
 }
 
-export function buildCaptionCues(flow: DemoFlow): CaptionCue[] {
+export function buildCaptionCues(flow: DemoFlow, effectiveSpeed?: number): CaptionCue[] {
   const cues: CaptionCue[] = [];
   let cursorMs = 0;
   let index = 0;
 
-  // The runner divides every wait by timing.speed (see delay() in runner.ts),
-  // so cue estimates must scale the same way or captions drift behind the
-  // retimed video — ~35% on the 1.35x widget flows.
-  const rawSpeed = flow.timing?.speed;
+  // The runner divides every wait by its EFFECTIVE speed — the clamped
+  // `options.speed ?? flow.timing?.speed ?? 1` (normalizeTiming in
+  // runner.ts) — so cue estimates must scale by the same value or captions
+  // drift behind the retimed video (~35% on the 1.35x widget flows; 2x on
+  // a `--speed 2` override). The runner passes that value in; callers
+  // without runtime context fall back to the flow's own pinned speed.
+  const rawSpeed = effectiveSpeed ?? flow.timing?.speed;
   const speed = rawSpeed !== undefined && rawSpeed > 0 ? rawSpeed : 1;
 
   for (const step of flow.steps) {

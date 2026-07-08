@@ -321,8 +321,8 @@ const sleep = async (ms: number) => new Promise<void>(resolve => {
 function mockToneFrequencyHz(text: string): number {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
-    // eslint-disable-next-line no-bitwise -- Deliberate int32 wraparound; a different hash would repitch every mock recording.
-    hash = ((hash * 31) + (text.codePointAt(i) ?? 0)) & 0xFF_FF_FF_FF;
+    // eslint-disable-next-line no-bitwise, unicorn/prefer-code-point -- Deliberate int32 wraparound over UTF-16 units; codePointAt would repitch any narration containing astral characters (e.g. emoji), breaking historical mock-tone parity.
+    hash = ((hash * 31) + text.charCodeAt(i)) & 0xFF_FF_FF_FF;
   }
 
   return 220 + (Math.abs(hash) % 440);

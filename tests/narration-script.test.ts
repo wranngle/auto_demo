@@ -57,6 +57,15 @@ describe('renderNarrationScript', () => {
     expect(long[0]!.durationSec).toBeGreaterThan(4);
   });
 
+  test('narration containing newlines collapses to one physical cue line (round-trip safe)', () => {
+    const cues = parseNarrationScript(renderNarrationScript({
+      ...script,
+      steps: [{selector: 'a', action: 'click', narration: 'Open Billing.\nThen  wait\n\tfor the table.'}],
+    }));
+    expect(cues).toHaveLength(1);
+    expect(cues[0]!.text).toBe('Open Billing. Then wait for the table.');
+  });
+
   test('steps with empty narration are skipped, not emitted as blank cues', () => {
     const cues = parseNarrationScript(renderNarrationScript({
       ...script,

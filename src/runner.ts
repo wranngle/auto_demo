@@ -127,7 +127,7 @@ export async function runFlow(flow: DemoFlow, options: RunOptions): Promise<RunR
     result.videoPath = videoPath;
   }
 
-  const captionPaths = await writeCaptionTracks(flow, outputDir, options.captionsLang);
+  const captionPaths = await writeCaptionTracks(flow, outputDir, options.captionsLang, timing.speed);
   if (captionPaths.length > 0) {
     result.captionPaths = captionPaths;
   }
@@ -194,12 +194,13 @@ async function writeCaptionTracks(
   flow: DemoFlow,
   outputDir: string,
   languages: readonly CaptionLanguage[] | undefined,
+  effectiveSpeed: number,
 ): Promise<string[]> {
   if (languages === undefined || languages.length === 0) {
     return [];
   }
 
-  const cues = buildCaptionCues(flow);
+  const cues = buildCaptionCues(flow, effectiveSpeed);
   if (cues.length === 0) {
     return [];
   }
