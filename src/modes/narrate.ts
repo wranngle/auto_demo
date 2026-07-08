@@ -145,7 +145,10 @@ export function parseNarrationScript(raw: string): NarrationLine[] {
       continue;
     }
 
-    const match = /^(\d+(?:\.\d+)?)\s*[\|\t]\s*(\d+(?:\.\d+)?)\s*[\|\t]\s*(.+)$/v.exec(line);
+    // Padding around separators is spaces-only ON PURPOSE: `\s*` would
+    // overlap the tab separator class and open polynomial backtracking on
+    // long tab runs (CodeQL js/polynomial-redos).
+    const match = /^(\d+(?:\.\d+)?) *[\|\t] *(\d+(?:\.\d+)?) *[\|\t] *(.+)$/v.exec(line);
     if (match === null) {
       throw new Error(`Invalid narration line (expected "start|duration|text"): ${line}`);
     }

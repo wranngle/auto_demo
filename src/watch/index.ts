@@ -19,8 +19,17 @@ export type WatchOnceResult = {
 };
 
 const hashDom = (raw: string): string => {
-  const normalized = raw
-    .replaceAll(/<!--[\s\S]*?-->/gv, '')
+  // Strip comments to a fixpoint: a single pass can splice two fragments
+  // into a fresh `<!--` (e.g. `<!<!--- -->-- x -->`), which CodeQL rightly
+  // flags as incomplete multi-character sanitization.
+  let withoutComments = raw;
+  let previous;
+  do {
+    previous = withoutComments;
+    withoutComments = withoutComments.replaceAll(/<!--[\s\S]*?-->/gv, '');
+  } while (withoutComments !== previous);
+
+  const normalized = withoutComments
     .replaceAll(/\s+/gv, ' ')
     .trim()
     .toLowerCase();
