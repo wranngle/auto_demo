@@ -1,9 +1,10 @@
-# ui-demo-runner
+# auto_demo
 
-![ui-demo-runner hero](docs/hero.gif)
+![auto_demo hero: the CLI records a browser flow and writes a reproducible video](docs/hero.gif)
 
-Deterministic CLI recorder for browser UI demos. One command, one flow file,
-one reproducible video, every time.
+Deterministic CLI recorder for browser UI demos (package name:
+`ui-demo-runner`). One command, one flow file, one reproducible video,
+every time.
 
 ```bash
 npm run demo:smoke
