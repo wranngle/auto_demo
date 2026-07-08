@@ -96,6 +96,17 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   from "actions" to "modes" for consistency. (#7)
 - README docs fixed: narrate + vertical chaining examples reference
   `recording.webm` (the actual runner output) instead of `recording.mp4`.
+- README accuracy pass: ffmpeg-missing behavior stated per-subcommand
+  (`run` records and ships the manifest with only the retime skipped;
+  `narrate`/`vertical`/`split`/`svg` hard-require ffmpeg/ffprobe), the
+  CI-template copy snippet points at the in-repo `templates/` path
+  instead of a global npm root, and prose punctuation was normalized. (#131)
+- Dependabot dev-dependency bumps: vite 8.0.14 → 8.0.16 (#130); js-yaml
+  4.1.1 → 4.3.0, pulling upstream's `maxTotalMergeKeys` YAML-merge
+  hardening (#133).
+- `package.json` gains `repository` + `homepage` so the npm listing and
+  provenance link back to the source (`bugs` deliberately omitted — the
+  repository has issues disabled). (#143)
 
 ### Removed (public-visibility remediation)
 - Private dev-harness clutter stripped from the published tree:
@@ -107,6 +118,9 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   `startUrl` targets a private app that ships nowhere in the repo) that
   was being published in the npm tarball. Dropped per the same precedent
   as the earlier portfolio-orphan sweeps (#37/#45/#81). (#138)
+- Community-health boilerplate (`SECURITY.md`, `CODE_OF_CONDUCT.md`, the
+  research issue template) removed — the repository has issues disabled
+  and the dotfiles-level defaults own that surface. (#132)
 
 ### Fixed
 - **Real-time playback (kills the 3–5× slow-motion bug).** Playwright tags webms

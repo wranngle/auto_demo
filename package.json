@@ -6,6 +6,11 @@
   "bin": {
     "ui-demo-runner": "./dist/cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wranngle/auto_demo.git"
+  },
+  "homepage": "https://github.com/wranngle/auto_demo#readme",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
