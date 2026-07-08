@@ -7,7 +7,6 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 import {describe, expect, test} from 'vitest';
-// eslint-disable-next-line @typescript-eslint/naming-convention
 import {__test__} from '../src/svg/index.js';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
@@ -20,7 +19,9 @@ const onePxJpeg = '/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wI
 
 describe('buildSvg', () => {
   test('emits well-formed XML preamble + opening svg tag with the documented brand', () => {
-    const svg = buildSvg({frames: [onePxJpeg], width: 320, height: 240, frameDurationMs: 100, totalDurationMs: 100});
+    const svg = buildSvg({
+      frames: [onePxJpeg], width: 320, height: 240, frameDurationMs: 100, totalDurationMs: 100,
+    });
     expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg).toContain('viewBox="0 0 320 240"');
@@ -31,7 +32,9 @@ describe('buildSvg', () => {
   });
 
   test('emits exactly one <image> + one <animate> per frame', () => {
-    const svg = buildSvg({frames: [onePxJpeg, onePxJpeg, onePxJpeg], width: 100, height: 100, frameDurationMs: 50, totalDurationMs: 150});
+    const svg = buildSvg({
+      frames: [onePxJpeg, onePxJpeg, onePxJpeg], width: 100, height: 100, frameDurationMs: 50, totalDurationMs: 150,
+    });
     expect((svg.match(/<image\b/gv) ?? []).length).toBe(3);
     expect((svg.match(/<animate\b/gv) ?? []).length).toBe(3);
     expect(svg).toContain('data-frame-duration-ms="50"');

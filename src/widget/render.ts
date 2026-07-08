@@ -148,12 +148,20 @@ export function buildDemoFlow(scenario: WidgetScenario, htmlFileName: string): D
 // contract that locks the shape; the runtime always sees clamped values.
 export function replyHoldBonus(reply: WidgetScenario['turns'][number]['reply'], isFirst: boolean, isLast: boolean): number {
   let bonus = 0;
-  if (isFirst) bonus += 400;
-  if (isLast) bonus += 600;
+  if (isFirst) {
+    bonus += 400;
+  }
+
+  if (isLast) {
+    bonus += 600;
+  }
+
   const richReply = reply.length > 2 || reply.some(piece =>
-    typeof piece === 'object' && piece !== null && 'say' in piece && typeof piece.say === 'string' && piece.say.length > 80,
-  );
-  if (richReply) bonus += 500;
+    typeof piece === 'object' && piece !== null && 'say' in piece && typeof piece.say === 'string' && piece.say.length > 80);
+  if (richReply) {
+    bonus += 500;
+  }
+
   return bonus;
 }
 

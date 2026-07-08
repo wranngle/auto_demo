@@ -85,30 +85,39 @@ export async function buildWidgetScenario(options: BuildWidgetOptions): Promise<
 }
 
 async function serveDir(root: string): Promise<{port: number; close: () => void}> {
-  const server: Server = createServer(async (request, response) => {
-    try {
-      const rel = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
-      const relPath = normalize(rel.endsWith('/') ? `${rel}index.html` : rel);
-      if (relPath.includes('..')) {
-        response.writeHead(403);
-        response.end('forbidden');
-        return;
-      }
+  const server: Server = createServer((request, response) => {
+    // CreateServer expects a void listener; the async work is explicitly
+    // detached and fully self-handling (its catch answers 404).
+    void (async () => {
+      try {
+        const rel = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+        const relPath = normalize(rel.endsWith('/') ? `${rel}index.html` : rel);
+        if (relPath.includes('..')) {
+          response.writeHead(403);
+          response.end('forbidden');
+          return;
+        }
 
-      const body = await readFile(join(root, relPath));
-      response.writeHead(200, {'content-type': mimeTypes[extname(relPath)] ?? 'application/octet-stream'});
-      response.end(body);
-    } catch {
-      response.writeHead(404);
-      response.end('not found');
-    }
+        const body = await readFile(join(root, relPath));
+        response.writeHead(200, {'content-type': mimeTypes[extname(relPath)] ?? 'application/octet-stream'});
+        response.end(body);
+      } catch {
+        response.writeHead(404);
+        response.end('not found');
+      }
+    })();
   });
 
   return new Promise(resolvePromise => {
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       const port = typeof address === 'object' && address !== null ? address.port : 0;
-      resolvePromise({port, close: () => server.close()});
+      resolvePromise({
+        port,
+        close() {
+          server.close();
+        },
+      });
     });
   });
 }

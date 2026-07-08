@@ -183,6 +183,21 @@ breaking-change contract yet. Cut a `0.2.0` tag when the surface stabilizes.
   (ffmpeg gif re-encodes REQUIRE `palettegen`/`paletteuse`; the naive
   filter emitted 29.7 MB from a 132 KB source) + publishes `docs/hero.gif`
   (65 KB). (#141)
+- **`npm run lint` passes again (395 xo errors → 0)** and is now enforced:
+  a `pretest` hook runs xo before every `npm test`, so CI's generic test
+  job gates on it — the debt existed precisely because nothing ran lint.
+  The config moved to `xo.config.js` (flat; a `package.json#xo` block
+  would shadow it via cosmiconfig order) with three deliberate tunings,
+  each documented in-file: naming-convention permits UPPER_CASE module
+  constants + external-API snake_case/dotted payload keys;
+  `no-await-in-loop` off (sequential steps/lines/cloud-calls are the
+  product); test files may assert mock shapes. Everything else was fixed
+  in code: all regexes on the `v` flag, `promisify(execFile)` replaced by
+  a typed shared `src/exec-file.ts` wrapper (kills six duplicates and a
+  strict-void-return false positive), unsafe type assertions replaced
+  with type predicates (quality/vertical/storyboard/scenario), detached
+  async server handler made explicit, `toSorted`/`toReversed` for
+  mutating sorts. (#142)
 - Real repo URL in `SECURITY.md` + issue-template config (was
   `REPO_URL_NOT_DETECTED` placeholder).
 - Template artifact paths now `recording.webm` + `manifest.json` (was

@@ -10,7 +10,7 @@ import {describe, expect, test} from 'vitest';
 import {resolveTarget} from '../src/url-resolver.js';
 
 const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
-const flowDir = resolve(repoRoot, 'examples'); // examples/fixtures/smoke.html exists
+const flowDir = resolve(repoRoot, 'examples'); // Examples/fixtures/smoke.html exists
 
 describe('resolveTarget', () => {
   test('absolute http/https URLs pass through unchanged', () => {

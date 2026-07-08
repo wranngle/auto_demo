@@ -1,4 +1,6 @@
-import {mkdir, copyFile, writeFile, appendFile} from 'node:fs/promises';
+import {
+  mkdir, copyFile, writeFile, appendFile,
+} from 'node:fs/promises';
 import {join} from 'node:path';
 import {
   chromium,
@@ -179,7 +181,7 @@ export function formatEventNdjson(flowName: string | undefined, events: StepEven
 }
 
 async function writeEventsNdjson(path: string, flowName: string, events: StepEvent[]): Promise<void> {
-  // appendFile (not writeFile) keeps the log genuinely append-only: rerunning
+  // AppendFile (not writeFile) keeps the log genuinely append-only: rerunning
   // into the same output dir accumulates across runs for cross-run analysis
   // rather than truncating prior lines.
   const body = formatEventNdjson(flowName, events);

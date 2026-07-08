@@ -6,12 +6,14 @@
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, resolve} from 'node:path';
-import {afterEach, describe, expect, test, vi} from 'vitest';
+import {
+  afterEach, describe, expect, test, vi,
+} from 'vitest';
 import {
   DEFAULT_ELEVENLABS_VOICE_ID,
   parseNarrationScript,
   SUPPORTED_VOICES,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   __test__,
 } from '../src/modes/narrate.js';
 
@@ -62,7 +64,7 @@ describe('parseNarrationScript', () => {
   });
 });
 
-// mockToneFrequencyHz (src/modes/narrate.ts) hashes the cue text into
+// MockToneFrequencyHz (src/modes/narrate.ts) hashes the cue text into
 // a tone frequency in [220, 660] Hz — used by --voice mock so every line in a
 // script gets a distinct, deterministic pitch. Locks the determinism + range
 // contract so a refactor that changes the hash, range, or breaks idempotency
@@ -90,7 +92,7 @@ describe('mockToneFrequencyHz', () => {
   });
 });
 
-// fetchElevenLabsSpeech network contract, with fetch mocked so nothing ever
+// FetchElevenLabsSpeech network contract, with fetch mocked so nothing ever
 // leaves the process — and no ffmpeg: CI's vitest job has no external
 // binaries (the decode/mix/mux integration lives in narrate.bats, which
 // runs on the ffmpeg-equipped bats CI step against a local mock server).
@@ -157,7 +159,7 @@ describe('fetchElevenLabsSpeech (mocked network)', () => {
     const fetchMock = vi.fn(async () => new Response('invalid api key', {status: 401}));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/HTTP 401/);
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/HTTP 401/v);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -165,7 +167,7 @@ describe('fetchElevenLabsSpeech (mocked network)', () => {
     const fetchMock = vi.fn(async () => new Response('upstream sad', {status: 503}));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/after 3 attempts/);
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/after 3 attempts/v);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -175,7 +177,7 @@ describe('fetchElevenLabsSpeech (mocked network)', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/ECONNREFUSED/);
+    await expect(fetchElevenLabsSpeech(line, config())).rejects.toThrow(/ECONNREFUSED/v);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -191,15 +193,15 @@ describe('doctrine drift: --voice enum across narrate.ts ↔ CLI help ↔ README
 
     // CLI: `--voice <id>` help text reads `Voice id: "mock" (...) or "elevenlabs"`.
     const cli = await readFile(resolve(repoRoot, 'src', 'cli.ts'), 'utf8');
-    const cliMatch = /--voice[^)]*'\s*Voice id:\s*([^']+)'/u.exec(cli);
+    const cliMatch = /--voice[^\)]*'\s*Voice id:\s*([^']+)'/v.exec(cli);
     expect(cliMatch, 'src/cli.ts must contain `--voice <id>` with `Voice id: ...` help text').not.toBeNull();
-    const cliVoices = new Set([...cliMatch![1]!.matchAll(/"([\w-]+)"/gu)].map(m => m[1]!));
+    const cliVoices = new Set([...cliMatch![1]!.matchAll(/"([\w\-]+)"/gv)].map(m => m[1]!));
     expect(cliVoices, `CLI help "${cliMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
 
     // README narrate section: enumerates `--voice mock` and `--voice elevenlabs`
     // as separate phrases. Pull every `--voice <name>` mention and dedupe.
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
-    const readmeVoices = new Set([...readme.matchAll(/--voice\s+([\w-]+)/gu)].map(m => m[1]!));
+    const readmeVoices = new Set([...readme.matchAll(/--voice\s+([\w\-]+)/gv)].map(m => m[1]!));
     expect(readmeVoices, `README enumerates ${[...readmeVoices].join(', ')}; SUPPORTED_VOICES is ${[...sourceTruth].join(', ')}`)
       .toEqual(sourceTruth);
   });

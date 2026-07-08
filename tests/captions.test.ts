@@ -73,7 +73,7 @@ describe('parseLanguages', () => {
     // CLI help: the `--captions-lang <codes>` option's help string contains
     // the language list inside `(...)`.
     const cli = await readFile(resolve(repoRoot, 'src', 'cli.ts'), 'utf8');
-    const cliMatch = /--captions-lang[^)]*\(([\w,\s]+)\)/u.exec(cli);
+    const cliMatch = /--captions-lang[^\)]*\(([\w,\s]+)\)/v.exec(cli);
     expect(cliMatch, 'src/cli.ts must contain `--captions-lang ... (codes)` help text').not.toBeNull();
     const cliCodes = new Set(cliMatch![1]!.split(',').map(s => s.trim()).filter(Boolean));
     expect(cliCodes, `CLI help "${cliMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
@@ -81,7 +81,7 @@ describe('parseLanguages', () => {
     // CHANGELOG: the `--captions-lang <codes>` mention is the first one
     // after the `Added` section header for the multilingual feature.
     const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
-    const changelogMatch = /--captions-lang\s+([\w,\s]+?)`/u.exec(changelog);
+    const changelogMatch = /--captions-lang\s+([\w,\s]+?)`/v.exec(changelog);
     expect(changelogMatch, 'CHANGELOG must contain a `--captions-lang <codes>` reference').not.toBeNull();
     const changelogCodes = new Set(changelogMatch![1]!.split(',').map(s => s.trim()).filter(Boolean));
     expect(changelogCodes, `CHANGELOG "${changelogMatch![1]}" must enumerate ${[...sourceTruth].join(', ')}`).toEqual(sourceTruth);
@@ -98,7 +98,7 @@ describe('parseLanguages', () => {
   test('every non-en supported language has a phraseBook entry that actually translates', () => {
     for (const lang of supportedLanguages) {
       if (lang === 'en') {
-        expect(translateCaption('open', lang), `en is the identity path`).toBe('open');
+        expect(translateCaption('open', lang), 'en is the identity path').toBe('open');
         continue;
       }
 

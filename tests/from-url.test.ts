@@ -43,9 +43,8 @@ describe('generateScriptFromUrl', () => {
     const actualSteps = fixture.steps.length;
     expect(actualSteps, 'fixture must declare at least one step').toBeGreaterThan(0);
 
-    const stepPhrase = /deterministic\s+(\d+)-step/gu;
+    const stepPhrase = /deterministic\s+(\d+)-step/gv;
     for (const docFile of ['README.md', 'CHANGELOG.md']) {
-      // eslint-disable-next-line no-await-in-loop
       const body = await readFile(resolve(repoRoot, docFile), 'utf8');
       const matches = [...body.matchAll(stepPhrase)];
       expect(matches.length, `${docFile} must contain a "deterministic <N>-step" phrase`).toBeGreaterThan(0);

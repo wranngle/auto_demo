@@ -17,17 +17,17 @@ const raw = readFileSync(templatePath, 'utf8');
 
 describe('auto-demo-on-deploy.yml.template', () => {
   test('declares on.push.branches with main as a target', () => {
-    expect(raw).toMatch(/on:\s*\n\s*push:\s*\n\s*branches:\s*\n\s*-\s*main\b/u);
+    expect(raw).toMatch(/on:\s*\n\s*push:\s*\n\s*branches:\s*\n\s*-\s*main\b/v);
   });
 
   test('uploads artifacts via actions/upload-artifact@v4', () => {
-    expect(raw).toMatch(/uses:\s*actions\/upload-artifact@v4\b/u);
+    expect(raw).toMatch(/uses:\s*actions\/upload-artifact@v4\b/v);
   });
 
   test('runs the ui-demo-runner CLI in a recording step', () => {
     // The install spec may carry an @<source> suffix (e.g. the github:
     // fallback used until the package is published to npm).
-    expect(raw).toMatch(/ui-demo-runner(?:@\S+)?\s+run\b/u);
+    expect(raw).toMatch(/ui-demo-runner(?:@\S+)?\s+run\b/v);
   });
 
   // Doctrine drift: the per-run artifact set (recording.webm + manifest.json +
@@ -50,8 +50,8 @@ describe('auto-demo-on-deploy.yml.template', () => {
   // The template's *filename* is intentionally preserved (consumers may
   // already link by URL); the brand inside the body is what counts.
   test('no stale auto-demo / auto_demo brand strings in template body', () => {
-    expect(raw, 'template body must not contain `.auto_demo` paths').not.toMatch(/\.auto_demo/u);
-    expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/u);
+    expect(raw, 'template body must not contain `.auto_demo` paths').not.toMatch(/\.auto_demo/v);
+    expect(raw, 'template body must not contain `auto-demo-` artifact prefixes').not.toMatch(/auto-demo-\$\{\{/v);
   });
 
   // Doctrine drift: the consumer template installs Node via
@@ -66,10 +66,10 @@ describe('auto-demo-on-deploy.yml.template', () => {
     };
     const engines = pkg.engines?.node;
     expect(engines, 'package.json must declare engines.node').toBeDefined();
-    const engineFloor = /^>=\s*(\d+)/u.exec(engines!);
+    const engineFloor = /^>=\s*(\d+)/v.exec(engines!);
     expect(engineFloor, `package.json engines.node "${engines}" must look like ">=<N>"`).not.toBeNull();
 
-    const templateNode = /node-version:\s*'(\d+)'/u.exec(raw);
+    const templateNode = /node-version:\s*'(\d+)'/v.exec(raw);
     expect(templateNode, 'template must set `node-version: \'<N>\'`').not.toBeNull();
 
     const floor = Number(engineFloor![1]);
@@ -90,11 +90,11 @@ describe('auto-demo-on-deploy.yml.template', () => {
     };
     const declared = pkg.dependencies.playwright;
     expect(declared, 'package.json must declare a `playwright` dependency').toBeDefined();
-    const pkgMatch = /^[~^]?(\d+\.\d+\.\d+)$/u.exec(declared!);
+    const pkgMatch = /^[~^]?(\d+\.\d+\.\d+)$/v.exec(declared!);
     expect(pkgMatch, `package.json playwright dep "${declared}" must look like ^X.Y.Z`).not.toBeNull();
     const [pkgMajor, pkgMinor] = pkgMatch![1]!.split('.').map(Number);
 
-    const templateMatch = /playwright@(\d+)\.(\d+)\.(\d+)/u.exec(raw);
+    const templateMatch = /playwright@(\d+)\.(\d+)\.(\d+)/v.exec(raw);
     expect(templateMatch, 'template must contain `playwright@<X.Y.Z>`').not.toBeNull();
     const [, tplMajor, tplMinor] = templateMatch!.map(Number);
 
@@ -116,7 +116,7 @@ describe('auto-demo-on-deploy.yml.template', () => {
   test('doctrine drift: .gitignore covers the .ui-demo-runner* directory family the runtime defaults create', () => {
     const gitignore = readFileSync(resolve(here, '..', '.gitignore'), 'utf8');
     expect(gitignore, '.gitignore must contain `.ui-demo-runner*/` so narrate/split/template outputs stay untracked')
-      .toMatch(/^\.ui-demo-runner\*\/$/mu);
+      .toMatch(/^\.ui-demo-runner\*\/$/mv);
   });
 
   // Doctrine drift: README's "## CI integration" section embeds a copy-paste
@@ -131,16 +131,16 @@ describe('auto-demo-on-deploy.yml.template', () => {
     // The template body declares an artifact name via `name: <prefix>-${{ github.sha }}`.
     // Pull the prefix and assert README's "Artifacts land under the workflow run as `<prefix>-<sha>`"
     // claim references the same one.
-    const templatePrefix = /name:\s+([\w-]+)-\$\{\{\s+github\.sha\s+\}\}/u.exec(raw);
-    expect(templatePrefix, 'template must declare an artifact `name: <prefix>-${{ github.sha }}`').not.toBeNull();
-    const readmePrefix = /Artifacts land under the workflow run as `([\w-]+)-<sha>`/u.exec(readme);
+    const templatePrefix = /name:\s+([\w\-]+)-\$\{\{\s+github\.sha\s+\}\}/v.exec(raw);
+    expect(templatePrefix, 'template must declare an artifact name of the form <prefix>-{{ github.sha }} (dollar-prefixed GitHub expression)').not.toBeNull();
+    const readmePrefix = /Artifacts land under the workflow run as `([\w\-]+)-<sha>`/v.exec(readme);
     expect(readmePrefix, 'README must contain the "Artifacts land under the workflow run as `<prefix>-<sha>`" phrase').not.toBeNull();
     expect(readmePrefix![1], `README artifact prefix "${readmePrefix![1]}" must match template prefix "${templatePrefix![1]}"`).toBe(templatePrefix![1]);
 
     // The template's header comment suggests the target filename consumers
     // should use under .github/workflows/. Pull it and assert README's
     // copy-paste `cp ... .github/workflows/<name>` uses the same one.
-    const templateTargetName = /Copy this file to `\.github\/workflows\/([\w.-]+\.yml)`/u.exec(raw);
+    const templateTargetName = /Copy this file to `\.github\/workflows\/([\w.\-]+\.yml)`/v.exec(raw);
     expect(templateTargetName, 'template header must suggest a `.github/workflows/<name>.yml` target').not.toBeNull();
     expect(readme, `README cp snippet must target the template-suggested filename "${templateTargetName![1]}"`)
       .toContain(`.github/workflows/${templateTargetName![1]}`);
@@ -158,17 +158,23 @@ describe('auto-demo-on-deploy.yml.template', () => {
   // branded; named for its describe block).
   test('brand-rename drift: every tests/*.ts mkdtemp prefix uses the `ui-demo-` brand', () => {
     const testsDir = resolve(here);
-    const mkdtempPrefix = /mkdtemp\(\s*join\(\s*tmpdir\(\)\s*,\s*['"`]([^'"`]+)['"`]\s*\)/gu;
+    const mkdtempPrefix = /mkdtemp\(\s*join\(\s*tmpdir\(\)\s*,\s*['"`]([^'"`]+)['"`]\s*\)/gv;
     const allowedExactPrefix = new Set(['regress-test-']);
     const requiredBrandPrefix = 'ui-demo-';
     const offenders: string[] = [];
 
     for (const entry of readdirSync(testsDir, {withFileTypes: true})) {
-      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+      if (!entry.isFile() || !entry.name.endsWith('.ts')) {
+        continue;
+      }
+
       const source = readFileSync(resolve(testsDir, entry.name), 'utf8');
       for (const match of source.matchAll(mkdtempPrefix)) {
         const prefix = match[1]!;
-        if (allowedExactPrefix.has(prefix) || prefix.startsWith(requiredBrandPrefix)) continue;
+        if (allowedExactPrefix.has(prefix) || prefix.startsWith(requiredBrandPrefix)) {
+          continue;
+        }
+
         offenders.push(`${entry.name}: ${prefix}`);
       }
     }
@@ -184,20 +190,26 @@ describe('auto-demo-on-deploy.yml.template', () => {
   // creation time (visible in the ElevenLabs dashboard), but new agents
   // must use the current brand. Test-infra prefixes (above) lock test
   // mktemp; this locks operator-script literals. Scan every
-  // `scripts/*.mjs` for any `auto[-_]demo` brand reference and fail.
+  // `scripts/*.mjs` for any `auto[\-_]demo` brand reference and fail.
   test('brand-rename drift: no auto-demo / auto_demo brand strings in scripts/*.mjs', () => {
     const scriptsDir = resolve(here, '..', 'scripts');
     const offenders: string[] = [];
 
     for (const entry of readdirSync(scriptsDir, {withFileTypes: true})) {
-      if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
+      if (!entry.isFile() || !entry.name.endsWith('.mjs')) {
+        continue;
+      }
+
       const source = readFileSync(resolve(scriptsDir, entry.name), 'utf8');
-      for (const match of source.matchAll(/auto[-_]demo/gu)) {
+      for (const match of source.matchAll(/auto[\-_]demo/gv)) {
         // Allow comment references to the historical archived branch
         // `archive/auto-demo-merger-2026-05-25` — that's a historical
         // identifier, not a brand claim.
         const before = source.slice(Math.max(0, match.index - 40), match.index);
-        if (/archive\/auto[-_]demo/u.test(before + match[0])) continue;
+        if (/archive\/auto[\-_]demo/v.test(before + match[0])) {
+          continue;
+        }
+
         offenders.push(`${entry.name}: ...${source.slice(Math.max(0, match.index - 20), match.index + 30)}...`);
       }
     }
@@ -208,12 +220,12 @@ describe('auto-demo-on-deploy.yml.template', () => {
 
   test('contains no hardcoded credential literals', () => {
     const lines = raw.split('\n');
-    const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w-]{16,}/iu;
+    const credentialKeyValue = /^(?!\s*#)[^#]*\b(api[_\-]?key|token|password|secret)\b\s*[:=]\s*["']?[\w\-]{16,}/iv;
     const obviousProviderKeys = [
-      /\bsk-[\w-]{16,}\b/u, // OpenAI / Anthropic shapes
-      /\bghp_[A-Za-z0-9]{20,}\b/u, // GitHub PAT
-      /\bAKIA[0-9A-Z]{16}\b/u, // AWS access key
-      /-----BEGIN [A-Z ]*PRIVATE KEY-----/u,
+      /\bsk-[\w\-]{16,}\b/v, // OpenAI / Anthropic shapes
+      /\bghp_[A-Za-z0-9]{20,}\b/v, // GitHub PAT
+      /\bAKIA[0-9A-Z]{16}\b/v, // AWS access key
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----/v,
     ];
 
     for (const pattern of obviousProviderKeys) {

@@ -14,12 +14,9 @@
 // computeRetimeRatio is pure (unit-tested in tests/retime.test.ts). retime is
 // the IO wrapper that probes + invokes ffmpeg + atomically replaces the file.
 
-import {execFile} from 'node:child_process';
 import {rename, rm} from 'node:fs/promises';
-import {promisify} from 'node:util';
+import {execFileAsync} from './exec-file.js';
 import type {StepEvent} from './types.js';
-
-const execFileAsync = promisify(execFile);
 
 export function computeRetimeRatio(events: StepEvent[], containerSec: number | undefined): number | undefined {
   if (events.length < 2 || containerSec === undefined || !Number.isFinite(containerSec) || containerSec <= 0) {
@@ -51,11 +48,16 @@ export type RetimeOutcome = {
 // when a --quality preset asked for a bitrate target.
 export function buildRetimeArgs(ratio: number | undefined, videoBitrateKbps: number | undefined): string[] {
   const filter = ratio === undefined ? [] : ['-filter:v', `setpts=${ratio.toFixed(6)}*PTS`];
-  const bitrate = videoBitrateKbps === undefined ? [] : [
-    '-b:v', `${videoBitrateKbps}k`,
-    '-maxrate', `${videoBitrateKbps}k`,
-    '-bufsize', `${videoBitrateKbps * 2}k`,
-  ];
+  const bitrate = videoBitrateKbps === undefined
+    ? []
+    : [
+      '-b:v',
+      `${videoBitrateKbps}k`,
+      '-maxrate',
+      `${videoBitrateKbps}k`,
+      '-bufsize',
+      `${videoBitrateKbps * 2}k`,
+    ];
   return [...filter, ...bitrate, '-an'];
 }
 
@@ -77,17 +79,19 @@ export async function retimeRecordingToRealTime(videoPath: string, events: StepE
     ...(videoBitrateKbps === undefined ? {} : {videoBitrateKbps}),
   };
 
-  const tmp = `${videoPath}.retime.webm`;
+  const temporary = `${videoPath}.retime.webm`;
   try {
     await execFileAsync('ffmpeg', [
-      '-y', '-i', videoPath,
+      '-y',
+      '-i',
+      videoPath,
       ...buildRetimeArgs(ratio, videoBitrateKbps),
-      tmp,
+      temporary,
     ]);
-    await rename(tmp, videoPath);
+    await rename(temporary, videoPath);
     return {status: 'retimed', ...applied};
   } catch (error) {
-    await rm(tmp, {force: true}).catch(() => undefined);
+    await rm(temporary, {force: true}).catch(() => undefined);
     const message = (error instanceof Error ? error.message : String(error)).slice(0, 300);
     console.error(`Warning: recording post-process (retime/bitrate) failed; shipping the raw capture. ${message}`);
     return {status: 'failed', ...applied, error: message};

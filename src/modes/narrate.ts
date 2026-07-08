@@ -1,10 +1,10 @@
-import {execFile} from 'node:child_process';
-import {mkdir, readFile, rm, writeFile} from 'node:fs/promises';
+import process from 'node:process';
+import {
+  mkdir, readFile, rm, writeFile,
+} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
-import {promisify} from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import {execFileAsync} from '../exec-file.js';
 
 const SAMPLE_RATE = 44_100;
 
@@ -102,7 +102,7 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
         voiceId: options.voiceId ?? DEFAULT_ELEVENLABS_VOICE_ID,
         retryBaseMs: options.retryBaseMs ?? 1000,
       });
-      realSynthesisRan = realSynthesisRan || lineSynthesized;
+      realSynthesisRan ||= lineSynthesized;
       // Real speech has a natural length that can overrun the script's slot.
       // The mix must know the true extent or its trailing `-t` would clip the
       // final line mid-word (mux still caps audio at video length via -shortest).
@@ -137,22 +137,55 @@ export async function renderNarration(options: NarrateOptions): Promise<NarrateR
   };
 }
 
+// A cue field must be a plain non-negative decimal. Anchored on a short,
+// already-isolated field — no separator ambiguity, no backtracking blowup
+// (the previous one-regex-per-line parse was polynomial on long tab runs).
+const CUE_NUMBER = /^\d+(?:\.\d+)?$/v;
+
+function splitCueLine(line: string): [string, string, string] | undefined {
+  const first = separatorIndex(line, 0);
+  if (first === -1) {
+    return undefined;
+  }
+
+  const second = separatorIndex(line, first + 1);
+  if (second === -1) {
+    return undefined;
+  }
+
+  return [line.slice(0, first).trim(), line.slice(first + 1, second).trim(), line.slice(second + 1).trim()];
+}
+
+function separatorIndex(line: string, from: number): number {
+  const pipe = line.indexOf('|', from);
+  const tab = line.indexOf('\t', from);
+  if (pipe === -1) {
+    return tab;
+  }
+
+  if (tab === -1) {
+    return pipe;
+  }
+
+  return Math.min(pipe, tab);
+}
+
 export function parseNarrationScript(raw: string): NarrationLine[] {
   const lines: NarrationLine[] = [];
-  for (const rawLine of raw.split(/\r?\n/)) {
+  for (const rawLine of raw.split(/\r?\n/v)) {
     const line = rawLine.trim();
     if (line === '' || line.startsWith('#')) {
       continue;
     }
 
-    const match = /^(\d+(?:\.\d+)?)\s*[\|\t]\s*(\d+(?:\.\d+)?)\s*[\|\t]\s*(.+)$/.exec(line);
-    if (match === null) {
+    const parts = splitCueLine(line);
+    if (parts === undefined || !CUE_NUMBER.test(parts[0]) || !CUE_NUMBER.test(parts[1]) || parts[2] === '') {
       throw new Error(`Invalid narration line (expected "start|duration|text"): ${line}`);
     }
 
-    const startSec = Number.parseFloat(match[1] ?? '');
-    const durationSec = Number.parseFloat(match[2] ?? '');
-    const text = (match[3] ?? '').trim();
+    const startSec = Number.parseFloat(parts[0]);
+    const durationSec = Number.parseFloat(parts[1]);
+    const text = parts[2];
     if (!Number.isFinite(startSec) || startSec < 0) {
       throw new Error(`Invalid start time in: ${line}`);
     }
@@ -171,10 +204,14 @@ async function synthesizeMockLine(line: NarrationLine, wavPath: string): Promise
   const frequency = mockToneFrequencyHz(line.text);
   await execFileAsync('ffmpeg', [
     '-y',
-    '-f', 'lavfi',
-    '-i', `sine=frequency=${frequency}:duration=${line.durationSec.toFixed(4)}:sample_rate=${SAMPLE_RATE}`,
-    '-ac', '1',
-    '-acodec', 'pcm_s16le',
+    '-f',
+    'lavfi',
+    '-i',
+    `sine=frequency=${frequency}:duration=${line.durationSec.toFixed(4)}:sample_rate=${SAMPLE_RATE}`,
+    '-ac',
+    '1',
+    '-acodec',
+    'pcm_s16le',
     wavPath,
   ]);
 }
@@ -212,22 +249,28 @@ async function fetchElevenLabsSpeech(line: NarrationLine, config: ElevenLabsSynt
         body: JSON.stringify({text: line.text, model_id: ELEVENLABS_MODEL_ID}),
       });
     } catch (error) {
-      const cause = (error as {cause?: {code?: string}}).cause?.code;
-      throw new Error(`ElevenLabs TTS request failed for line "${snippet}": ${cause ?? (error instanceof Error ? error.message : String(error))}`);
+      let cause: string | undefined;
+      if (error instanceof Error && typeof error.cause === 'object' && error.cause !== null
+        && 'code' in error.cause && typeof error.cause.code === 'string') {
+        cause = error.cause.code;
+      }
+
+      throw new Error(`ElevenLabs TTS request failed for line "${snippet}": ${cause ?? (error instanceof Error ? error.message : String(error))}`, {cause: error});
     }
 
     if (response.ok) {
       return new Uint8Array(await response.arrayBuffer());
     }
 
-    const body = (await response.text()).slice(0, 300);
+    const responseText = await response.text();
+    const body = responseText.slice(0, 300);
     lastFailure = `HTTP ${response.status}${body === '' ? '' : `: ${body}`}`;
     if (!RETRYABLE_HTTP_STATUS.has(response.status)) {
       throw new Error(`ElevenLabs TTS failed for line "${snippet}": ${lastFailure}`);
     }
 
     if (attempt < SYNTHESIS_MAX_ATTEMPTS) {
-      const backoffMs = config.retryBaseMs * 2 ** (attempt - 1);
+      const backoffMs = config.retryBaseMs * (2 ** (attempt - 1));
       const retryAfterSec = Number.parseFloat(response.headers.get('retry-after') ?? '');
       await sleep(Math.max(backoffMs, Number.isFinite(retryAfterSec) ? retryAfterSec * 1000 : 0));
     }
@@ -240,14 +283,18 @@ async function fetchElevenLabsSpeech(line: NarrationLine, config: ElevenLabsSynt
 // mixer expects, returning true so the caller's `realSynthesisRan` flips.
 async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, config: ElevenLabsSynthesisConfig): Promise<boolean> {
   const audio = await fetchElevenLabsSpeech(line, config);
-  const mp3Path = wavPath.replace(/\.wav$/, '.mp3');
+  const mp3Path = wavPath.replace(/\.wav$/v, '.mp3');
   await writeFile(mp3Path, audio);
   await execFileAsync('ffmpeg', [
     '-y',
-    '-i', mp3Path,
-    '-ac', '1',
-    '-ar', String(SAMPLE_RATE),
-    '-acodec', 'pcm_s16le',
+    '-i',
+    mp3Path,
+    '-ac',
+    '1',
+    '-ar',
+    String(SAMPLE_RATE),
+    '-acodec',
+    'pcm_s16le',
     wavPath,
   ]);
   return true;
@@ -255,9 +302,12 @@ async function synthesizeElevenLabsLine(line: NarrationLine, wavPath: string, co
 
 async function probeDurationSec(mediaPath: string): Promise<number> {
   const {stdout} = await execFileAsync('ffprobe', [
-    '-v', 'error',
-    '-show_entries', 'format=duration',
-    '-of', 'csv=p=0',
+    '-v',
+    'error',
+    '-show_entries',
+    'format=duration',
+    '-of',
+    'csv=p=0',
     mediaPath,
   ]);
   const seconds = Number.parseFloat(stdout.trim());
@@ -271,7 +321,8 @@ const sleep = async (ms: number) => new Promise<void>(resolve => {
 function mockToneFrequencyHz(text: string): number {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
-    hash = (hash * 31 + text.charCodeAt(i)) & 0xff_ff_ff_ff;
+    // eslint-disable-next-line no-bitwise -- Deliberate int32 wraparound; a different hash would repitch every mock recording.
+    hash = ((hash * 31) + (text.codePointAt(i) ?? 0)) & 0xFF_FF_FF_FF;
   }
 
   return 220 + (Math.abs(hash) % 440);
@@ -292,18 +343,24 @@ async function mixNarrationTrack(wavPaths: string[], lines: NarrationLine[], out
   }
 
   const labels = wavPaths.map((_value, index) => `[a${index}]`).join('');
-  const totalDurationSec = lines.reduce((max, line) => Math.max(max, line.startSec + line.durationSec), 0);
+  const totalDurationSec = Math.max(0, ...lines.map(line => line.startSec + line.durationSec));
   const filterComplex = `${filterParts.join(';')};${labels}amix=inputs=${wavPaths.length}:duration=longest:normalize=0[out]`;
 
   await execFileAsync('ffmpeg', [
     '-y',
     ...inputs,
-    '-filter_complex', filterComplex,
-    '-map', '[out]',
-    '-t', totalDurationSec.toFixed(4),
-    '-ac', '1',
-    '-ar', String(SAMPLE_RATE),
-    '-acodec', 'pcm_s16le',
+    '-filter_complex',
+    filterComplex,
+    '-map',
+    '[out]',
+    '-t',
+    totalDurationSec.toFixed(4),
+    '-ac',
+    '1',
+    '-ar',
+    String(SAMPLE_RATE),
+    '-acodec',
+    'pcm_s16le',
     outputPath,
   ]);
 }
@@ -311,31 +368,47 @@ async function mixNarrationTrack(wavPaths: string[], lines: NarrationLine[], out
 async function muxAudioOntoVideo(videoPath: string, audioPath: string, outputPath: string): Promise<void> {
   await execFileAsync('ffmpeg', [
     '-y',
-    '-i', videoPath,
-    '-i', audioPath,
-    '-map', '0:v:0',
-    '-map', '1:a:0',
-    '-c:v', 'copy',
-    '-c:a', 'aac',
-    '-b:a', '128k',
+    '-i',
+    videoPath,
+    '-i',
+    audioPath,
+    '-map',
+    '0:v:0',
+    '-map',
+    '1:a:0',
+    '-c:v',
+    'copy',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '128k',
     '-shortest',
-    '-movflags', '+faststart',
+    '-movflags',
+    '+faststart',
     outputPath,
   ]);
 }
 
 async function probeStreamCounts(mediaPath: string): Promise<{audioStreams: number; videoStreams: number}> {
   const {stdout} = await execFileAsync('ffprobe', [
-    '-v', 'error',
-    '-show_entries', 'stream=codec_type',
-    '-of', 'csv=p=0',
+    '-v',
+    'error',
+    '-show_entries',
+    'stream=codec_type',
+    '-of',
+    'csv=p=0',
     mediaPath,
   ]);
   let audioStreams = 0;
   let videoStreams = 0;
-  for (const codecType of stdout.trim().split(/\r?\n/)) {
-    if (codecType === 'audio') audioStreams++;
-    if (codecType === 'video') videoStreams++;
+  for (const codecType of stdout.trim().split(/\r?\n/v)) {
+    if (codecType === 'audio') {
+      audioStreams++;
+    }
+
+    if (codecType === 'video') {
+      videoStreams++;
+    }
   }
 
   return {audioStreams, videoStreams};
@@ -347,4 +420,6 @@ async function fileSize(path: string): Promise<number> {
 }
 
 // Re-export for test introspection.
-export const __test__ = {mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo, fetchElevenLabsSpeech};
+export const __test__ = {
+  mockToneFrequencyHz, mixNarrationTrack, muxAudioOntoVideo, fetchElevenLabsSpeech,
+};

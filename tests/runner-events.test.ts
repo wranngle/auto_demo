@@ -4,7 +4,6 @@
 // with the git_good ECS-shaped JSONL ledger doctrine.
 
 import {describe, expect, test} from 'vitest';
-// eslint-disable-next-line @typescript-eslint/naming-convention
 import {formatEventNdjson, __test__} from '../src/runner.js';
 import type {DemoTiming, StepEvent} from '../src/types.js';
 

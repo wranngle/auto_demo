@@ -1,5 +1,7 @@
 import {readFile, writeFile} from 'node:fs/promises';
-import {basename, isAbsolute, join, relative} from 'node:path';
+import {
+  basename, isAbsolute, join, relative,
+} from 'node:path';
 import type {RunResult, StepEvent} from '../types.js';
 
 export type StoryboardRow = {
@@ -22,7 +24,7 @@ export async function buildStoryboard(runDir: string): Promise<Storyboard> {
   const rows = manifest.events
     .filter(event => typeof event.artifact === 'string' && event.artifact.length > 0)
     .map((event): StoryboardRow => {
-      const imagePath = event.artifact as string;
+      const imagePath = event.artifact!;
       const imageRelative = isAbsolute(imagePath)
         ? relative(runDir, imagePath) || basename(imagePath)
         : imagePath;
@@ -68,18 +70,27 @@ export async function writeStoryboard(runDir: string): Promise<{path: string; ro
   return {path: outputPath, rowCount: storyboard.rows.length};
 }
 
+// Structural gate for a recorded manifest: a type predicate is the sanctioned
+// narrowing for JSON.parse output. flowName is checked separately so the two
+// failure modes keep their distinct messages.
+type ManifestCandidate = Omit<RunResult, 'flowName'> & {flowName: unknown};
+
+function isManifestShape(value: unknown): value is ManifestCandidate {
+  return typeof value === 'object' && value !== null && 'events' in value && Array.isArray(value.events);
+}
+
 function parseManifest(raw: string, manifestPath: string): RunResult {
-  const parsed = JSON.parse(raw) as unknown;
-  if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as RunResult).events)) {
+  const parsed: unknown = JSON.parse(raw);
+  if (!isManifestShape(parsed)) {
     throw new Error(`Manifest at ${manifestPath} is missing an "events" array`);
   }
 
-  const candidate = parsed as RunResult;
-  if (typeof candidate.flowName !== 'string') {
-    throw new Error(`Manifest at ${manifestPath} is missing "flowName"`);
+  const {flowName} = parsed;
+  if (typeof flowName !== 'string') {
+    throw new TypeError(`Manifest at ${manifestPath} is missing "flowName"`);
   }
 
-  return candidate;
+  return {...parsed, flowName};
 }
 
 function narrationFor(event: StepEvent): string {
@@ -91,5 +102,5 @@ function narrationFor(event: StepEvent): string {
 }
 
 function escapePipes(value: string): string {
-  return value.replaceAll('|', '\\|').replaceAll('\n', ' ');
+  return value.replaceAll('|', String.raw`\|`).replaceAll('\n', ' ');
 }

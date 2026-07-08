@@ -16,7 +16,9 @@ const script: FromUrlScript = {
   steps: [
     {selector: 'nav >> text=Billing', action: 'click', narration: 'Open the Billing page from the main navigation.'},
     {selector: '#add-card', action: 'click', narration: 'Start adding a new credit card.'},
-    {selector: '#card-number', action: 'fill', narration: 'Enter the card number.', value: '4242'},
+    {
+      selector: '#card-number', action: 'fill', narration: 'Enter the card number.', value: '4242',
+    },
   ],
 };
 
@@ -81,11 +83,23 @@ describe('library barrel (src/index.ts)', () => {
   test('exposes the documented programmatic surface', async () => {
     const lib = await import('../src/index.js');
     for (const name of [
-      'runFlow', 'loadFlow', 'validateFlow', 'renderNarration', 'renderSplit',
-      'renderVertical', 'writeRegressArtifacts', 'buildRegressReport',
-      'generateScriptFromUrl', 'renderNarrationScript', 'watchOnce',
-      'writeStoryboard', 'renderAnimatedSvg', 'buildWidgetScenario',
-      'retimeRecordingToRealTime', 'parseQualityPreset', 'parseLanguages',
+      'runFlow',
+      'loadFlow',
+      'validateFlow',
+      'renderNarration',
+      'renderSplit',
+      'renderVertical',
+      'writeRegressArtifacts',
+      'buildRegressReport',
+      'generateScriptFromUrl',
+      'renderNarrationScript',
+      'watchOnce',
+      'writeStoryboard',
+      'renderAnimatedSvg',
+      'buildWidgetScenario',
+      'retimeRecordingToRealTime',
+      'parseQualityPreset',
+      'parseLanguages',
     ]) {
       expect(typeof (lib as Record<string, unknown>)[name], `barrel must export ${name}`).toBe('function');
     }

@@ -24,7 +24,7 @@ describe('buildStoryboard parseManifest', () => {
   });
 });
 
-// renderStoryboardMarkdown is a pure function (Storyboard → markdown string).
+// RenderStoryboardMarkdown is a pure function (Storyboard → markdown string).
 // storyboard.bats exercises the populated-table branch end-to-end against a
 // fixture run directory; this block locks the empty-rows branch (the
 // user-facing "no keyframes" message) and pipe-escaping behavior. Both are
@@ -42,8 +42,12 @@ describe('renderStoryboardMarkdown', () => {
       flowName: 'demo',
       runDir: '/tmp/demo',
       rows: [
-        {imagePath: '/tmp/demo/screenshots/a.png', imageRelative: 'screenshots/a.png', timestamp: '2026-05-14T00:00:00Z', narration: 'opener'},
-        {imagePath: '/tmp/demo/screenshots/b.png', imageRelative: 'screenshots/b.png', timestamp: '2026-05-14T00:00:01Z', narration: 'close'},
+        {
+          imagePath: '/tmp/demo/screenshots/a.png', imageRelative: 'screenshots/a.png', timestamp: '2026-05-14T00:00:00Z', narration: 'opener',
+        },
+        {
+          imagePath: '/tmp/demo/screenshots/b.png', imageRelative: 'screenshots/b.png', timestamp: '2026-05-14T00:00:01Z', narration: 'close',
+        },
       ],
     });
     expect(md).toContain('| # | Keyframe | Timestamp | Narration |');
@@ -59,11 +63,13 @@ describe('renderStoryboardMarkdown', () => {
       flowName: 'pipes',
       runDir: '/tmp/pipes',
       rows: [
-        {imagePath: '/tmp/pipes/screenshots/a.png', imageRelative: 'screenshots/a.png', timestamp: '2026-05-14T00:00:00Z', narration: 'has | pipe'},
+        {
+          imagePath: '/tmp/pipes/screenshots/a.png', imageRelative: 'screenshots/a.png', timestamp: '2026-05-14T00:00:00Z', narration: 'has | pipe',
+        },
       ],
     });
     // Literal `|` inside narration must be escaped (markdown table cells can't contain `|`).
-    expect(md).toContain('has \\| pipe');
-    expect(md).not.toContain(' has | pipe '); // unescaped form should not appear in the data row
+    expect(md).toContain(String.raw`has \| pipe`);
+    expect(md).not.toContain(' has | pipe '); // Unescaped form should not appear in the data row
   });
 });

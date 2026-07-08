@@ -1,5 +1,7 @@
 import {existsSync} from 'node:fs';
-import {mkdtemp, readdir, readFile, writeFile} from 'node:fs/promises';
+import {
+  mkdtemp, readdir, readFile, writeFile,
+} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {join, resolve} from 'node:path';
@@ -24,13 +26,15 @@ const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // `data-agent-id` ↔ `agentId`; `data-orb-1` ↔ `orb1`; `data-text-contents` ↔
 // `textContents`. Numeric digits are kept as the next char without removing the
 // hyphen letter case (matching how the browser actually maps dataset keys).
-const kebabToCamel = (s: string): string => s.replace(/-([a-z0-9])/gu, (_match, c: string) => c.toUpperCase());
-const camelToKebab = (s: string): string => s.replace(/([A-Z0-9])/gu, '-$1').toLowerCase();
+const kebabToCamel = (s: string): string => s.replaceAll(/-([a-z0-9])/gv, (_match, c: string) => c.toUpperCase());
+const camelToKebab = (s: string): string => s.replaceAll(/([A-Z0-9])/gv, '-$1').toLowerCase();
 
 function scenario(overrides: Partial<WidgetScenario> = {}): WidgetScenario {
   return validateScenario({
     name: 'acme-co',
-    business: {name: 'Acme Co.', tagline: 'We ship on time', accent: '#ff5f00', vertical: 'ecommerce'},
+    business: {
+      name: 'Acme Co.', tagline: 'We ship on time', accent: '#ff5f00', vertical: 'ecommerce',
+    },
     agent: {name: 'Ada', greeting: 'Hi, I can help.'},
     intro: 'Watch the agent work.',
     outro: 'All handled.',
@@ -77,7 +81,7 @@ describe('widget scenario → page + flow (central promise)', () => {
     const withBreakout = scenario();
     withBreakout.turns[0]!.reply.unshift({say: 'Edge </script> case <b>.'});
     const html = renderWidgetPage(withBreakout);
-    const match = /<script type="application\/json" id="convai-scenario">(.*?)<\/script>/s.exec(html);
+    const match = /<script type="application\/json" id="convai-scenario">(.*?)<\/script>/sv.exec(html);
 
     expect(match).not.toBeNull();
     const raw = match![1]!;
@@ -145,14 +149,14 @@ describe('widget scenario → page + flow (central promise)', () => {
     // Pull every `data-<kebab>` attribute name set inside liveBodyAttrs.
     // Kebab segments may end in digits (e.g. `data-orb-1`).
     const writes = new Set<string>();
-    for (const match of renderSrc.matchAll(/`data-([a-z0-9-]+)=/gu)) {
+    for (const match of renderSrc.matchAll(/`data-([a-z0-9\-]+)=/gv)) {
       writes.add(kebabToCamel(match[1]!));
     }
 
     // Pull every `body.dataset.<camel>` read inside LIVE_WIDGET_RUNTIME.
     // Keys may include trailing digits (e.g. `orb1` from `data-orb-1`).
     const reads = new Set<string>();
-    for (const match of runtimeSrc.matchAll(/body\.dataset\.([a-zA-Z][a-zA-Z0-9]*)/gu)) {
+    for (const match of runtimeSrc.matchAll(/body\.dataset\.([a-zA-Z][a-zA-Z0-9]*)/gv)) {
       reads.add(match[1]!);
     }
 
@@ -195,7 +199,7 @@ describe('widget scenario → page + flow (central promise)', () => {
     expect(liveFlow.metadata?.source).toBe('ui-demo-runner widget (real ElevenLabs agent)');
   });
 
-  // src/widget/render.ts conditionally spreads `capability` and
+  // Src/widget/render.ts conditionally spreads `capability` and
   // `vertical` into metadata: present in the scenario → field included,
   // absent → field omitted (not just `undefined`). A refactor that flips
   // to unconditional spread or `null`-filling would change the wire shape
@@ -209,7 +213,9 @@ describe('widget scenario → page + flow (central promise)', () => {
     // Both present.
     const fullFlow = buildDemoFlow(scenario({
       capability: 'booking + reschedule',
-      business: {name: 'B', tagline: 't', accent: '#aa3344', vertical: 'salon'},
+      business: {
+        name: 'B', tagline: 't', accent: '#aa3344', vertical: 'salon',
+      },
     }), 'x.html');
     expect(fullFlow.metadata?.capability).toBe('booking + reschedule');
     expect(fullFlow.metadata?.vertical).toBe('salon');
@@ -238,7 +244,7 @@ describe('scenario validation', () => {
       .toThrow(/say.*beat is required/v);
   });
 
-  // live.avatarImage: optional brand avatar URL; the renderer stamps it as
+  // Live.avatarImage: optional brand avatar URL; the renderer stamps it as
   // data-avatar-image and the widget runtime forwards it as
   // avatar-image-url. Was a dangling runtime read until wired end-to-end.
   test('live.avatarImage is accepted and rendered into the live page body', () => {
@@ -257,7 +263,7 @@ describe('scenario validation', () => {
       .toThrow(/avatarImage/v);
   });
 
-  // scenario.ts enforces a non-empty reply array — both forms (omitted and
+  // Scenario.ts enforces a non-empty reply array — both forms (omitted and
   // empty []) hit the same throw. A turn with no beats would produce a flow
   // with a Send step but no waitForText, freezing the recorder; lock the error
   // path so a refactor that loosens the check fails CI before publishing a
@@ -272,7 +278,7 @@ describe('scenario validation', () => {
       .toThrow(/reply.*non-empty array of beats/v);
   });
 
-  // scenario.ts: a {say: ''} beat passes the string-type check but
+  // Scenario.ts: a {say: ''} beat passes the string-type check but
   // fails the `nonEmpty` guard. Authors who paste an unfilled template (empty
   // string placeholder) get a clear error instead of a silent zero-length
   // waitForText that would hang the recorder.
@@ -312,12 +318,16 @@ describe('scenario validation', () => {
   });
 
   test('accepts a live block with branding, linkHosts, and client tools', () => {
-    const parsed = validateScenario({...base, live: {
-      agentId: 'agent_x',
-      branding: {mainLabel: 'Acme', startCall: 'Talk to Ada'},
-      linkHosts: ['acme.example.com'],
-      clientTools: [{name: 'lookup', description: 'look up', params: [{name: 'id', description: 'the id', required: true}], result: {ok: true}}],
-    }});
+    const parsed = validateScenario({
+      ...base, live: {
+        agentId: 'agent_x',
+        branding: {mainLabel: 'Acme', startCall: 'Talk to Ada'},
+        linkHosts: ['acme.example.com'],
+        clientTools: [{
+          name: 'lookup', description: 'look up', params: [{name: 'id', description: 'the id', required: true}], result: {ok: true},
+        }],
+      },
+    });
     expect(parsed.live?.clientTools?.[0]?.name).toBe('lookup');
     expect(parsed.live?.branding?.mainLabel).toBe('Acme');
   });
@@ -347,7 +357,7 @@ describe('scenario validation', () => {
       .toThrow(/linkHosts.*string\[\]/v);
   });
 
-  // optionalViewport enforces width >= 320 and height >= 240 — a sane lower
+  // OptionalViewport enforces width >= 320 and height >= 240 — a sane lower
   // bound for recordings (anything smaller and the cursor overlay + caption
   // strip stop being readable). Locks those thresholds so a refactor that
   // drops the bound or flips it to a non-integer check fails CI.
@@ -361,7 +371,7 @@ describe('scenario validation', () => {
       .toThrow(/viewport\.height/v);
   });
 
-  // loadScenario() is the file-IO entry point (scenario.ts) and wraps a
+  // LoadScenario() is the file-IO entry point (scenario.ts) and wraps a
   // JSON.parse failure with a helpful error: "Invalid JSON in <abs-path>: ...".
   // This was the only file-IO throw left untested — a refactor that swallowed
   // the catch or stripped the cause would slip past CI.
@@ -396,7 +406,9 @@ describe('live data-client-tools payload shape', () => {
       live: {
         agentId: 'agent_x',
         clientTools: [
-          {name: 'lookup_order', description: 'look up an order', params: [{name: 'id', description: 'order id', required: true}], result: {status: 'shipped', eta: 'tomorrow'}},
+          {
+            name: 'lookup_order', description: 'look up an order', params: [{name: 'id', description: 'order id', required: true}], result: {status: 'shipped', eta: 'tomorrow'},
+          },
           {name: 'issue_refund', description: 'refund it', result: {refund_id: 'RMA-1', amount: '$10'}},
         ],
       },
@@ -404,7 +416,7 @@ describe('live data-client-tools payload shape', () => {
     });
 
     const payload = clientToolsPayload(renderWidgetPage(scenario));
-    expect(Object.keys(payload).sort()).toEqual(['issue_refund', 'lookup_order']);
+    expect(Object.keys(payload).toSorted()).toEqual(['issue_refund', 'lookup_order']);
     expect(payload.lookup_order).toEqual({status: 'shipped', eta: 'tomorrow'});
     expect(payload.issue_refund).toEqual({refund_id: 'RMA-1', amount: '$10'});
     // The result is the WHOLE payload for that tool — no description/params/name leaked in.
@@ -433,7 +445,10 @@ describe('live data-client-tools payload shape', () => {
 describe('mock ↔ real-widget selector contract', () => {
   test('WIDGET_SELECTORS match the literals the live flow-specs target', async () => {
     const specPath = resolve(repoRoot, 'docs/wranngle-hero-demo/flow-specs/rich/trattoria.demo.json');
-    if (!existsSync(specPath)) return; // private flow-spec absent (CI / fresh clone) — skip the drift check
+    if (!existsSync(specPath)) {
+      return;
+    } // Private flow-spec absent (CI / fresh clone) — skip the drift check
+
     const liveSpec = JSON.parse(await readFile(specPath, 'utf8')) as {steps: Array<{selector?: string}>};
     const selectors = liveSpec.steps.map(step => step.selector ?? '');
 
@@ -606,10 +621,10 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{agentId: string}>;
     const known = new Set(agents.map(a => a.agentId));
     const dir = resolve(repoRoot, 'examples/widget');
-    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const dirEntries = await readdir(dir);
+    const files = dirEntries.filter((name: string) => name.endsWith('.scenario.json'));
     expect(files.length).toBeGreaterThanOrEqual(7);
     for (const name of files) {
-      // eslint-disable-next-line no-await-in-loop
       const {scenario} = await loadScenario(resolve(dir, name));
       if (scenario.live?.agentId !== undefined) {
         expect(known, `${name} references agent ${scenario.live.agentId} which is not in agents.json`).toContain(scenario.live.agentId);
@@ -625,10 +640,10 @@ describe('shipped example scenarios (live + dual-mode)', () => {
   test('agents.json has no orphans: every entry is referenced by some scenario.live.agentId', async () => {
     const agents = JSON.parse(await readFile(resolve(repoRoot, 'examples/widget/agents.json'), 'utf8')) as Array<{agentId: string}>;
     const dir = resolve(repoRoot, 'examples/widget');
-    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const dirEntries = await readdir(dir);
+    const files = dirEntries.filter((name: string) => name.endsWith('.scenario.json'));
     const referenced = new Set<string>();
     for (const name of files) {
-      // eslint-disable-next-line no-await-in-loop
       const {scenario} = await loadScenario(resolve(dir, name));
       if (scenario.live?.agentId !== undefined) {
         referenced.add(scenario.live.agentId);
@@ -664,7 +679,7 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     const userDay = dayPattern.exec(bookingTurn!.user)?.[1];
     const toolBeat = bookingTurn!.reply.find(beat => 'tool' in beat && beat.tool === 'book_demo') as {args?: {start?: string}};
     const toolDay = dayPattern.exec(String(toolBeat?.args?.start ?? ''))?.[1];
-    const confirmBeat = [...bookingTurn!.reply].reverse().find(beat => 'say' in beat) as {say: string};
+    const confirmBeat = bookingTurn!.reply.toReversed().find(beat => 'say' in beat) as {say: string};
     const confirmDay = dayPattern.exec(confirmBeat.say)?.[1];
 
     expect(userDay, 'user message must name a day-of-week').toBeDefined();
@@ -672,7 +687,7 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     expect(confirmDay, `confirmation reply must name the same day as the user (${userDay})`).toBe(userDay);
   });
 
-  // wranngle-scheduling is structurally distinct from the six vertical demos
+  // Wranngle-scheduling is structurally distinct from the six vertical demos
   // (real workspace tool, no canned clientTools, fewer turns), so it can't ride
   // the vertical test.each above. This guards its own load/render/flow contract
   // so a malformed edit to the dedicated Cal.com scenario fails loudly.
@@ -705,11 +720,14 @@ describe('shipped example scenarios (live + dual-mode)', () => {
     const defaultHero = 'A conversational AI front desk that books, looks things up, and gets work done on your behalf.';
     const defaultFeatures = ['Answers instantly', 'Uses your tools', 'Hands off cleanly'];
     const dir = resolve(repoRoot, 'examples/widget');
-    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const dirEntries = await readdir(dir);
+    const files = dirEntries.filter((name: string) => name.endsWith('.scenario.json'));
     for (const name of files) {
-      // eslint-disable-next-line no-await-in-loop
       const {scenario: loaded} = await loadScenario(resolve(dir, name));
-      if (loaded.business.vertical === undefined) continue;
+      if (loaded.business.vertical === undefined) {
+        continue;
+      }
+
       const html = renderWidgetPage(loaded);
       expect(html, `${name} (vertical=${loaded.business.vertical}) falls through to the generic hero copy`).not.toContain(defaultHero);
       for (const phrase of defaultFeatures) {
@@ -721,7 +739,6 @@ describe('shipped example scenarios (live + dual-mode)', () => {
   test('the six vertical demos carry NO workspace tool ids (real-action boundary)', async () => {
     const verticals = ['restaurant-trattoria', 'dental-emergency', 'salon-recovery', 'ecommerce-returns', 'medspa-consult', 'hvac-dispatch'];
     for (const name of verticals) {
-      // eslint-disable-next-line no-await-in-loop
       const {scenario: loaded} = await loadScenario(resolve(repoRoot, `examples/widget/${name}.scenario.json`));
       expect(loaded.live?.workspaceToolIds ?? [], `${name} must not attach a workspace tool`).toEqual([]);
     }
@@ -733,14 +750,15 @@ describe('shipped example scenarios (live + dual-mode)', () => {
   // them so the next renumber fails CI instead of shipping stale prose.
   test('doctrine drift: README digit-counts and agents.json mirror the on-disk scenario count', async () => {
     const dir = resolve(repoRoot, 'examples/widget');
-    const scenarios = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const dirEntries = await readdir(dir);
+    const scenarios = dirEntries.filter((name: string) => name.endsWith('.scenario.json'));
     const agents = JSON.parse(await readFile(resolve(dir, 'agents.json'), 'utf8')) as unknown[];
     const count = scenarios.length;
 
     expect(agents, 'agents.json must mirror the scenarios-on-disk count').toHaveLength(count);
 
     const readme = await readFile(resolve(repoRoot, 'README.md'), 'utf8');
-    const patterns = [/(\d+)\s+demo agents/g, /record all\s+(\d+)/g];
+    const patterns = [/(\d+)\s+demo agents/gv, /record all\s+(\d+)/gv];
     for (const pattern of patterns) {
       for (const match of readme.matchAll(pattern)) {
         expect(Number(match[1]), `README phrase "${match[0]}" must match scenario count ${count}`).toBe(count);
@@ -757,16 +775,17 @@ describe('shipped example scenarios (live + dual-mode)', () => {
   // vertical without updating CHANGELOG fails CI.
   test('doctrine drift: CHANGELOG vertical-names list mirrors scenario business.vertical values', async () => {
     const dir = resolve(repoRoot, 'examples/widget');
-    const files = (await readdir(dir)).filter((name: string) => name.endsWith('.scenario.json'));
+    const dirEntries = await readdir(dir);
+    const files = dirEntries.filter((name: string) => name.endsWith('.scenario.json'));
     const scenarios = await Promise.all(files.map(async name => loadScenario(resolve(dir, name))));
-    // saas (wranngle-scheduling) is the explicitly-separated seventh; the six
+    // Saas (wranngle-scheduling) is the explicitly-separated seventh; the six
     // "vertical demos" are everything else with a declared vertical.
     const sixVerticals = new Set(scenarios
       .map(({scenario}) => scenario.business.vertical)
       .filter((v): v is string => typeof v === 'string' && v !== 'saas'));
 
     const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
-    const match = /six vertical demos\s*\(([^)]+)\)/u.exec(changelog);
+    const match = /six vertical demos\s*\(([^\)]+)\)/v.exec(changelog);
     expect(match, 'CHANGELOG must contain a "six vertical demos (a, b, c, ...)" phrase').not.toBeNull();
     const claimed = new Set(match![1]!.split(',').map(s => s.trim()));
 
@@ -779,16 +798,16 @@ describe('shipped example scenarios (live + dual-mode)', () => {
   // claim to the on-disk reality so a future PR that adds a 34th bats case fails
   // CI until the CHANGELOG number catches up.
   test('doctrine drift: CHANGELOG bats-suite count phrase matches tests/*.bats on disk', async () => {
-    const batsFiles = (await readdir(resolve(repoRoot, 'tests'))).filter((name: string) => name.endsWith('.bats')).sort();
+    const testsDirEntries = await readdir(resolve(repoRoot, 'tests'));
+    const batsFiles = testsDirEntries.filter((name: string) => name.endsWith('.bats')).toSorted();
     let cases = 0;
     for (const f of batsFiles) {
-      // eslint-disable-next-line no-await-in-loop
       const raw = await readFile(resolve(repoRoot, 'tests', f), 'utf8');
-      cases += (raw.match(/^@test /gmu) ?? []).length;
+      cases += (raw.match(/^@test /gmv) ?? []).length;
     }
 
     const changelog = await readFile(resolve(repoRoot, 'CHANGELOG.md'), 'utf8');
-    const match = /Bats shell-integration suite \((\d+)\s+cases across\s+(\d+)\s+files/u.exec(changelog);
+    const match = /Bats shell-integration suite \((\d+)\s+cases across\s+(\d+)\s+files/v.exec(changelog);
     expect(match, 'CHANGELOG must contain the "Bats shell-integration suite (N cases across M files)" phrase').not.toBeNull();
     expect(Number(match![1]), `CHANGELOG claims ${match![1]} bats cases; tests/*.bats has ${cases}`).toBe(cases);
     expect(Number(match![2]), `CHANGELOG claims ${match![2]} bats files; tests/*.bats has ${batsFiles.length}`).toBe(batsFiles.length);

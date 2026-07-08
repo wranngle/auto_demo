@@ -3,10 +3,14 @@
 // this single helper for credential resolution. A silent regression in
 // precedence (file > env), quote-handling, or the throw message would
 // break every batch invocation simultaneously.
-import {mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
+import {
+  mkdtemp, mkdir, writeFile, rm,
+} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
+import {
+  afterEach, beforeEach, describe, expect, test, vi,
+} from 'vitest';
 import {loadElevenLabsKey} from '../scripts/_lib/load-elevenlabs-key.mjs';
 
 let fakeHome: string;
@@ -45,7 +49,7 @@ describe('loadElevenLabsKey: credential resolution', () => {
   });
 
   test('strips surrounding single quotes from the file value', async () => {
-    await writeAgentsEnv("ELEVENLABS_API_KEY='single-quoted'\n");
+    await writeAgentsEnv('ELEVENLABS_API_KEY=\'single-quoted\'\n');
     expect(await loadElevenLabsKey()).toBe('single-quoted');
   });
 
