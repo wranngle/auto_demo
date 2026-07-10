@@ -2,9 +2,16 @@
 
 ![auto_demo hero: the CLI records a browser flow and writes a reproducible video](docs/hero.gif)
 
-Deterministic CLI recorder for browser UI demos (package name:
-`ui-demo-runner`). One command, one flow file, one reproducible video,
-every time.
+> deterministic CLI recorder for browser UI demos.
+
+[![CI](https://github.com/wranngle/auto_demo/actions/workflows/ci.yml/badge.svg)](https://github.com/wranngle/auto_demo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/wranngle/auto_demo?color=A371F7)](LICENSE)
+![status](https://img.shields.io/badge/status-active-brightgreen)
+
+> [!NOTE]
+> Personal tool. I use this. You can too.
+
+One command, one flow file, one reproducible video, every time.
 
 ```bash
 npm run demo:smoke
@@ -18,8 +25,9 @@ exactly what happened.
 ## Why this exists
 
 The obvious off-the-shelf candidate is screencli. It is close, but local testing
-showed it forces first-run hosted auth unless an Anthropic API key or screencli
-config already exists. That fails the bar for unattended repo-local recording.
+showed it forces first-run hosted GitHub-login auth unless a screencli config
+already exists, with no local or API-key path around it. That fails the bar
+for unattended repo-local recording.
 
 This repo uses Playwright as the first backend because it is deterministic, local,
 and already gives us browser control plus video capture. AI can still help author
@@ -33,6 +41,9 @@ npm install
 npx playwright install chromium
 npm run build
 ```
+
+The npm package name is `ui-demo-runner` (see `package.json`); it is not
+published to the registry, so install and run it from this repo's source.
 
 You also need `ffmpeg` + `ffprobe` on `PATH` (`apt install ffmpeg` / `brew install
 ffmpeg`). The recorder calls them to (a) re-time every webm to real-time
@@ -333,6 +344,10 @@ node dist/cli.js watch --once \
   --fixture fixtures/old-dom.html \
   --next fixtures/new-dom.html
 ```
+
+## License
+
+[MIT](LICENSE)
 
 ## Design bias
 
