@@ -2,7 +2,7 @@
 
 ![auto_demo hero: the CLI records a browser flow and writes a reproducible video](docs/hero.gif)
 
-> deterministic CLI recorder for browser UI demos.
+> one flow file yields deterministic Playwright video, manifest, screenshots, no LLM at record time
 
 [![CI](https://github.com/wranngle/auto_demo/actions/workflows/ci.yml/badge.svg)](https://github.com/wranngle/auto_demo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/wranngle/auto_demo?color=A371F7)](LICENSE)
@@ -11,28 +11,18 @@
 > [!NOTE]
 > Personal tool. I use this. You can too.
 
-One command, one flow file, one reproducible video, every time.
+## What it does
+
+You check a demo flow file into the repo; the CLI replays it with Playwright and writes a reproducible video, screenshots, and a manifest. AI may author or repair the flow file; it never drives the recording run.
 
 ```bash
 npm run demo:smoke
 # → .work/smoke-demo/recording.webm + manifest.json + screenshots/
 ```
 
-Stop hand-recording the same Loom walkthroughs. Put the demo flow in a repo,
-run it from the CLI, and get a video, screenshots, and a manifest that says
-exactly what happened.
-
 ## Why this exists
 
-The obvious off-the-shelf candidate is screencli. It is close, but local testing
-showed it forces first-run hosted GitHub-login auth unless a screencli config
-already exists, with no local or API-key path around it. That fails the bar
-for unattended repo-local recording.
-
-This repo uses Playwright as the first backend because it is deterministic, local,
-and already gives us browser control plus video capture. AI can still help author
-or repair flow files, but the recording run itself should not depend on a chatty
-agent improvising against the page.
+screencli is the obvious alternative, but it forces hosted GitHub-login auth on first run, has no local API-key path, and runs its AI in the cloud, which fails the bar for unattended repo-local recording. Playwright is deterministic and local, with browser control and video capture built in, so the recording run needs no login and no cloud call.
 
 ## Install
 
