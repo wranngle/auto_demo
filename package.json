@@ -1,7 +1,7 @@
 {
   "name": "ui-demo-runner",
   "version": "0.1.0",
-  "description": "Deterministic CLI recorder for browser UI demos — flow files, plus an ElevenLabs ConvAI widget mode (live agent or mock).",
+  "description": "Deterministic CLI recorder for browser UI demos: flow files in, video plus manifest plus screenshots out, with an ElevenLabs ConvAI widget mode (live agent or mock).",
   "type": "module",
   "bin": {
     "ui-demo-runner": "./dist/cli.js"
@@ -11,6 +11,9 @@
     "url": "git+https://github.com/wranngle/auto_demo.git"
   },
   "homepage": "https://github.com/wranngle/auto_demo#readme",
+  "bugs": {
+    "url": "https://github.com/wranngle/auto_demo/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -35,7 +38,7 @@
     "test": "vitest run",
     "test:bats": "bats tests/*.bats",
     "lint": "xo src tests",
-    "package:smoke": "npm run build && npm pack --dry-run",
+    "package:smoke": "npm run build && node scripts/pack-smoke.mjs",
     "prepare": "npm run build",
     "demo:smoke": "npm run build && node dist/cli.js run examples/local-smoke.demo.json --output .work/smoke-demo"
   },
@@ -54,6 +57,9 @@
   ],
   "author": "Cody Arnold",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
